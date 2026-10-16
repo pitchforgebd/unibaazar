@@ -2,6 +2,11 @@ import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/db";
 import { siteOrigin } from "@/server/tracking/config";
 
+// Queries the DB, so this can't be prerendered at build time (same reason
+// the product/category/brand pages don't eagerly list their slugs either) —
+// generated fresh per request instead, same as every other feed route.
+export const dynamic = "force-dynamic";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const origin = siteOrigin();
   const [products, categories, posts, pages, hidden] = await Promise.all([
