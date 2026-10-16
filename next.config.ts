@@ -31,6 +31,14 @@ const contentSecurityPolicy = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Shared/constrained hosts (e.g. cPanel + CloudLinux) often report a CPU
+  // count far above what the account is actually allowed to run as
+  // processes, so Next's default "one build worker per core" trips the
+  // host's process-limit guard with EAGAIN. One worker avoids that; it
+  // only slows the build, it never affects the running app.
+  experimental: {
+    cpus: 1,
+  },
   async headers() {
     const headers = [
       { key: "X-Frame-Options", value: "DENY" },
