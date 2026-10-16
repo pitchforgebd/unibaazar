@@ -1,0 +1,2 @@
+npx lint-staged
+npm run test:variants && npm run test:security

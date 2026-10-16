@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+@layer base {
+  html {
+    color-scheme: light;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-poppins), var(--font-noto-bengali), sans-serif;
+  }
+}

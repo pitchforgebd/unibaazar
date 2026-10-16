@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE `order` ADD COLUMN `utmCampaign` VARCHAR(100) NULL,
+    ADD COLUMN `utmContent` VARCHAR(100) NULL,
+    ADD COLUMN `utmMedium` VARCHAR(100) NULL,
+    ADD COLUMN `utmSource` VARCHAR(100) NULL,
+    ADD COLUMN `utmTerm` VARCHAR(100) NULL;

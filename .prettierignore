@@ -1,0 +1,9 @@
+node_modules
+ECOMMERCE_PROJECT_PLAN.md
+.next
+out
+build
+coverage
+package-lock.json
+public
+prisma/migrations
