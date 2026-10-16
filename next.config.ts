@@ -38,12 +38,6 @@ const nextConfig: NextConfig = {
   // only slows the build, it never affects the running app.
   experimental: {
     cpus: 1,
-    // cpus: 1 only bounds the compile-step worker pool. Page-data-collection
-    // and static generation use a separate pool that still forks an OS
-    // process per worker unless this is on — worker *threads* don't need a
-    // spawn() syscall at all, which is what a tight host process limit
-    // (EAGAIN) is actually guarding.
-    workerThreads: true,
   },
   // The "Linting and checking validity of types" build step is the single
   // heaviest part of `next build` memory-wise, and this repo already runs
