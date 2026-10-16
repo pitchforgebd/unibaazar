@@ -14,7 +14,7 @@ const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   prettier,
   {
-    files: ["server.js", "seo-hook.cjs"],
+    files: ["server.js", "seo-hook.cjs", "scripts/bootstrap-admin.cjs"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
     },
