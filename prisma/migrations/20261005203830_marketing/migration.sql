@@ -1,11 +1,11 @@
 -- AlterTable
-ALTER TABLE `coupon` ADD COLUMN `categoryId` VARCHAR(191) NULL,
+ALTER TABLE `Coupon` ADD COLUMN `categoryId` VARCHAR(191) NULL,
     ADD COLUMN `perUserLimit` INTEGER NULL,
     ADD COLUMN `productId` VARCHAR(191) NULL,
     MODIFY `type` ENUM('PERCENT', 'FIXED', 'FREE_SHIPPING') NOT NULL;
 
 -- AlterTable
-ALTER TABLE `flashsaleitem` ADD COLUMN `qtyLimit` INTEGER NULL;
+ALTER TABLE `FlashSaleItem` ADD COLUMN `qtyLimit` INTEGER NULL;
 
 -- CreateTable
 CREATE TABLE `Subscriber` (

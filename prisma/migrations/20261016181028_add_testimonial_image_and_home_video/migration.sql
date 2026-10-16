@@ -1,5 +1,5 @@
 -- AlterTable
-ALTER TABLE `testimonial` ADD COLUMN `imageUrl` VARCHAR(500) NULL;
+ALTER TABLE `Testimonial` ADD COLUMN `imageUrl` VARCHAR(500) NULL;
 
 -- CreateTable
 CREATE TABLE `HomeVideo` (
