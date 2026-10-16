@@ -50,14 +50,26 @@ export const faqSchema = z.object({
   answer: z.string().trim().min(1, "Enter an answer").max(2000),
 });
 
-export const testimonialSchema = z.object({
+export const testimonialSchema = z
+  .object({
+    id: z.string().trim().optional().default(""),
+    name: z.string().trim().min(1, "Enter a name").max(191),
+    quote: z.string().trim().max(1000).optional().default(""),
+    rating: z
+      .string()
+      .trim()
+      .regex(/^[1-5]$/, "Choose a rating from 1 to 5"),
+    imageUrl: z.string().trim().max(500).optional().default(""),
+  })
+  .refine((value) => value.quote || value.imageUrl, {
+    message: "Enter a quote or upload a screenshot",
+    path: ["quote"],
+  });
+
+export const homeVideoSchema = z.object({
   id: z.string().trim().optional().default(""),
-  name: z.string().trim().min(1, "Enter a name").max(191),
-  quote: z.string().trim().min(1, "Enter a quote").max(1000),
-  rating: z
-    .string()
-    .trim()
-    .regex(/^[1-5]$/, "Choose a rating from 1 to 5"),
+  title: z.string().trim().min(1, "Enter a title").max(191),
+  youtubeUrl: z.string().trim().min(1, "Enter a YouTube link").max(500),
 });
 
 export const homeSchema = z.object({

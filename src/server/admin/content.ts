@@ -13,9 +13,9 @@ export const homeDefaults = [
   { key: "bestsellers", title: "Best sellers" },
   { key: "trust", title: "Trust" },
   { key: "testimonials", title: "Testimonials" },
+  { key: "videos", title: "Videos" },
   { key: "instagram", title: "Instagram" },
   { key: "blog", title: "Blog" },
-  { key: "youtube", title: "YouTube" },
 ] as const;
 
 export type HomeSectionRow = {
@@ -305,26 +305,25 @@ export async function listTestimonials() {
     name: row.name,
     quote: row.quote,
     rating: row.rating,
+    imageUrl: row.imageUrl ?? "",
     isActive: row.isActive,
   }));
 }
 
 export async function saveTestimonial(
   actorId: string,
-  input: { id?: string; name: string; quote: string; rating: string },
+  input: { id?: string; name: string; quote: string; rating: string; imageUrl?: string },
 ): Promise<string> {
+  const data = {
+    name: input.name,
+    quote: input.quote,
+    rating: Number(input.rating),
+    imageUrl: input.imageUrl || null,
+  };
   const row = input.id
-    ? await prisma.testimonial.update({
-        where: { id: input.id },
-        data: { name: input.name, quote: input.quote, rating: Number(input.rating) },
-      })
+    ? await prisma.testimonial.update({ where: { id: input.id }, data })
     : await prisma.testimonial.create({
-        data: {
-          name: input.name,
-          quote: input.quote,
-          rating: Number(input.rating),
-          sortOrder: await prisma.testimonial.count(),
-        },
+        data: { ...data, sortOrder: await prisma.testimonial.count() },
       });
   await recordAudit({
     actorId,
@@ -344,6 +343,59 @@ export async function deleteTestimonial(actorId: string, id: string): Promise<st
     entityId: id,
   });
   return "Testimonial removed.";
+}
+
+export async function listHomeVideos() {
+  const rows = await prisma.homeVideo.findMany({
+    orderBy: { sortOrder: "asc" },
+    take: 20,
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    youtubeUrl: row.youtubeUrl,
+    isActive: row.isActive,
+  }));
+}
+
+export async function saveHomeVideo(
+  actorId: string,
+  input: { id?: string; title: string; youtubeUrl: string },
+): Promise<string> {
+  const data = { title: input.title, youtubeUrl: input.youtubeUrl };
+  const row = input.id
+    ? await prisma.homeVideo.update({ where: { id: input.id }, data })
+    : await prisma.homeVideo.create({
+        data: { ...data, sortOrder: await prisma.homeVideo.count() },
+      });
+  await recordAudit({
+    actorId,
+    action: "content.homeVideo",
+    entityType: "HomeVideo",
+    entityId: row.id,
+  });
+  return "Video saved.";
+}
+
+export async function deleteHomeVideo(actorId: string, id: string): Promise<string> {
+  await prisma.homeVideo.delete({ where: { id } });
+  await recordAudit({
+    actorId,
+    action: "content.homeVideo.delete",
+    entityType: "HomeVideo",
+    entityId: id,
+  });
+  return "Video removed.";
+}
+
+export async function publishedHomeVideos() {
+  const rows = await prisma.homeVideo.findMany({
+    where: { isActive: true },
+    orderBy: { sortOrder: "asc" },
+    take: 4,
+    select: { id: true, title: true, youtubeUrl: true },
+  });
+  return rows;
 }
 
 export async function listHomeSections(): Promise<HomeSectionRow[]> {
@@ -416,11 +468,12 @@ export async function publishedFaqs() {
 }
 
 export async function publishedTestimonials() {
-  return prisma.testimonial.findMany({
+  const rows = await prisma.testimonial.findMany({
     where: { isActive: true },
     orderBy: { sortOrder: "asc" },
-    select: { id: true, name: true, quote: true, rating: true },
+    select: { id: true, name: true, quote: true, rating: true, imageUrl: true },
   });
+  return rows.map((row) => ({ ...row, imageUrl: row.imageUrl ?? "" }));
 }
 
 export async function seoFor(entityType: "PAGE" | "BLOG_POST", entityId: string) {

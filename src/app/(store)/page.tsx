@@ -5,6 +5,7 @@ import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/store/common/SectionHeading";
 import { FlashCountdown } from "@/components/store/home/FlashCountdown";
 import { HeroSlider } from "@/components/store/home/HeroSlider";
+import { TestimonialCarousel } from "@/components/store/home/TestimonialCarousel";
 import { ProductGrid } from "@/components/store/product/ProductCard";
 import { ProductMedia } from "@/components/store/product/ProductMedia";
 import { prisma } from "@/lib/db";
@@ -13,7 +14,11 @@ import { InstagramFeed } from "@/components/store/social/InstagramFeed";
 import { YouTubeEmbed } from "@/components/store/social/YouTubeEmbed";
 import { absoluteUrl } from "@/lib/seo/urls";
 import { instagramPostUrls } from "@/lib/seo/youtube";
-import { listHomeSections, publishedTestimonials } from "@/server/admin/content";
+import {
+  listHomeSections,
+  publishedHomeVideos,
+  publishedTestimonials,
+} from "@/server/admin/content";
 import { publicBanners } from "@/server/cms/public";
 import { listStoreCategories, listStoreProducts } from "@/server/catalog/products";
 import { loadSocial } from "@/server/settings/store";
@@ -44,6 +49,7 @@ export default async function HomePage() {
   const [
     sections,
     quotes,
+    homeVideos,
     storedPosts,
     social,
     { slides, banners },
@@ -53,6 +59,7 @@ export default async function HomePage() {
   ] = await Promise.all([
     listHomeSections(),
     publishedTestimonials(),
+    publishedHomeVideos(),
     prisma.blogPost.findMany({
       where: { status: "PUBLISHED" },
       orderBy: { publishedAt: "desc" },
@@ -213,21 +220,27 @@ export default async function HomePage() {
         </div>
       </Container>
     ),
-    testimonials: (
-      <Container className="py-4">
-        <SectionHeading title="Testimonials" />
-        <div className="grid gap-3 md:grid-cols-3">
-          {quotes.map((quote) => (
-            <article key={quote.id} className="rounded-lg bg-card p-4 shadow-soft">
-              <p className="text-sm leading-6 text-ink">{quote.quote}</p>
-              <p className="mt-2 text-sm font-semibold text-ink">
-                {quote.name} · {quote.rating}/5
-              </p>
-            </article>
-          ))}
-        </div>
-      </Container>
-    ),
+    testimonials:
+      quotes.length > 0 ? (
+        <Container className="py-4">
+          <SectionHeading title="Testimonials" />
+          <TestimonialCarousel items={quotes} />
+        </Container>
+      ) : null,
+    videos:
+      homeVideos.length > 0 ? (
+        <Container className="py-4">
+          <SectionHeading title="Watch and shop" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {homeVideos.map((video) => (
+              <div key={video.id}>
+                <YouTubeEmbed url={video.youtubeUrl} title={video.title} />
+                <p className="mt-2 text-sm font-medium text-ink">{video.title}</p>
+              </div>
+            ))}
+          </div>
+        </Container>
+      ) : null,
     instagram:
       instagramUrls.length > 0 ? (
         <Container className="py-6">
@@ -239,18 +252,6 @@ export default async function HomePage() {
           <InstagramFeed urls={instagramUrls} />
         </Container>
       ) : null,
-    youtube: social.youtubeHomeVideo ? (
-      <Container className="py-6">
-        <SectionHeading
-          title="YouTube"
-          href={social.youtube || undefined}
-          action={social.youtube ? "Channel" : undefined}
-        />
-        <div className="mx-auto max-w-3xl">
-          <YouTubeEmbed url={social.youtubeHomeVideo} title="UniBaazar on YouTube" />
-        </div>
-      </Container>
-    ) : null,
     blog: (
       <Container className="py-6">
         <SectionHeading title="From the blog" href="/blog" action="All posts" />

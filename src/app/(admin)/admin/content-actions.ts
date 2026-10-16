@@ -4,10 +4,12 @@ import { revalidatePath } from "next/cache";
 import { requireContent } from "@/server/admin/access";
 import {
   deleteFaq,
+  deleteHomeVideo,
   deleteTestimonial,
   saveBlogCategory,
   saveFaq,
   saveHomeSections,
+  saveHomeVideo,
   saveMenuItem,
   savePage,
   savePost,
@@ -18,6 +20,7 @@ import {
   blogCategorySchema,
   faqSchema,
   homeSchema,
+  homeVideoSchema,
   idSchema,
   menuItemSchema,
   pageSchema,
@@ -34,6 +37,7 @@ function refresh(): void {
   revalidatePath("/admin/content/home");
   revalidatePath("/admin/content/faq");
   revalidatePath("/admin/content/testimonials");
+  revalidatePath("/admin/content/videos");
 }
 
 export async function pageAction(input: {
@@ -153,6 +157,7 @@ export async function testimonialAction(input: {
   name: string;
   quote: string;
   rating: string;
+  imageUrl?: string;
 }): Promise<ActionResult> {
   const session = await requireContent();
   try {
@@ -172,6 +177,36 @@ export async function deleteTestimonialAction(input: {
   try {
     const parsed = idSchema.parse(input);
     const message = await deleteTestimonial(session.userId, parsed.id);
+    refresh();
+    return { ok: true, message };
+  } catch (error) {
+    return { ok: false, message: actionError(error) };
+  }
+}
+
+export async function homeVideoAction(input: {
+  id?: string;
+  title: string;
+  youtubeUrl: string;
+}): Promise<ActionResult> {
+  const session = await requireContent();
+  try {
+    const parsed = homeVideoSchema.parse(input);
+    const message = await saveHomeVideo(session.userId, parsed);
+    refresh();
+    return { ok: true, message };
+  } catch (error) {
+    return { ok: false, message: actionError(error) };
+  }
+}
+
+export async function deleteHomeVideoAction(input: {
+  id: string;
+}): Promise<ActionResult> {
+  const session = await requireContent();
+  try {
+    const parsed = idSchema.parse(input);
+    const message = await deleteHomeVideo(session.userId, parsed.id);
     refresh();
     return { ok: true, message };
   } catch (error) {

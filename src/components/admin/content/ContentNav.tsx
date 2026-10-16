@@ -10,6 +10,7 @@ const links = [
   { href: "/admin/content/home", label: "Homepage" },
   { href: "/admin/content/faq", label: "FAQ" },
   { href: "/admin/content/testimonials", label: "Testimonials" },
+  { href: "/admin/content/videos", label: "Videos" },
 ];
 
 export function ContentNav() {

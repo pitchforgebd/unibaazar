@@ -972,10 +972,21 @@ model Testimonial {
   name      String
   quote     String   @db.Text
   rating    Int      @default(5)
+  imageUrl  String?  @db.VarChar(500)
   sortOrder Int      @default(0)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model HomeVideo {
+  id         String   @id @default(cuid())
+  title      String
+  youtubeUrl String   @db.VarChar(500)
+  sortOrder  Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model HomeSection {
