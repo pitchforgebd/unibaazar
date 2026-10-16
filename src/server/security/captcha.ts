@@ -3,9 +3,10 @@ import { ApiError } from "@/server/http";
 export async function assertCaptcha(token: string | undefined): Promise<void> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret) {
-    if (process.env.NODE_ENV === "production") {
-      throw new ApiError(500, "CAPTCHA is not configured");
-    }
+    // Turnstile is opt-in: until a site key + secret are saved, every
+    // environment (including production) skips the check rather than
+    // hard-locking login/checkout. Set TURNSTILE_SECRET_KEY and
+    // NEXT_PUBLIC_TURNSTILE_SITE_KEY to turn it on.
     return;
   }
   if (!token) {

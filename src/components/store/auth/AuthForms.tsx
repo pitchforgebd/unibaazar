@@ -158,8 +158,7 @@ export function LoginForm({
         await finishLogin(body);
       })}
     >
-      <p className="text-sm text-muted">Sample account: 01711111111 and pass1234.</p>
-      <label className="mt-4 block text-sm">
+      <label className="block text-sm">
         Phone or email
         <input className={`${fieldClass} mt-1`} {...register("identity")} />
         {errors.identity ? (
