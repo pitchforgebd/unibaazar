@@ -30,7 +30,11 @@ const contentSecurityPolicy = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Deliberately not "standalone": this project runs via its own root
+  // server.js against a full `npm install`, not the trimmed
+  // .next/standalone bundle, so standalone mode only adds pure overhead
+  // here — an extra file-tracing build step (collect-build-traces.js) that
+  // was the thing actually failing to spawn its worker on this host.
   // Shared/constrained hosts (e.g. cPanel + CloudLinux) often report a CPU
   // count far above what the account is actually allowed to run as
   // processes, so Next's default "one build worker per core" trips the

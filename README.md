@@ -23,15 +23,15 @@ The storefront still reads mock data in `src/lib/mock`. The MySQL schema is in `
 
 ## Scripts
 
-| Command              | What it does                              |
-| -------------------- | ----------------------------------------- |
-| `npm run dev`        | Start the local site                      |
-| `npm run lint`       | Run ESLint                                |
-| `npm run format`     | Format with Prettier                      |
-| `npm run typecheck`  | Type-check without emitting files         |
-| `npm run build`      | Production build (`output: 'standalone'`) |
-| `npm run db:migrate` | Apply Prisma migrations to MySQL          |
-| `npm run db:seed`    | Seed the six staff roles                  |
+| Command              | What it does                      |
+| -------------------- | --------------------------------- |
+| `npm run dev`        | Start the local site              |
+| `npm run lint`       | Run ESLint                        |
+| `npm run format`     | Format with Prettier              |
+| `npm run typecheck`  | Type-check without emitting files |
+| `npm run build`      | Production build                  |
+| `npm run db:migrate` | Apply Prisma migrations to MySQL  |
+| `npm run db:seed`    | Seed the six staff roles          |
 
 ## Check the storefront
 
@@ -52,7 +52,7 @@ The first visit starts with two sample lines from `src/lib/mock/cart.ts`, then t
 
 ## Production entry
 
-`next.config.ts` sets `output: 'standalone'`. After `npm run build`, cPanel can start the app with `node server.js` (set `NODE_ENV=production` and `PORT`).
+After `npm run build` (with a full `npm install`, not just production deps — the build needs devDependencies), cPanel starts the app with `node server.js`. Passenger sets `NODE_ENV` and `PORT` automatically; see `DEPLOYMENT.md` for the full cPanel walkthrough.
 
 ## Progress
 
