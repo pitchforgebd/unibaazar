@@ -39,6 +39,17 @@ const nextConfig: NextConfig = {
   experimental: {
     cpus: 1,
   },
+  // The "Linting and checking validity of types" build step is the single
+  // heaviest part of `next build` memory-wise, and this repo already runs
+  // `tsc --noEmit` + `eslint .` as separate, required CI/pre-commit steps —
+  // so it's pure redundant memory cost during the production build itself,
+  // which is what was tipping a CPU/RAM-constrained host into an OOM crash.
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   async headers() {
     const headers = [
       { key: "X-Frame-Options", value: "DENY" },
