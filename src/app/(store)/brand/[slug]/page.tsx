@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductListing } from "@/components/store/shop/ProductListing";
 import { parseShopQuery } from "@/lib/catalog/queries";
-import { getStoreBrand, listStoreBrandSlugs } from "@/server/catalog/products";
+import { getStoreBrand } from "@/server/catalog/products";
 
 type BrandPageProps = {
   params: Promise<{ slug: string }>;
@@ -13,9 +13,10 @@ type BrandPageProps = {
 // stale an admin brand/product edit can be on the live site.
 export const revalidate = 60;
 
+// See the product page for why this returns no slugs up front — pages are
+// generated on first visit and cached per `revalidate` instead (ISR).
 export async function generateStaticParams() {
-  const slugs = await listStoreBrandSlugs();
-  return slugs.map((slug) => ({ slug }));
+  return [];
 }
 
 export async function generateMetadata({ params }: BrandPageProps): Promise<Metadata> {

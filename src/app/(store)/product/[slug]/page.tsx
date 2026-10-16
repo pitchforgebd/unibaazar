@@ -17,7 +17,6 @@ import {
   getStoreProduct,
   getStoreQuestions,
   getStoreReviews,
-  listStoreProductSlugs,
   listStoreProducts,
 } from "@/server/catalog/products";
 import { loadSocial } from "@/server/settings/store";
@@ -30,9 +29,11 @@ type ProductPageProps = {
 // stale an admin price/stock/content edit can be on the live site.
 export const revalidate = 60;
 
+// No eager list here on purpose: with thousands of products this would mean
+// a DB query per product at build time. Pages are generated on first visit
+// instead and then cached per `revalidate` (ISR), same end state either way.
 export async function generateStaticParams() {
-  const slugs = await listStoreProductSlugs();
-  return slugs.map((slug) => ({ slug }));
+  return [];
 }
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {

@@ -7,7 +7,7 @@ import { buildMetadata } from "@/lib/seo/metadata";
 import { breadcrumbJsonLd } from "@/lib/seo/schema";
 import { prisma } from "@/lib/db";
 import { findSeo } from "@/server/seo/public";
-import { getStoreCategory, listStoreCategorySlugs } from "@/server/catalog/products";
+import { getStoreCategory } from "@/server/catalog/products";
 
 type CategoryPageProps = {
   params: Promise<{ slug: string }>;
@@ -18,9 +18,10 @@ type CategoryPageProps = {
 // stale an admin category/product edit can be on the live site.
 export const revalidate = 60;
 
+// See the product page for why this returns no slugs up front — pages are
+// generated on first visit and cached per `revalidate` instead (ISR).
 export async function generateStaticParams() {
-  const slugs = await listStoreCategorySlugs();
-  return slugs.map((slug) => ({ slug }));
+  return [];
 }
 
 export async function generateMetadata({
