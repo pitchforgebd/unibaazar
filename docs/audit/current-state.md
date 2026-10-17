@@ -244,6 +244,37 @@ routes (`low-stock-sweep`, `cancel-unpaid-orders`), `/api/webhooks/steadfast`,
 `/api/v1/settings`, `/api/v1/payments/initiate`. The homepage correctly
 parallel-fetches everything from Prisma except the documented blog-teaser fallback.
 
+## ACCESSIBILITY
+
+The new Playwright + axe-core a11y suite (`e2e/a11y/key-pages.spec.ts`), run against
+home, shop, product, login, and cart, found **zero violations of any kind except
+`color-contrast`** — no missing labels, no landmark problems, no ARIA misuse. That's
+a solid structural baseline. Every page, however, fails WCAG AA color-contrast in at
+least one place, both tied to color tokens rather than markup, e.g.:
+
+- The brand-orange "Accept" cookie-consent button: white text (`#ffffff`) on
+  `#f95b09`, contrast ratio 3.21:1 (needs 4.5:1).
+- The "iEX" delivery-partner footer badge: `#0f9d58` text on white, 3.5:1 bold
+  12px text (needs 4.5:1 for bold text under 14px, since it doesn't meet the
+  large-text exception).
+
+Since every instance traces back to color tokens, not individual components, this is
+explicitly Phase 4's job (§4.1: "WCAG 2.2 AA contrast for all tokens, checked
+automatically in CI") rather than a pre-Phase-4 fix. The `color-contrast` axe rule is
+disabled in the Phase 0 suite with a comment pointing here, so the structural checks
+(which do matter now) still block, without Phase 0 either silently hiding or
+prematurely fixing a problem that belongs to the token system Phase 4 is about to
+build.
+
+**[MEDIUM]** The fixed cookie-consent banner and the fixed mobile bottom navigation
+bar (Home/Categories/Cart/Account) can stack at the bottom of narrow viewports and
+cover enough of the screen to intercept taps on page content scrolled underneath,
+until the banner is dismissed. Reproduced reliably in Playwright at a 390×844
+mobile viewport — see `docs/qa/phase-00-report.md` for the full writeup. Not fixed
+in Phase 0: the master plan's Phase 5 redoes the mobile bottom nav as "sticky
+bottom nav, bottom sheets, and thumb-reachable CTAs" (§4.3), so this is a
+stacking-context problem that rebuild should design around from the start.
+
 ## Dependency vulnerabilities (pre-existing, not fixed in Phase 0)
 
 `npm audit` reports 34 vulnerabilities in production dependencies, all requiring

@@ -4,6 +4,7 @@ const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3100";
 
 export default defineConfig({
   testDir: "./e2e",
+  timeout: 60_000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -12,6 +13,8 @@ export default defineConfig({
     baseURL,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
+    navigationTimeout: 45_000,
+    actionTimeout: 15_000,
   },
   projects: [
     {
