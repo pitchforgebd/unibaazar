@@ -1,0 +1,19 @@
+services:
+  test-db:
+    image: mysql:8
+    restart: unless-stopped
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: unibaazar_test
+    ports:
+      - "3307:3306"
+    volumes:
+      - unibaazar-test-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  unibaazar-test-db:
