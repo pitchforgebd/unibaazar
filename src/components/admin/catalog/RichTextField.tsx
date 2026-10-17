@@ -1,33 +1,70 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import TextAlign from "@tiptap/extension-text-align";
+import Image from "@tiptap/extension-image";
+import Placeholder from "@tiptap/extension-placeholder";
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  Code2,
+  Heading2,
+  Heading3,
+  ImagePlus,
+  Italic,
+  Link2,
+  List,
+  ListOrdered,
+  Loader2,
+  Quote,
+  Redo2,
+  Strikethrough,
+  Underline as UnderlineIcon,
+  Undo2,
+} from "lucide-react";
+import { uploadCatalogImageAction } from "@/app/(admin)/admin/catalog-actions";
+import type { ActionResult } from "@/server/admin/result";
 
 function ToolButton({
   active,
+  disabled,
   onClick,
   title,
   children,
 }: {
-  active: boolean;
+  active?: boolean;
+  disabled?: boolean;
   onClick: () => void;
   title: string;
-  children: string;
+  children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       title={title}
+      aria-label={title}
+      aria-pressed={active}
+      disabled={disabled}
       onClick={onClick}
-      className={`rounded px-2 py-1 text-xs font-semibold ${active ? "bg-ink text-white" : "text-ink hover:bg-page"}`}
+      className={`inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+        active
+          ? "bg-ink text-white"
+          : "text-ink/70 hover:bg-black/5 hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"
+      }`}
     >
       {children}
     </button>
   );
+}
+
+function ToolDivider() {
+  return <span className="mx-1 h-5 w-px bg-black/10" aria-hidden />;
 }
 
 export function RichTextField({
@@ -35,14 +72,18 @@ export function RichTextField({
   value,
   onChange,
   minHeight = "min-h-28",
+  uploadAction = uploadCatalogImageAction,
 }: {
   label: string;
   value: string;
   onChange: (html: string) => void;
   minHeight?: string;
+  uploadAction?: (formData: FormData) => Promise<ActionResult>;
 }) {
   const [sourceMode, setSourceMode] = useState(false);
   const [sourceDraft, setSourceDraft] = useState(value);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
     extensions: [
@@ -50,12 +91,14 @@ export function RichTextField({
       Underline,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Link.configure({ openOnClick: false, autolink: true }),
+      Image.configure({ HTMLAttributes: { class: "rounded-md" } }),
+      Placeholder.configure({ placeholder: "Write a compelling, clear description..." }),
     ],
     content: value || "<p></p>",
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: `${minHeight} px-3 py-2 text-sm text-ink outline-none prose-sm max-w-none [&_a]:text-primary [&_a]:underline`,
+        class: `${minHeight} px-3 py-2 text-sm text-ink outline-none prose-sm max-w-none [&_a]:text-primary [&_a]:underline [&_img]:my-2 [&_img]:max-w-full [&_p.is-editor-empty:first-child]:before:pointer-events-none [&_p.is-editor-empty:first-child]:before:float-left [&_p.is-editor-empty:first-child]:before:h-0 [&_p.is-editor-empty:first-child]:before:text-muted [&_p.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]`,
       },
     },
     onUpdate: ({ editor: current }) => onChange(current.getHTML()),
@@ -88,109 +131,164 @@ export function RichTextField({
     editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
   }
 
+  async function insertImage(files: FileList | null) {
+    if (!editor || !files || files.length === 0) {
+      return;
+    }
+    const file = files[0];
+    setUploading(true);
+    const body = new FormData();
+    body.set("file", file);
+    const result = await uploadAction(body);
+    setUploading(false);
+    if (!result.ok || !result.url) {
+      window.alert(result.message);
+      return;
+    }
+    editor.chain().focus().setImage({ src: result.url, alt: file.name }).run();
+  }
+
   return (
     <div className="block text-sm">
       <span className="font-semibold text-ink">{label}</span>
-      <div className="mt-1 overflow-hidden rounded-md border border-black/10 bg-card">
+      <div className="mt-1 overflow-hidden rounded-md border border-black/10 bg-card focus-within:border-primary">
         {editor ? (
-          <div className="flex flex-wrap items-center gap-1 border-b border-black/5 px-2 py-1">
+          <div className="flex flex-wrap items-center gap-0.5 border-b border-black/5 bg-page/60 px-2 py-1.5">
+            <ToolButton
+              title="Undo"
+              disabled={!editor.can().undo()}
+              onClick={() => editor.chain().focus().undo().run()}
+            >
+              <Undo2 size={15} />
+            </ToolButton>
+            <ToolButton
+              title="Redo"
+              disabled={!editor.can().redo()}
+              onClick={() => editor.chain().focus().redo().run()}
+            >
+              <Redo2 size={15} />
+            </ToolButton>
+            <ToolDivider />
             <ToolButton
               title="Heading 2"
               active={editor.isActive("heading", { level: 2 })}
               onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
             >
-              H2
+              <Heading2 size={16} />
             </ToolButton>
             <ToolButton
               title="Heading 3"
               active={editor.isActive("heading", { level: 3 })}
               onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
             >
-              H3
+              <Heading3 size={16} />
             </ToolButton>
-            <span className="mx-1 h-4 w-px bg-black/10" />
+            <ToolDivider />
             <ToolButton
               title="Bold"
               active={editor.isActive("bold")}
               onClick={() => editor.chain().focus().toggleBold().run()}
             >
-              Bold
+              <Bold size={15} />
             </ToolButton>
             <ToolButton
               title="Italic"
               active={editor.isActive("italic")}
               onClick={() => editor.chain().focus().toggleItalic().run()}
             >
-              Italic
+              <Italic size={15} />
             </ToolButton>
             <ToolButton
               title="Underline"
               active={editor.isActive("underline")}
               onClick={() => editor.chain().focus().toggleUnderline().run()}
             >
-              Underline
+              <UnderlineIcon size={15} />
             </ToolButton>
             <ToolButton
               title="Strikethrough"
               active={editor.isActive("strike")}
               onClick={() => editor.chain().focus().toggleStrike().run()}
             >
-              Strike
+              <Strikethrough size={15} />
             </ToolButton>
-            <span className="mx-1 h-4 w-px bg-black/10" />
+            <ToolDivider />
             <ToolButton
               title="Bullet list"
               active={editor.isActive("bulletList")}
               onClick={() => editor.chain().focus().toggleBulletList().run()}
             >
-              List
+              <List size={15} />
             </ToolButton>
             <ToolButton
               title="Numbered list"
               active={editor.isActive("orderedList")}
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
             >
-              Numbered
+              <ListOrdered size={15} />
             </ToolButton>
             <ToolButton
               title="Quote"
               active={editor.isActive("blockquote")}
               onClick={() => editor.chain().focus().toggleBlockquote().run()}
             >
-              Quote
+              <Quote size={15} />
             </ToolButton>
-            <span className="mx-1 h-4 w-px bg-black/10" />
+            <ToolDivider />
             <ToolButton
               title="Align left"
               active={editor.isActive({ textAlign: "left" })}
               onClick={() => editor.chain().focus().setTextAlign("left").run()}
             >
-              Left
+              <AlignLeft size={15} />
             </ToolButton>
             <ToolButton
               title="Align center"
               active={editor.isActive({ textAlign: "center" })}
               onClick={() => editor.chain().focus().setTextAlign("center").run()}
             >
-              Center
+              <AlignCenter size={15} />
             </ToolButton>
             <ToolButton
               title="Align right"
               active={editor.isActive({ textAlign: "right" })}
               onClick={() => editor.chain().focus().setTextAlign("right").run()}
             >
-              Right
+              <AlignRight size={15} />
             </ToolButton>
-            <span className="mx-1 h-4 w-px bg-black/10" />
+            <ToolDivider />
             <ToolButton title="Link" active={editor.isActive("link")} onClick={setLink}>
-              Link
+              <Link2 size={15} />
             </ToolButton>
+            <ToolButton
+              title="Insert image"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {uploading ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <ImagePlus size={15} />
+              )}
+            </ToolButton>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="sr-only"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onChange={(event) => {
+                void insertImage(event.target.files);
+                event.target.value = "";
+              }}
+            />
             <button
               type="button"
               title="Edit raw HTML"
+              aria-pressed={sourceMode}
               onClick={toggleSource}
-              className={`ml-auto rounded px-2 py-1 text-xs font-semibold ${sourceMode ? "bg-ink text-white" : "text-ink hover:bg-page"}`}
+              className={`ml-auto inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-semibold transition-colors ${sourceMode ? "bg-ink text-white" : "text-ink/70 hover:bg-black/5 hover:text-ink"}`}
             >
+              <Code2 size={14} />
               {sourceMode ? "Visual" : "HTML"}
             </button>
           </div>

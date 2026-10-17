@@ -16,6 +16,7 @@ import {
   saveTestimonial,
 } from "@/server/admin/content";
 import { actionError, type ActionResult } from "@/server/admin/result";
+import { storeCatalogImage } from "@/server/admin/uploads";
 import {
   blogCategorySchema,
   faqSchema,
@@ -27,6 +28,25 @@ import {
   postSchema,
   testimonialSchema,
 } from "@/lib/validation/admin-content";
+
+export async function uploadContentImageAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  await requireContent();
+  try {
+    const file = formData.get("file");
+    if (!(file instanceof File)) {
+      return { ok: false, message: "Choose an image" };
+    }
+    const url = await storeCatalogImage(
+      new Uint8Array(await file.arrayBuffer()),
+      file.type,
+    );
+    return { ok: true, url, message: "Image uploaded." };
+  } catch (error) {
+    return { ok: false, message: actionError(error) };
+  }
+}
 
 function refresh(): void {
   revalidatePath("/");

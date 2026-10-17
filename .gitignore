@@ -20,6 +20,8 @@
 # production
 /build
 /backups
+/unibaazar-build
+/next-build.zip
 
 # misc
 .DS_Store

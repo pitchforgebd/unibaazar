@@ -11,6 +11,7 @@ import {
 import { RichTextField } from "@/components/admin/catalog/RichTextField";
 import { SeoHints } from "@/components/admin/seo/SeoHints";
 import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { GripVertical, ImageUp, Star, Trash2, UploadCloud } from "lucide-react";
 import type { ProductFormValues } from "@/lib/validation/admin-catalog";
 import type { CatalogOptions } from "@/server/admin/products";
 
@@ -531,43 +532,54 @@ export function ProductForm({
           />
         </label>
       </section>
-      <section
-        className="space-y-3 rounded-lg bg-card p-4 shadow-soft"
-        onDragOver={(event) => {
-          if (event.dataTransfer.types.includes("Files")) {
-            event.preventDefault();
-          }
-        }}
-        onDrop={(event) => {
-          if (event.dataTransfer.files.length > 0) {
-            event.preventDefault();
-            void onUpload(event.dataTransfer.files);
-          }
-        }}
-      >
+      <section className="space-y-3 rounded-lg bg-card p-4 shadow-soft">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-semibold text-ink">Gallery</h2>
-          <label className={buttonClass("outline")}>
-            Upload
-            <input
-              className="sr-only"
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              multiple
-              onChange={(event) => void onUpload(event.target.files)}
-            />
-          </label>
+          <div>
+            <h2 className="font-semibold text-ink">Gallery</h2>
+            <p className="text-xs text-muted">
+              Up to 12 photos. The first image is the primary listing photo — drag the
+              grip handle to reorder.
+            </p>
+          </div>
+          <span className="rounded-full bg-page px-2.5 py-1 text-xs font-semibold text-muted">
+            {form.images.length} / 12
+          </span>
         </div>
-        <p className="text-xs text-muted">
-          Drop images here, or add a URL. Drag a row to reorder. Alt text is saved with
-          each image.
-        </p>
+        <label
+          className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-black/15 bg-page/40 px-4 py-6 text-center transition-colors hover:border-primary hover:bg-page/70"
+          onDragOver={(event) => {
+            if (event.dataTransfer.types.includes("Files")) {
+              event.preventDefault();
+            }
+          }}
+          onDrop={(event) => {
+            if (event.dataTransfer.files.length > 0) {
+              event.preventDefault();
+              void onUpload(event.dataTransfer.files);
+            }
+          }}
+        >
+          <UploadCloud className="text-muted" size={28} />
+          <span className="text-sm font-semibold text-ink">
+            Drag &amp; drop photos, or click to browse
+          </span>
+          <span className="text-xs text-muted">
+            PNG, JPEG, WEBP or GIF — multiple files OK
+          </span>
+          <input
+            className="sr-only"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            multiple
+            onChange={(event) => void onUpload(event.target.files)}
+          />
+        </label>
         <div className="flex flex-wrap gap-2">
           <input
-            className={fieldClass}
+            className={`${fieldClass} flex-1`}
             value={imageUrl}
             onChange={(event) => setImageUrl(event.target.value)}
-            placeholder="https://..."
+            placeholder="Or paste an image URL: https://..."
             aria-label="Image URL"
           />
           <button
@@ -586,81 +598,97 @@ export function ProductForm({
               setImageUrl("");
             }}
           >
+            <ImageUp size={15} />
             Add URL
           </button>
         </div>
-        <ul className="space-y-2">
-          {form.images.map((image, index) => (
-            <li
-              key={`${image.id}-${index}`}
-              draggable
-              onDragStart={() => setDragIndex(index)}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (event.dataTransfer.files.length > 0) {
-                  void onUpload(event.dataTransfer.files);
-                  return;
-                }
-                if (dragIndex !== null) {
-                  moveImage(dragIndex, index);
-                }
-                setDragIndex(null);
-              }}
-              className="grid items-center gap-2 rounded-md border border-black/10 p-2 md:grid-cols-[72px_1fr_auto]"
-            >
-              {/* Gallery previews use stored URLs, including files uploaded at runtime. */}
-              <div
-                className="h-16 w-16 rounded-md bg-page bg-cover bg-center"
-                style={{ backgroundImage: `url("${image.url.replace(/["\\]/g, "")}")` }}
-                role="img"
-                aria-label={image.alt || "Gallery image"}
-              />
-              <input
-                className={fieldClass}
-                value={image.alt}
-                aria-label={`Alt text ${index + 1}`}
-                placeholder="Alt text"
-                onChange={(event) => {
-                  const images = form.images.map((item, itemIndex) =>
-                    itemIndex === index ? { ...item, alt: event.target.value } : item,
-                  );
-                  patch({ images });
-                }}
-              />
-              <div className="flex gap-2">
-                <button
-                  className={buttonClass("outline")}
-                  type="button"
-                  onClick={() => moveImage(index, index - 1)}
-                  disabled={index === 0}
-                >
-                  Up
-                </button>
-                <button
-                  className={buttonClass("outline")}
-                  type="button"
-                  onClick={() => moveImage(index, index + 1)}
-                  disabled={index === form.images.length - 1}
-                >
-                  Down
-                </button>
-                <button
-                  className={buttonClass("outline")}
-                  type="button"
-                  onClick={() =>
-                    patch({
-                      images: form.images.filter((_, itemIndex) => itemIndex !== index),
-                    })
+        {form.images.length > 0 ? (
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {form.images.map((image, index) => (
+              <li
+                key={`${image.id}-${index}`}
+                draggable
+                onDragStart={() => setDragIndex(index)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  if (event.dataTransfer.files.length > 0) {
+                    void onUpload(event.dataTransfer.files);
+                    return;
                   }
-                >
-                  Remove
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+                  if (dragIndex !== null) {
+                    moveImage(dragIndex, index);
+                  }
+                  setDragIndex(null);
+                }}
+                className={`group relative overflow-hidden rounded-lg border p-2 transition-colors ${dragIndex === index ? "border-primary bg-page/60" : "border-black/10 bg-page/20"}`}
+              >
+                {index === 0 ? (
+                  <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-ink px-2 py-0.5 text-[11px] font-semibold text-white">
+                    <Star size={11} className="fill-white" /> Primary
+                  </span>
+                ) : null}
+                <div className="flex items-center gap-2">
+                  <span
+                    className="cursor-grab touch-none text-muted/70 active:cursor-grabbing"
+                    aria-hidden
+                  >
+                    <GripVertical size={16} />
+                  </span>
+                  {/* Gallery previews use stored URLs, including files uploaded at runtime. */}
+                  <div
+                    className="h-24 w-full rounded-md bg-card bg-cover bg-center"
+                    style={{
+                      backgroundImage: `url("${image.url.replace(/["\\]/g, "")}")`,
+                    }}
+                    role="img"
+                    aria-label={image.alt || "Gallery image"}
+                  />
+                </div>
+                <input
+                  className={`${fieldClass} mt-2 h-9`}
+                  value={image.alt}
+                  aria-label={`Alt text ${index + 1}`}
+                  placeholder="Alt text (for SEO & accessibility)"
+                  onChange={(event) => {
+                    const images = form.images.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, alt: event.target.value } : item,
+                    );
+                    patch({ images });
+                  }}
+                />
+                <div className="mt-2 flex items-center justify-between">
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-ink/60 hover:text-primary disabled:opacity-30"
+                    onClick={() => moveImage(index, index - 1)}
+                    disabled={index === 0}
+                  >
+                    ← Move earlier
+                  </button>
+                  <button
+                    type="button"
+                    title="Remove image"
+                    aria-label="Remove image"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md text-red-500/80 hover:bg-red-500/10 hover:text-red-600"
+                    onClick={() =>
+                      patch({
+                        images: form.images.filter((_, itemIndex) => itemIndex !== index),
+                      })
+                    }
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="rounded-md border border-dashed border-black/10 p-4 text-center text-xs text-muted">
+            No photos yet — a professional listing needs at least one.
+          </p>
+        )}
       </section>
       <section className="space-y-3 rounded-lg bg-card p-4 shadow-soft">
         <h2 className="font-semibold text-ink">Variants</h2>

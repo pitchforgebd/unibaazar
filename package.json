@@ -29,6 +29,7 @@
     "@hookform/resolvers": "^5.9.1",
     "@prisma/client": "^6.19.3",
     "@react-pdf/renderer": "^4.9.0",
+    "@tiptap/extension-image": "^2.27.3",
     "@tiptap/extension-link": "^2.27.3",
     "@tiptap/extension-placeholder": "^2.27.3",
     "@tiptap/extension-text-align": "^2.27.3",
