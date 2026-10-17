@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import bcrypt from "bcryptjs";
 import type { AuthCodePurpose } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -126,7 +127,7 @@ async function findUserByIdentity(identity: string) {
 }
 
 async function issueCode(userId: string, purpose: AuthCodePurpose): Promise<string> {
-  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const code = String(randomInt(100000, 1000000));
   const codeHash = await bcrypt.hash(code, 10);
   await prisma.authCode.updateMany({
     where: { userId, purpose, usedAt: null },

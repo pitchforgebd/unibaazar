@@ -57,9 +57,14 @@ server.js              custom Node HTTP server wrapping Next's request handler
 The project intentionally keeps **mock data** under `src/lib/mock/*` (`catalog.ts`,
 `content.ts`). This was the Phase-1 prototype's data source; it's still used as
 seed-data content (via `prisma/seed.ts` and the `seed-catalog` cron route — see §9)
-and as a few explicit empty-state fallbacks, but the live storefront reads from the
-database through `src/server/catalog/products.ts` and friends, not from the mock
-arrays directly, with one exception documented in §11.
+and as a handful of explicit empty-state fallbacks (homepage blog teaser, the generic
+CMS page route, the FAQ block — see `docs/audit/current-state.md` for the full list),
+but the live storefront otherwise reads from the database through
+`src/server/catalog/products.ts` and friends, not from the mock arrays directly.
+One client-side exception is not just an empty-state fallback: the Zustand cart store
+(`src/store/cart.ts`) resolves stock for add-to-cart/quantity checks from the mock
+catalog, not the database — see the audit doc for why this is a real bug, not a
+documented fallback.
 
 ## 3. Rendering strategy (storefront)
 

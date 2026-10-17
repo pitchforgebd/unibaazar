@@ -9,7 +9,11 @@ import { ApiError } from "@/server/http";
 import type { Prisma } from "@prisma/client";
 
 function webhookSecret(): string {
-  return process.env.AUTH_SECRET || "unibaazar-dev-secret";
+  const value = process.env.AUTH_SECRET;
+  if (!value) {
+    throw new Error("AUTH_SECRET is required");
+  }
+  return value;
 }
 
 export async function initiatePayment(orderNumber: string, phoneInput: string) {
