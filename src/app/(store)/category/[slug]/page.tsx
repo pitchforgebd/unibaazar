@@ -15,15 +15,14 @@ type CategoryPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-// Prerendered pages otherwise never refresh after build — this bounds how
-// stale an admin category/product edit can be on the live site.
-export const revalidate = 60;
-
-// See the product page for why this returns no slugs up front — pages are
-// generated on first visit and cached per `revalidate` instead (ISR).
-export async function generateStaticParams() {
-  return [];
-}
+// Pre-existing bug (not introduced by the i18n work below): the root layout
+// reads the locale cookie via next-intl's getLocale()/getMessages() on every
+// render. Combined with `generateStaticParams` returning [] + a
+// `revalidate` value, Next.js throws DYNAMIC_SERVER_USAGE on every request
+// in production, since it refuses to cache one visitor's locale for all
+// future visitors. `force-dynamic` opts this route out of that static/ISR
+// caching entirely (same as /shop), which fixes it.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
