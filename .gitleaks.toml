@@ -1,0 +1,15 @@
+title = "UniBaazar gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known-safe placeholders and sample/dev-only credentials"
+regexes = [
+  '''mysql://user:pass@localhost''',
+  '''pass1234''',           # seeded local-dev sample password, documented in README.md
+  '''01700000000''',        # seeded local-dev sample phone number
+]
+paths = [
+  '''(?i)\.env\.example$''',
+]

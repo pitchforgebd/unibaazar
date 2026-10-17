@@ -19,7 +19,7 @@ This assumes your cPanel plan has **"Setup Node.js App"** (CloudLinux Node.js Se
 cPanel → **MySQL® Databases**.
 
 1. Under "Create New Database", create a database. cPanel will prefix whatever name you type with your cPanel username, e.g. typing `unibaazer_db` as a `pitchfor` account becomes **`pitchfor_unibaazer_db`**. Note the exact prefixed name shown on screen.
-2. Under "MySQL Users → Add New User", create `unibaazer_user` with the password `4s8YtpkPb5Ssicn6` (or set a new one — your call). It becomes **`pitchfor_unibaazer_user`** the same way.
+2. Under "MySQL Users → Add New User", create `unibaazer_user` with a strong generated password (`openssl rand -base64 24`) — your call. It becomes **`pitchfor_unibaazer_user`** the same way.
 3. Under "Add User To Database", add that user to that database with **ALL PRIVILEGES**.
 
 Write down the three _final, prefixed_ values — you need them verbatim in step 5.
@@ -83,7 +83,7 @@ nano .env
 Fill in at minimum:
 
 ```bash
-DATABASE_URL=mysql://pitchfor_unibaazer_user:4s8YtpkPb5Ssicn6@localhost:3306/pitchfor_unibaazer_db
+DATABASE_URL=mysql://pitchfor_unibaazer_user:<your-db-password>@localhost:3306/pitchfor_unibaazer_db
 NEXT_PUBLIC_SITE_URL=https://unibaazar.com
 AUTH_SECRET=<random 32+ char string>
 CRON_SECRET=<random string>
@@ -160,7 +160,7 @@ cPanel → **Cron Jobs** → add these three (replace `YOUR_CRON_SECRET` with th
 
 Visit `https://unibaazar.com`.
 
-Admin login: phone `01700000000`, password `pass1234` — **this is a seeded default password, change it immediately** (Users → your account → change password, or the password-reset flow) once you've confirmed login works.
+Admin login: phone `01700000000`, password set by `prisma/seed.ts` (check that file locally — **never commit the real value**) — **this is a seeded default password, change it immediately** (Users → your account → change password, or the password-reset flow) once you've confirmed login works.
 
 Walk through:
 
