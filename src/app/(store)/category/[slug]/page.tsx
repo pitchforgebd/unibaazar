@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { ProductListing } from "@/components/store/shop/ProductListing";
 import { parseShopQuery } from "@/lib/catalog/queries";
@@ -37,8 +38,9 @@ export async function generateMetadata({
   const seo = stored ? await findSeo("CATEGORY", stored.id) : null;
   const raw = await searchParams;
   const filtered = Object.keys(raw).length > 0;
+  const t = await getTranslations("shop");
   return buildMetadata({
-    title: seo?.metaTitle || category?.name || "Category",
+    title: seo?.metaTitle || category?.name || t("categoryFallback"),
     description: seo?.metaDescription || category?.description,
     path: `/category/${slug}`,
     canonical: seo?.canonical,
@@ -55,12 +57,13 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     notFound();
   }
   const query = parseShopQuery(await searchParams);
+  const common = await getTranslations("common");
   return (
     <>
       <JsonLd
         data={breadcrumbJsonLd([
-          { href: "/", label: "Home" },
-          { href: "/shop", label: "Shop" },
+          { href: "/", label: common("home") },
+          { href: "/shop", label: common("shop") },
           { label: category.name },
         ])}
       />
@@ -68,8 +71,8 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         title={category.name}
         subtitle={category.description}
         crumbs={[
-          { href: "/", label: "Home" },
-          { href: "/shop", label: "Shop" },
+          { href: "/", label: common("home") },
+          { href: "/shop", label: common("shop") },
           { label: category.name },
         ]}
         basePath={`/category/${category.slug}`}

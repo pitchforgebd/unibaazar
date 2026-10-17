@@ -2,21 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const links = [
-  { href: "/account", label: "Dashboard" },
-  { href: "/account/orders", label: "Orders" },
-  { href: "/account/addresses", label: "Addresses" },
-  { href: "/wishlist", label: "Wishlist" },
-  { href: "/account/profile", label: "Profile" },
-  { href: "/account/password", label: "Password" },
-];
+import { useTranslations } from "next-intl";
 
 export function AccountNav() {
   const pathname = usePathname();
+  const t = useTranslations("account");
+  const links = [
+    { href: "/account", label: t("navDashboard") },
+    { href: "/account/orders", label: t("navOrders") },
+    { href: "/account/addresses", label: t("navAddresses") },
+    { href: "/wishlist", label: t("navWishlist") },
+    { href: "/account/profile", label: t("navProfile") },
+    { href: "/account/password", label: t("navPassword") },
+  ];
 
   return (
-    <nav aria-label="Account" className="h-fit rounded-lg bg-card p-2 shadow-soft">
+    <nav
+      aria-label={t("navAriaLabel")}
+      className="h-fit rounded-lg bg-card p-2 shadow-soft"
+    >
       <ul>
         {links.map((link) => {
           const active =

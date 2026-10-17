@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { buttonClass, fieldClass } from "@/components/ui/controls";
@@ -11,6 +12,7 @@ import {
   trackSchema,
   type TrackInput,
 } from "@/lib/validation/customer";
+import { translatedError } from "@/lib/validation/messages";
 import type { Order } from "@/types/catalog";
 
 type TrackOrderFormProps = {
@@ -24,6 +26,8 @@ export function TrackOrderForm({
 }: TrackOrderFormProps) {
   const [order, setOrder] = useState<Order | null>(null);
   const [miss, setMiss] = useState(false);
+  const t = useTranslations("orders");
+  const v = useTranslations("validation");
   const {
     register,
     handleSubmit,
@@ -60,33 +64,29 @@ export function TrackOrderForm({
         className="rounded-lg bg-card p-5 shadow-soft"
         noValidate
       >
-        <p className="text-sm text-muted">
-          Enter your order ID and the phone number used at checkout.
-        </p>
+        <p className="text-sm text-muted">{t("trackIntro")}</p>
         <label className="mt-4 block text-sm">
-          Order ID
+          {t("fieldOrderId")}
           <input className={`${fieldClass} mt-1`} {...register("orderId")} />
           {errors.orderId ? (
             <span className="mt-1 block text-xs text-red-700">
-              {errors.orderId.message}
+              {translatedError(v, errors.orderId.message)}
             </span>
           ) : null}
         </label>
         <label className="mt-4 block text-sm">
-          Phone
+          {t("fieldPhone")}
           <input className={`${fieldClass} mt-1`} {...register("phone")} />
           {errors.phone ? (
             <span className="mt-1 block text-xs text-red-700">
-              {errors.phone.message}
+              {translatedError(v, errors.phone.message)}
             </span>
           ) : null}
         </label>
         <button type="submit" className={`${buttonClass("ink")} mt-4`}>
-          Track now
+          {t("trackNow")}
         </button>
-        {miss ? (
-          <p className="mt-3 text-sm text-red-700">No order matches that ID and phone.</p>
-        ) : null}
+        {miss ? <p className="mt-3 text-sm text-red-700">{t("trackMiss")}</p> : null}
       </form>
       {order ? (
         <ol className="rounded-lg bg-card p-5 shadow-soft">
@@ -100,7 +100,10 @@ export function TrackOrderForm({
             </li>
           ))}
           <p className="mt-4 text-sm">
-            Tracking ID {order.trackingId}. Total {formatTaka(order.total)}.
+            {t("trackSummary", {
+              trackingId: order.trackingId,
+              total: formatTaka(order.total),
+            })}
           </p>
         </ol>
       ) : null}

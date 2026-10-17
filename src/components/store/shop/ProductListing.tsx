@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { Container } from "@/components/ui/Container";
 import { buttonClass } from "@/components/ui/controls";
 import { PageTitle, type Crumb } from "@/components/store/common/PageTitle";
@@ -44,6 +45,7 @@ export async function ProductListing({
   hideCategory = false,
   hideBrand = false,
 }: ProductListingProps) {
+  const t = await getTranslations("shop");
   const [catalog, categories, brands] = await Promise.all([
     listStoreProducts(),
     listStoreCategories(),
@@ -60,6 +62,7 @@ export async function ProductListing({
       <PageTitle title={title} subtitle={subtitle} crumbs={crumbs} />
       <Container className="grid gap-6 py-6 lg:grid-cols-[250px_minmax(0,1fr)]">
         <FilterForm
+          t={t}
           basePath={basePath}
           query={query}
           categories={categories}
@@ -72,22 +75,23 @@ export async function ProductListing({
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted">
               {page.total === 0
-                ? "No products"
-                : `Showing ${start}-${end} of ${page.total}`}
+                ? t("noProducts")
+                : t("showingRange", { start, end, total: page.total })}
             </p>
             <SortSelect basePath={basePath} query={query} />
           </div>
           {page.items.length === 0 ? (
             <div className="rounded-lg bg-card p-8 text-center shadow-soft">
-              <p className="font-semibold text-ink">No products match these filters.</p>
+              <p className="font-semibold text-ink">{t("noMatches")}</p>
               <Link href={basePath} className={`${buttonClass("outline")} mt-4`}>
-                Clear filters
+                {t("clearFilters")}
               </Link>
             </div>
           ) : (
             <ProductGrid products={page.items} />
           )}
           <Pagination
+            t={t}
             basePath={basePath}
             query={query}
             page={page.page}
@@ -95,7 +99,7 @@ export async function ProductListing({
           />
           {seoText ? (
             <section className="mt-8 rounded-lg bg-card p-5 shadow-soft">
-              <h2 className="text-lg font-semibold text-ink">About this category</h2>
+              <h2 className="text-lg font-semibold text-ink">{t("aboutCategory")}</h2>
               <div
                 className="prose-sm mt-2 max-w-none text-sm leading-6 text-muted [&_a]:text-primary [&_a]:underline [&_strong]:text-ink"
                 dangerouslySetInnerHTML={{ __html: sanitizeRichText(seoText) }}
@@ -108,7 +112,10 @@ export async function ProductListing({
   );
 }
 
+type ShopTranslator = Awaited<ReturnType<typeof getTranslations>>;
+
 function FilterForm({
+  t,
   basePath,
   query,
   categories,
@@ -117,6 +124,7 @@ function FilterForm({
   hideCategory,
   hideBrand,
 }: {
+  t: ShopTranslator;
   basePath: string;
   query: ShopQuery;
   categories: { slug: string; name: string }[];
@@ -138,7 +146,7 @@ function FilterForm({
 
       {hideCategory ? null : (
         <CheckGroup
-          legend="Category"
+          legend={t("category")}
           name="category"
           selected={query.categories}
           options={categories.map((category) => ({
@@ -149,49 +157,49 @@ function FilterForm({
       )}
       {hideBrand ? null : (
         <CheckGroup
-          legend="Brand"
+          legend={t("brand")}
           name="brand"
           selected={query.brands}
           options={brands.map((brand) => ({ value: brand.slug, label: brand.name }))}
         />
       )}
       <fieldset>
-        <legend className="text-sm font-semibold text-ink">Price</legend>
+        <legend className="text-sm font-semibold text-ink">{t("price")}</legend>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <input
             type="number"
             name="min"
             min={0}
-            placeholder="Min"
+            placeholder={t("min")}
             defaultValue={query.minPrice ?? ""}
-            aria-label="Minimum price"
+            aria-label={t("minPriceAria")}
             className="h-10 rounded-md border border-black/10 px-2 text-sm"
           />
           <input
             type="number"
             name="max"
             min={0}
-            placeholder="Max"
+            placeholder={t("max")}
             defaultValue={query.maxPrice ?? ""}
-            aria-label="Maximum price"
+            aria-label={t("maxPriceAria")}
             className="h-10 rounded-md border border-black/10 px-2 text-sm"
           />
         </div>
       </fieldset>
       <CheckGroup
-        legend="Size"
+        legend={t("size")}
         name="size"
         selected={query.sizes}
         options={facets.sizes.map((size) => ({ value: size, label: size }))}
       />
       <CheckGroup
-        legend="Color"
+        legend={t("color")}
         name="color"
         selected={query.colors}
         options={facets.colors.map((color) => ({ value: color, label: color }))}
       />
       <fieldset>
-        <legend className="text-sm font-semibold text-ink">Rating</legend>
+        <legend className="text-sm font-semibold text-ink">{t("rating")}</legend>
         <div className="mt-2 space-y-1 text-sm">
           {[4, 3].map((rating) => (
             <label key={rating} className="flex items-center gap-2">
@@ -201,17 +209,17 @@ function FilterForm({
                 value={rating}
                 defaultChecked={query.rating === rating}
               />
-              {rating}+ stars
+              {t("starsAndUp", { rating })}
             </label>
           ))}
           <label className="flex items-center gap-2">
             <input type="radio" name="rating" value="" defaultChecked={!query.rating} />
-            Any rating
+            {t("anyRating")}
           </label>
         </div>
       </fieldset>
       <fieldset>
-        <legend className="text-sm font-semibold text-ink">Availability</legend>
+        <legend className="text-sm font-semibold text-ink">{t("availability")}</legend>
         <div className="mt-2 space-y-1 text-sm">
           <label className="flex items-center gap-2">
             <input
@@ -220,7 +228,7 @@ function FilterForm({
               value="in"
               defaultChecked={query.availability === "in"}
             />
-            In stock
+            {t("inStock")}
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -229,7 +237,7 @@ function FilterForm({
               value="out"
               defaultChecked={query.availability === "out"}
             />
-            Out of stock
+            {t("outOfStock")}
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -238,16 +246,16 @@ function FilterForm({
               value=""
               defaultChecked={!query.availability}
             />
-            All
+            {t("allAvailability")}
           </label>
         </div>
       </fieldset>
       <div className="flex gap-2">
         <button type="submit" className={buttonClass("primary")}>
-          Apply
+          {t("apply")}
         </button>
         <Link href={basePath} className={buttonClass("outline")}>
-          Clear
+          {t("clear")}
         </Link>
       </div>
     </form>
@@ -289,11 +297,13 @@ function CheckGroup({
 }
 
 function Pagination({
+  t,
   basePath,
   query,
   page,
   pageCount,
 }: {
+  t: ShopTranslator;
   basePath: string;
   query: ShopQuery;
   page: number;
@@ -304,7 +314,7 @@ function Pagination({
   }
   const pages = Array.from({ length: pageCount }, (_, index) => index + 1);
   return (
-    <nav aria-label="Pagination" className="mt-6 flex flex-wrap gap-2">
+    <nav aria-label={t("paginationAria")} className="mt-6 flex flex-wrap gap-2">
       {pages.map((number) => (
         <Link
           key={number}

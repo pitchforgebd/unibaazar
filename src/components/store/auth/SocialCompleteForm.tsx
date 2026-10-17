@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { CaptchaField } from "@/components/store/auth/CaptchaField";
 import { buttonClass, fieldClass } from "@/components/ui/controls";
 
 export function SocialCompleteForm({ name, email }: { name: string; email: string }) {
   const router = useRouter();
+  const t = useTranslations("auth");
   const [phone, setPhone] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export function SocialCompleteForm({ name, email }: { name: string; email: strin
                 "error" in body &&
                 typeof body.error === "string"
                   ? body.error
-                  : "Could not finish sign-in";
+                  : t("errorFinishSignIn");
               setError(message);
               setPending(false);
               return;
@@ -42,18 +44,22 @@ export function SocialCompleteForm({ name, email }: { name: string; email: strin
             router.refresh();
           })
           .catch(() => {
-            setError("Could not finish sign-in");
+            setError(t("errorFinishSignIn"));
             setPending(false);
           });
       }}
     >
       <p className="text-sm text-muted">
-        Welcome{name ? `, ${name}` : ""}. Add a Bangladeshi mobile number to finish your
-        account
-        {email ? ` for ${email}` : ""}.
+        {name && email
+          ? t("socialWelcome", { name, email })
+          : name
+            ? t("socialWelcomeNoEmail", { name })
+            : email
+              ? t("socialWelcomeGenericEmail", { email })
+              : t("socialWelcomeGeneric")}
       </p>
       <label className="block text-sm">
-        Phone
+        {t("fieldPhone")}
         <input
           className={`${fieldClass} mt-1`}
           value={phone}
@@ -65,7 +71,7 @@ export function SocialCompleteForm({ name, email }: { name: string; email: strin
       <CaptchaField onToken={setCaptchaToken} />
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
       <button type="submit" className={buttonClass()} disabled={pending}>
-        Finish account
+        {t("submitFinishAccount")}
       </button>
     </form>
   );

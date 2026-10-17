@@ -1,27 +1,30 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
 import { CheckoutForm } from "@/components/store/checkout/CheckoutForm";
 import { TrackOnce } from "@/components/store/tracking/TrackOnce";
 import { loadCheckout } from "@/server/settings/store";
 
-export const metadata: Metadata = { title: "Checkout" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("checkout");
+  return { title: t("metaTitle") };
+}
 
 export default async function CheckoutPage() {
   const checkout = await loadCheckout();
+  const t = await getTranslations("checkout");
+  const common = await getTranslations("common");
+  const cart = await getTranslations("cart");
   return (
     <>
       <PageTitle
-        title="Checkout"
-        subtitle={
-          checkout.guest
-            ? "Guest checkout. Phone number is required."
-            : "Sign in to place an order. Phone number is required."
-        }
+        title={t("pageTitle")}
+        subtitle={checkout.guest ? t("subtitleGuest") : t("subtitleSignIn")}
         crumbs={[
-          { href: "/", label: "Home" },
-          { href: "/cart", label: "Cart" },
-          { label: "Checkout" },
+          { href: "/", label: common("home") },
+          { href: "/cart", label: cart("crumb") },
+          { label: t("crumb") },
         ]}
       />
       <Container className="py-6">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { SectionHeading } from "@/components/store/common/SectionHeading";
 import { ProductGrid } from "@/components/store/product/ProductCard";
 import { useResolvedProducts } from "@/lib/catalog/useResolvedProducts";
@@ -28,6 +29,7 @@ type RecentlyViewedProps = {
 };
 
 export function RecentlyViewed({ currentSlug }: RecentlyViewedProps) {
+  const t = useTranslations("product");
   const [otherSlugs, setOtherSlugs] = useState<string[]>([]);
 
   useEffect(() => {
@@ -51,7 +53,7 @@ export function RecentlyViewed({ currentSlug }: RecentlyViewedProps) {
 
   return (
     <section className="mt-10">
-      <SectionHeading title="Recently viewed" />
+      <SectionHeading title={t("recentlyViewed")} />
       <ProductGrid products={products} />
     </section>
   );

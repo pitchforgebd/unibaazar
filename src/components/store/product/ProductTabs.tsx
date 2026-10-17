@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { buttonClass, fieldClass } from "@/components/ui/controls";
@@ -12,6 +13,7 @@ import {
   type QuestionInput,
   type ReviewInput,
 } from "@/lib/validation/customer";
+import { translatedError } from "@/lib/validation/messages";
 import type { ProductQuestion, Review } from "@/types/catalog";
 
 type ProductTabsProps = {
@@ -34,17 +36,19 @@ function useSignedIn(): boolean | null {
   return signedIn;
 }
 
-async function readError(response: Response): Promise<string> {
+async function readError(response: Response, fallback: string): Promise<string> {
   const body: unknown = await response.json().catch(() => null);
   return typeof body === "object" &&
     body &&
     "error" in body &&
     typeof body.error === "string"
     ? body.error
-    : "Something went wrong. Try again.";
+    : fallback;
 }
 
 function ReviewForm({ productSlug }: { productSlug: string }) {
+  const t = useTranslations("product");
+  const v = useTranslations("validation");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const {
@@ -64,18 +68,14 @@ function ReviewForm({ productSlug }: { productSlug: string }) {
       body: JSON.stringify({ ...values, rating: Number(values.rating) }),
     });
     if (!response.ok) {
-      setError(await readError(response));
+      setError(await readError(response, t("common.genericError")));
       return;
     }
     setSent(true);
   }
 
   if (sent) {
-    return (
-      <p className="mt-4 text-sm text-success">
-        Thanks! Your review is pending approval.
-      </p>
-    );
+    return <p className="mt-4 text-sm text-success">{t("reviews.form.success")}</p>;
   }
 
   return (
@@ -85,20 +85,20 @@ function ReviewForm({ productSlug }: { productSlug: string }) {
       onSubmit={handleSubmit(onSubmit)}
     >
       <label className="block text-sm">
-        Rating
+        {t("reviews.form.ratingLabel")}
         <select
           className={`${fieldClass} mt-1`}
           {...register("rating", { valueAsNumber: true })}
         >
           {[5, 4, 3, 2, 1].map((value) => (
             <option key={value} value={value}>
-              {value} star{value === 1 ? "" : "s"}
+              {t("reviews.form.starOption", { count: value })}
             </option>
           ))}
         </select>
       </label>
       <label className="block text-sm">
-        Your review
+        {t("reviews.form.commentLabel")}
         <textarea
           rows={3}
           className="mt-1 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-primary"
@@ -106,19 +106,21 @@ function ReviewForm({ productSlug }: { productSlug: string }) {
         />
         {errors.comment ? (
           <span className="mt-1 block text-xs text-red-700">
-            {errors.comment.message}
+            {translatedError(v, errors.comment.message)}
           </span>
         ) : null}
       </label>
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
       <button type="submit" className={buttonClass("primary")} disabled={isSubmitting}>
-        {isSubmitting ? "Submitting…" : "Submit review"}
+        {isSubmitting ? t("reviews.form.submitting") : t("reviews.form.submit")}
       </button>
     </form>
   );
 }
 
 function QuestionForm({ productSlug }: { productSlug: string }) {
+  const t = useTranslations("product");
+  const v = useTranslations("validation");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const {
@@ -135,14 +137,14 @@ function QuestionForm({ productSlug }: { productSlug: string }) {
       body: JSON.stringify(values),
     });
     if (!response.ok) {
-      setError(await readError(response));
+      setError(await readError(response, t("common.genericError")));
       return;
     }
     setSent(true);
   }
 
   if (sent) {
-    return <p className="mt-4 text-sm text-success">Thanks! We will answer soon.</p>;
+    return <p className="mt-4 text-sm text-success">{t("qa.form.success")}</p>;
   }
 
   return (
@@ -152,7 +154,7 @@ function QuestionForm({ productSlug }: { productSlug: string }) {
       onSubmit={handleSubmit(onSubmit)}
     >
       <label className="block text-sm">
-        Ask a question
+        {t("qa.form.questionLabel")}
         <textarea
           rows={3}
           className="mt-1 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-primary"
@@ -160,25 +162,30 @@ function QuestionForm({ productSlug }: { productSlug: string }) {
         />
         {errors.question ? (
           <span className="mt-1 block text-xs text-red-700">
-            {errors.question.message}
+            {translatedError(v, errors.question.message)}
           </span>
         ) : null}
       </label>
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
       <button type="submit" className={buttonClass("primary")} disabled={isSubmitting}>
-        {isSubmitting ? "Submitting…" : "Submit question"}
+        {isSubmitting ? t("qa.form.submitting") : t("qa.form.submit")}
       </button>
     </form>
   );
 }
 
 function SignInPrompt({ action }: { action: string }) {
+  const t = useTranslations("product");
   return (
     <p className="mt-4 text-sm text-muted">
-      <Link href="/login" className="font-semibold text-primary">
-        Sign in
-      </Link>{" "}
-      to {action}.
+      {t.rich("common.signInPrompt", {
+        action,
+        link: (chunks) => (
+          <Link href="/login" className="font-semibold text-primary underline">
+            {chunks}
+          </Link>
+        ),
+      })}
     </p>
   );
 }
@@ -189,8 +196,14 @@ export function ProductTabs({
   reviews,
   questions,
 }: ProductTabsProps) {
+  const t = useTranslations("product");
   const [tab, setTab] = useState<(typeof tabs)[number]>("Description");
   const signedIn = useSignedIn();
+  const tabLabels: Record<(typeof tabs)[number], string> = {
+    Description: t("tabs.description"),
+    Reviews: t("tabs.reviews"),
+    "Q&A": t("tabs.qa"),
+  };
 
   return (
     <section className="mt-8 rounded-lg bg-card shadow-soft">
@@ -205,7 +218,7 @@ export function ProductTabs({
               tab === item ? "border-b-2 border-primary text-primary" : "text-muted"
             }`}
           >
-            {item}
+            {tabLabels[item]}
           </button>
         ))}
       </div>
@@ -216,7 +229,7 @@ export function ProductTabs({
         {tab === "Reviews" ? (
           <>
             {reviews.length === 0 ? (
-              <p className="text-sm text-muted">No reviews yet.</p>
+              <p className="text-sm text-muted">{t("reviews.empty")}</p>
             ) : (
               <ul className="space-y-4">
                 {reviews.map((review) => (
@@ -234,13 +247,15 @@ export function ProductTabs({
               </ul>
             )}
             {signedIn ? <ReviewForm productSlug={productSlug} /> : null}
-            {signedIn === false ? <SignInPrompt action="write a review" /> : null}
+            {signedIn === false ? (
+              <SignInPrompt action={t("reviews.signInAction")} />
+            ) : null}
           </>
         ) : null}
         {tab === "Q&A" ? (
           <>
             {questions.length === 0 ? (
-              <p className="text-sm text-muted">No questions yet.</p>
+              <p className="text-sm text-muted">{t("qa.empty")}</p>
             ) : (
               <ul className="space-y-4">
                 {questions.map((question) => (
@@ -254,7 +269,7 @@ export function ProductTabs({
               </ul>
             )}
             {signedIn ? <QuestionForm productSlug={productSlug} /> : null}
-            {signedIn === false ? <SignInPrompt action="ask a question" /> : null}
+            {signedIn === false ? <SignInPrompt action={t("qa.signInAction")} /> : null}
           </>
         ) : null}
       </div>

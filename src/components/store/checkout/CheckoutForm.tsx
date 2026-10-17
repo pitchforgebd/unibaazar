@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { CaptchaField } from "@/components/store/auth/CaptchaField";
@@ -19,19 +20,22 @@ import {
   normalizeBdPhone,
   type CheckoutInput,
 } from "@/lib/validation/customer";
+import { translatedError } from "@/lib/validation/messages";
 import { useCartStore } from "@/store/cart";
 import type { PaymentMethod } from "@/types/catalog";
 
-const payments: { value: PaymentMethod; label: string }[] = [
-  { value: "cod", label: "Cash on delivery" },
-  { value: "bkash", label: "bKash" },
-  { value: "nagad", label: "Nagad" },
-  { value: "rocket", label: "Rocket" },
-  { value: "card", label: "Card" },
-];
-
 export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
   const router = useRouter();
+  const t = useTranslations("checkout");
+  const shop = useTranslations("shop");
+  const v = useTranslations("validation");
+  const payments: { value: PaymentMethod; label: string }[] = [
+    { value: "cod", label: t("paymentCod") },
+    { value: "bkash", label: t("paymentBkash") },
+    { value: "nagad", label: t("paymentNagad") },
+    { value: "rocket", label: t("paymentRocket") },
+    { value: "card", label: t("paymentCard") },
+  ];
   const lines = useCartStore((state) => state.lines);
   const couponDiscount = useCartStore((state) => state.couponDiscount);
   const clear = useCartStore((state) => state.clear);
@@ -61,9 +65,9 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
   if (summary.resolved.length === 0) {
     return (
       <div className="rounded-lg bg-card p-8 text-center shadow-soft">
-        <p className="font-semibold">Your cart is empty.</p>
+        <p className="font-semibold">{t("emptyCart")}</p>
         <Link href="/shop" className={`${buttonClass("primary")} mt-4`}>
-          Browse products
+          {shop("browseProducts")}
         </Link>
       </div>
     );
@@ -95,13 +99,13 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
       const message =
         "error" in record && typeof record.error === "string"
           ? record.error
-          : "Could not place the order";
+          : t("errorPlaceOrder");
       setFormError(message);
       return;
     }
     const order = "data" in record ? record.data : null;
     if (!isStoredOrder(order)) {
-      setFormError("Could not place the order");
+      setFormError(t("errorPlaceOrder"));
       return;
     }
     savePlacedOrder(order);
@@ -141,22 +145,28 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
       noValidate
     >
       <div className="space-y-4 rounded-lg bg-card p-4 shadow-soft sm:p-6">
-        <h2 className="font-semibold text-ink">Delivery details</h2>
-        <Field label="Name" error={errors.name?.message}>
+        <h2 className="font-semibold text-ink">{t("deliveryDetailsHeading")}</h2>
+        <Field label={t("fieldName")} error={translatedError(v, errors.name?.message)}>
           <input className={fieldClass} {...register("name")} />
         </Field>
-        <Field label="Phone" error={errors.phone?.message}>
+        <Field label={t("fieldPhone")} error={translatedError(v, errors.phone?.message)}>
           <input
             className={fieldClass}
             inputMode="tel"
-            placeholder="01XXXXXXXXX"
+            placeholder={t("phonePlaceholder")}
             {...register("phone")}
           />
         </Field>
-        <Field label="Email (optional)" error={errors.email?.message}>
+        <Field
+          label={t("fieldEmailOptional")}
+          error={translatedError(v, errors.email?.message)}
+        >
           <input className={fieldClass} type="email" {...register("email")} />
         </Field>
-        <Field label="Address" error={errors.address?.message}>
+        <Field
+          label={t("fieldAddress")}
+          error={translatedError(v, errors.address?.message)}
+        >
           <textarea
             rows={4}
             className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-primary"
@@ -164,26 +174,26 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
           />
         </Field>
         <fieldset>
-          <legend className="text-sm font-semibold">Delivery area</legend>
+          <legend className="text-sm font-semibold">{t("deliveryAreaLegend")}</legend>
           <div className="mt-2 space-y-2 text-sm">
             <label className="flex items-center justify-between gap-3 rounded-md border border-black/10 px-3 py-2">
               <span>
-                <input type="radio" value="inside-dhaka" {...register("area")} /> Inside
-                Dhaka
+                <input type="radio" value="inside-dhaka" {...register("area")} />{" "}
+                {t("areaInsideDhaka")}
               </span>
               <span>{formatTaka(deliveryCharges["inside-dhaka"])}</span>
             </label>
             <label className="flex items-center justify-between gap-3 rounded-md border border-black/10 px-3 py-2">
               <span>
-                <input type="radio" value="outside-dhaka" {...register("area")} /> Outside
-                Dhaka
+                <input type="radio" value="outside-dhaka" {...register("area")} />{" "}
+                {t("areaOutsideDhaka")}
               </span>
               <span>{formatTaka(deliveryCharges["outside-dhaka"])}</span>
             </label>
           </div>
         </fieldset>
         <fieldset>
-          <legend className="text-sm font-semibold">Payment method</legend>
+          <legend className="text-sm font-semibold">{t("paymentMethodLegend")}</legend>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {payments
               .filter((method) => codEnabled || method.value !== "cod")
@@ -206,7 +216,7 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
         {formError ? <p className="text-sm text-red-700">{formError}</p> : null}
       </div>
       <aside className="h-fit rounded-lg bg-card p-4 shadow-soft">
-        <h2 className="font-semibold text-ink">Order summary</h2>
+        <h2 className="font-semibold text-ink">{t("orderSummaryHeading")}</h2>
         <ul className="mt-3 space-y-2 text-sm">
           {summary.resolved.map((item) => (
             <li key={item.variant.id} className="flex justify-between gap-3">
@@ -220,19 +230,23 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
         </ul>
         <dl className="mt-4 space-y-2 border-t border-black/5 pt-3 text-sm">
           <div className="flex justify-between">
-            <dt>Subtotal</dt>
+            <dt>{t("subtotal")}</dt>
             <dd>{formatTaka(summary.subtotal)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt>Discount</dt>
+            <dt>{t("discount")}</dt>
             <dd>-{formatTaka(summary.discount)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt>Delivery</dt>
-            <dd>{summary.shipping === 0 ? "Free" : formatTaka(summary.shipping ?? 0)}</dd>
+            <dt>{t("delivery")}</dt>
+            <dd>
+              {summary.shipping === 0
+                ? t("deliveryFree")
+                : formatTaka(summary.shipping ?? 0)}
+            </dd>
           </div>
           <div className="flex justify-between text-base font-semibold">
-            <dt>Total</dt>
+            <dt>{t("total")}</dt>
             <dd>{formatTaka(summary.total)}</dd>
           </div>
         </dl>
@@ -241,7 +255,7 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
           className={`${buttonClass("primary")} mt-4 w-full`}
           disabled={isSubmitting}
         >
-          Place order
+          {t("submit")}
         </button>
       </aside>
     </form>

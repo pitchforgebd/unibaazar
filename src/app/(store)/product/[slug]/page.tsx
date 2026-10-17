@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
@@ -67,6 +68,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
       (item) => item.slug !== product.slug && item.categorySlug === product.categorySlug,
     )
     .slice(0, 4);
+  const t = await getTranslations("product");
+  const common = await getTranslations("common");
 
   return (
     <>
@@ -74,8 +77,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
         title={product.name}
         showHeading={false}
         crumbs={[
-          { href: "/", label: "Home" },
-          { href: "/shop", label: "Shop" },
+          { href: "/", label: common("home") },
+          { href: "/shop", label: common("shop") },
           ...(category
             ? [{ href: `/category/${category.slug}`, label: category.name }]
             : []),
@@ -85,8 +88,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
       <JsonLd data={productJsonLd(product)} />
       <JsonLd
         data={breadcrumbJsonLd([
-          { href: "/", label: "Home" },
-          { href: "/shop", label: "Shop" },
+          { href: "/", label: common("home") },
+          { href: "/shop", label: common("shop") },
           ...(category
             ? [{ href: `/category/${category.slug}`, label: category.name }]
             : []),
@@ -111,7 +114,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         />
         {related.length > 0 ? (
           <section className="mt-10">
-            <SectionHeading title="Related products" />
+            <SectionHeading title={t("relatedHeading")} />
             <ProductGrid products={related} />
           </section>
         ) : null}

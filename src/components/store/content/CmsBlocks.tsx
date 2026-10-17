@@ -2,13 +2,17 @@
 
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { CaptchaField } from "@/components/store/auth/CaptchaField";
 import { buttonClass, fieldClass } from "@/components/ui/controls";
 import { faqs } from "@/lib/mock/content";
 import { contactSchema, type ContactInput } from "@/lib/validation/customer";
+import { translatedError } from "@/lib/validation/messages";
 
 export function ContactForm() {
+  const t = useTranslations("cms");
+  const v = useTranslations("validation");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const {
@@ -24,7 +28,7 @@ export function ContactForm() {
   if (sent) {
     return (
       <p className="rounded-lg bg-card p-5 text-sm shadow-soft">
-        Thanks for reaching out. We will reply soon.
+        {t("contact.successMessage")}
       </p>
     );
   }
@@ -44,7 +48,7 @@ export function ContactForm() {
         "error" in body &&
         typeof body.error === "string"
           ? body.error
-          : "Could not send your message. Try again.";
+          : t("contact.genericError");
       setError(message);
       return;
     }
@@ -54,28 +58,34 @@ export function ContactForm() {
   return (
     <form className="max-w-lg space-y-3" noValidate onSubmit={handleSubmit(onSubmit)}>
       <label className="block text-sm">
-        Name
+        {t("contact.nameLabel")}
         <input className={`${fieldClass} mt-1`} {...register("name")} />
         {errors.name ? (
-          <span className="mt-1 block text-xs text-red-700">{errors.name.message}</span>
+          <span className="mt-1 block text-xs text-red-700">
+            {translatedError(v, errors.name.message)}
+          </span>
         ) : null}
       </label>
       <label className="block text-sm">
-        Phone
+        {t("contact.phoneLabel")}
         <input className={`${fieldClass} mt-1`} {...register("phone")} />
         {errors.phone ? (
-          <span className="mt-1 block text-xs text-red-700">{errors.phone.message}</span>
+          <span className="mt-1 block text-xs text-red-700">
+            {translatedError(v, errors.phone.message)}
+          </span>
         ) : null}
       </label>
       <label className="block text-sm">
-        Email (optional)
+        {t("contact.emailLabel")}
         <input className={`${fieldClass} mt-1`} {...register("email")} />
         {errors.email ? (
-          <span className="mt-1 block text-xs text-red-700">{errors.email.message}</span>
+          <span className="mt-1 block text-xs text-red-700">
+            {translatedError(v, errors.email.message)}
+          </span>
         ) : null}
       </label>
       <label className="block text-sm">
-        Message
+        {t("contact.messageLabel")}
         <textarea
           rows={4}
           className="mt-1 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-primary"
@@ -83,24 +93,25 @@ export function ContactForm() {
         />
         {errors.message ? (
           <span className="mt-1 block text-xs text-red-700">
-            {errors.message.message}
+            {translatedError(v, errors.message.message)}
           </span>
         ) : null}
       </label>
       <CaptchaField onToken={(token) => setValue("captchaToken", token)} />
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
       <button type="submit" className={buttonClass("primary")} disabled={isSubmitting}>
-        {isSubmitting ? "Sending…" : "Send"}
+        {isSubmitting ? t("contact.sending") : t("contact.submit")}
       </button>
     </form>
   );
 }
 
 export function FaqList() {
+  const t = useTranslations("faq");
   return (
     <div>
       <div className="bg-ink px-4 py-3 text-sm font-semibold text-white">
-        Frequently asked questions
+        {t("heading")}
       </div>
       <div className="divide-y divide-black/5 rounded-b-lg bg-card shadow-soft">
         {faqs.map((item) => (
@@ -122,14 +133,15 @@ const sizes = [
 ];
 
 export function SizeGuide() {
+  const t = useTranslations("cms");
   return (
     <div className="overflow-x-auto rounded-lg bg-card shadow-soft">
       <table className="w-full min-w-[420px] text-sm">
         <thead className="bg-peach text-left">
           <tr>
-            <th className="p-3">Size</th>
-            <th className="p-3">Chest (in)</th>
-            <th className="p-3">Length (in)</th>
+            <th className="p-3">{t("sizeGuide.size")}</th>
+            <th className="p-3">{t("sizeGuide.chest")}</th>
+            <th className="p-3">{t("sizeGuide.length")}</th>
           </tr>
         </thead>
         <tbody>
@@ -142,10 +154,7 @@ export function SizeGuide() {
           ))}
         </tbody>
       </table>
-      <p className="p-4 text-sm text-muted">
-        If you are between sizes, choose the larger one for panjabis and the smaller one
-        for fitted tees.
-      </p>
+      <p className="p-4 text-sm text-muted">{t("sizeGuide.note")}</p>
     </div>
   );
 }

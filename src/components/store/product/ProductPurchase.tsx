@@ -173,7 +173,7 @@ export function ProductPurchase({
           <a
             className={`${buttonClass("outline")} mt-3 gap-2 hover:border-whatsapp hover:text-whatsapp`}
             href={`${whatsappHref}${whatsappHref.includes("?") ? "&" : "?"}text=${encodeURIComponent(
-              `Hello UniBaazar, I want to order ${product.name} (SKU: ${variant.sku}).`,
+              t("purchase.whatsappMessage", { name: product.name, sku: variant.sku }),
             )}`}
             target="_blank"
             rel="noreferrer"
@@ -194,23 +194,23 @@ export function ProductPurchase({
             className="text-primary"
             onClick={() => toggleWishlist(product.slug)}
           >
-            {saved ? "Remove from wishlist" : "Add to wishlist"}
+            {saved ? t("purchase.removeFromWishlist") : t("purchase.addToWishlist")}
           </button>
           <button
             type="button"
             className="text-ink"
             onClick={() => toggleCompare(product.slug)}
           >
-            {inCompare ? "Remove from compare" : "Add to compare"}
+            {inCompare ? t("purchase.removeFromCompare") : t("purchase.addToCompare")}
           </button>
         </div>
         <div className="mt-5 rounded-lg border border-black/10 bg-peach p-4 text-sm">
           <p>
-            <span className="font-semibold text-ink">Warranty: </span>
+            <span className="font-semibold text-ink">{t("purchase.warrantyLabel")}</span>
             {product.warranty}
           </p>
           <p className="mt-2">
-            <span className="font-semibold text-ink">Returns: </span>
+            <span className="font-semibold text-ink">{t("purchase.returnsLabel")}</span>
             {product.returns}
           </p>
         </div>

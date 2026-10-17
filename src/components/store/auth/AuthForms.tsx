@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { CaptchaField } from "@/components/store/auth/CaptchaField";
@@ -16,12 +17,15 @@ import {
   type LoginInput,
   type RegisterInput,
 } from "@/lib/validation/customer";
+import { translatedError } from "@/lib/validation/messages";
 import { useCartStore } from "@/store/cart";
 
 export function LoginForm({
   initialNeeds2fa = false,
 }: { initialNeeds2fa?: boolean } = {}) {
   const router = useRouter();
+  const t = useTranslations("auth");
+  const v = useTranslations("validation");
   const [formError, setFormError] = useState<string | null>(null);
   const [needs2fa, setNeeds2fa] = useState(initialNeeds2fa);
   const [otpCode, setOtpCode] = useState("");
@@ -72,7 +76,7 @@ export function LoginForm({
                 "error" in body &&
                 typeof body.error === "string"
                   ? body.error
-                  : "Could not verify the code";
+                  : t("errorVerifyCode");
               setFormError(message);
               return;
             }
@@ -82,12 +86,10 @@ export function LoginForm({
           }
         }}
       >
-        <h2 className="text-lg font-semibold text-ink">Authenticator code</h2>
-        <p className="mt-1 text-sm text-muted">
-          Enter the 6-digit code from your authenticator app.
-        </p>
+        <h2 className="text-lg font-semibold text-ink">{t("twoFaHeading")}</h2>
+        <p className="mt-1 text-sm text-muted">{t("twoFaIntro")}</p>
         <label className="mt-4 block text-sm">
-          Code
+          {t("fieldCode")}
           <input
             className={`${fieldClass} mt-1`}
             inputMode="numeric"
@@ -103,7 +105,7 @@ export function LoginForm({
           className={`${buttonClass("primary")} mt-4 w-full`}
           disabled={otpPending}
         >
-          Verify and continue
+          {t("verifyAndContinue")}
         </button>
         <button
           type="button"
@@ -114,7 +116,7 @@ export function LoginForm({
             setFormError(null);
           }}
         >
-          Back to login
+          {t("backToLogin")}
         </button>
       </form>
     );
@@ -139,7 +141,7 @@ export function LoginForm({
             "error" in body &&
             typeof body.error === "string"
               ? body.error
-              : "Could not sign in";
+              : t("errorSignIn");
           setFormError(message);
           return;
         }
@@ -159,16 +161,16 @@ export function LoginForm({
       })}
     >
       <label className="block text-sm">
-        Phone or email
+        {t("fieldPhoneOrEmail")}
         <input className={`${fieldClass} mt-1`} {...register("identity")} />
         {errors.identity ? (
           <span className="mt-1 block text-xs text-red-700">
-            {errors.identity.message}
+            {translatedError(v, errors.identity.message)}
           </span>
         ) : null}
       </label>
       <label className="mt-4 block text-sm">
-        Password
+        {t("fieldPassword")}
         <input
           type="password"
           className={`${fieldClass} mt-1`}
@@ -176,7 +178,7 @@ export function LoginForm({
         />
         {errors.password ? (
           <span className="mt-1 block text-xs text-red-700">
-            {errors.password.message}
+            {translatedError(v, errors.password.message)}
           </span>
         ) : null}
       </label>
@@ -187,7 +189,7 @@ export function LoginForm({
         className={`${buttonClass("primary")} mt-4 w-full`}
         disabled={isSubmitting}
       >
-        Login
+        {t("submitLogin")}
       </button>
     </form>
   );
@@ -195,6 +197,8 @@ export function LoginForm({
 
 export function RegisterForm() {
   const router = useRouter();
+  const t = useTranslations("auth");
+  const v = useTranslations("validation");
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
@@ -225,7 +229,7 @@ export function RegisterForm() {
             "error" in body &&
             typeof body.error === "string"
               ? body.error
-              : "Could not create the account";
+              : t("errorCreateAccount");
           setFormError(message);
           return;
         }
@@ -235,28 +239,34 @@ export function RegisterForm() {
       })}
     >
       <label className="block text-sm">
-        Name
+        {t("fieldName")}
         <input className={`${fieldClass} mt-1`} {...register("name")} />
         {errors.name ? (
-          <span className="mt-1 block text-xs text-red-700">{errors.name.message}</span>
+          <span className="mt-1 block text-xs text-red-700">
+            {translatedError(v, errors.name.message)}
+          </span>
         ) : null}
       </label>
       <label className="block text-sm">
-        Phone
+        {t("fieldPhone")}
         <input className={`${fieldClass} mt-1`} {...register("phone")} />
         {errors.phone ? (
-          <span className="mt-1 block text-xs text-red-700">{errors.phone.message}</span>
+          <span className="mt-1 block text-xs text-red-700">
+            {translatedError(v, errors.phone.message)}
+          </span>
         ) : null}
       </label>
       <label className="block text-sm">
-        Email (optional)
+        {t("fieldEmailOptional")}
         <input className={`${fieldClass} mt-1`} {...register("email")} />
         {errors.email ? (
-          <span className="mt-1 block text-xs text-red-700">{errors.email.message}</span>
+          <span className="mt-1 block text-xs text-red-700">
+            {translatedError(v, errors.email.message)}
+          </span>
         ) : null}
       </label>
       <label className="block text-sm">
-        Password
+        {t("fieldPassword")}
         <input
           type="password"
           className={`${fieldClass} mt-1`}
@@ -264,12 +274,12 @@ export function RegisterForm() {
         />
         {errors.password ? (
           <span className="mt-1 block text-xs text-red-700">
-            {errors.password.message}
+            {translatedError(v, errors.password.message)}
           </span>
         ) : null}
       </label>
       <label className="block text-sm">
-        Confirm password
+        {t("fieldConfirmPassword")}
         <input
           type="password"
           className={`${fieldClass} mt-1`}
@@ -277,7 +287,7 @@ export function RegisterForm() {
         />
         {errors.confirmPassword ? (
           <span className="mt-1 block text-xs text-red-700">
-            {errors.confirmPassword.message}
+            {translatedError(v, errors.confirmPassword.message)}
           </span>
         ) : null}
       </label>
@@ -288,13 +298,15 @@ export function RegisterForm() {
         className={`${buttonClass("primary")} w-full`}
         disabled={isSubmitting}
       >
-        Create account
+        {t("submitRegister")}
       </button>
     </form>
   );
 }
 
 export function ForgotForm() {
+  const t = useTranslations("auth");
+  const v = useTranslations("validation");
   const [previewCode, setPreviewCode] = useState<string | null>(null);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const {
@@ -329,19 +341,19 @@ export function ForgotForm() {
               "error" in body &&
               typeof body.error === "string"
                 ? body.error
-                : "Could not reset the password";
+                : t("errorResetPassword");
             setResetMessage(message);
             return;
           }
-          setResetMessage("Password updated. You can log in with the new password.");
+          setResetMessage(t("resetSuccess"));
         }}
       >
         <p className="text-sm text-muted">
-          Email is not connected yet. Use this reset code:{" "}
+          {t("resetCodeNotice")}
           <span className="font-semibold text-ink">{previewCode}</span>
         </p>
         <label className="block text-sm">
-          Code
+          {t("fieldCode")}
           <input
             name="code"
             className={`${fieldClass} mt-1`}
@@ -349,7 +361,7 @@ export function ForgotForm() {
           />
         </label>
         <label className="block text-sm">
-          New password
+          {t("fieldNewPassword")}
           <input
             name="password"
             type="password"
@@ -360,7 +372,7 @@ export function ForgotForm() {
         </label>
         {resetMessage ? <p className="text-sm text-ink">{resetMessage}</p> : null}
         <button type="submit" className={`${buttonClass("ink")} w-full`}>
-          Update password
+          {t("submitUpdatePassword")}
         </button>
       </form>
     );
@@ -393,11 +405,11 @@ export function ForgotForm() {
       })}
     >
       <label className="block text-sm">
-        Phone or email
+        {t("fieldPhoneOrEmail")}
         <input className={`${fieldClass} mt-1`} {...register("identity")} />
         {errors.identity ? (
           <span className="mt-1 block text-xs text-red-700">
-            {errors.identity.message}
+            {translatedError(v, errors.identity.message)}
           </span>
         ) : null}
       </label>
@@ -407,7 +419,7 @@ export function ForgotForm() {
         className={`${buttonClass("ink")} mt-4`}
         disabled={isSubmitting}
       >
-        Send reset code
+        {t("submitSendResetCode")}
       </button>
     </form>
   );

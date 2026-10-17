@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/store/common/SectionHeading";
 import { FlashCountdown } from "@/components/store/home/FlashCountdown";
@@ -38,14 +39,15 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-const trust = [
-  { title: "Fast delivery", text: "Inside Dhaka and nationwide" },
-  { title: "Authorized products", text: "Warranty stated on the product" },
-  { title: "Support", text: "Help with orders and returns" },
-  { title: "Payments", text: "COD, bKash, Nagad, Rocket, card" },
-];
-
 export default async function HomePage() {
+  const t = await getTranslations("home");
+  const common = await getTranslations("common");
+  const trust = [
+    { title: t("trustFastDeliveryTitle"), text: t("trustFastDeliveryText") },
+    { title: t("trustAuthorizedTitle"), text: t("trustAuthorizedText") },
+    { title: t("trustSupportTitle"), text: t("trustSupportText") },
+    { title: t("trustPaymentsTitle"), text: t("trustPaymentsText") },
+  ];
   const [
     sections,
     quotes,
@@ -146,7 +148,11 @@ export default async function HomePage() {
     ),
     categories: (
       <Container className="py-6">
-        <SectionHeading title="Categories" href="/shop" action="All products" />
+        <SectionHeading
+          title={common("categories")}
+          href="/shop"
+          action={t("allProducts")}
+        />
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
           {categories.map((category) => (
             <Link
@@ -170,9 +176,11 @@ export default async function HomePage() {
         <Container className="py-4">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-ink sm:text-2xl">Flash sale</h2>
+              <h2 className="text-xl font-bold text-ink sm:text-2xl">
+                {t("flashSaleTitle")}
+              </h2>
               <Link href="/flash-deals" className="text-sm font-semibold text-primary">
-                View all deals
+                {t("viewAllDeals")}
               </Link>
             </div>
             <FlashCountdown endsAt={nextFlashSale.endsAt.toISOString()} />
@@ -183,28 +191,30 @@ export default async function HomePage() {
     offers: (
       <Container className="py-4">
         <Link href="/offers" className="block rounded-lg bg-ink px-6 py-8 text-white">
-          <p className="text-sm font-semibold text-primary">Offers</p>
-          <p className="mt-1 text-2xl font-bold">
-            Save on electronics, fashion, and groceries
-          </p>
+          <p className="text-sm font-semibold text-primary">{t("offersLabel")}</p>
+          <p className="mt-1 text-2xl font-bold">{t("offersTagline")}</p>
         </Link>
       </Container>
     ),
     featured: (
       <Container className="py-4">
-        <SectionHeading title="Featured" href="/shop" action="Shop all" />
+        <SectionHeading title={t("featuredTitle")} href="/shop" action={t("shopAll")} />
         <ProductGrid products={featured} />
       </Container>
     ),
     recent: (
       <Container className="py-4">
-        <SectionHeading title="Recent" href="/shop?sort=newest" action="Newest" />
+        <SectionHeading
+          title={t("recentTitle")}
+          href="/shop?sort=newest"
+          action={t("newest")}
+        />
         <ProductGrid products={recent} />
       </Container>
     ),
     bestsellers: (
       <Container className="py-4">
-        <SectionHeading title="Best sellers" />
+        <SectionHeading title={t("bestSellersTitle")} />
         <ProductGrid products={best} />
       </Container>
     ),
@@ -223,14 +233,14 @@ export default async function HomePage() {
     testimonials:
       quotes.length > 0 ? (
         <Container className="py-4">
-          <SectionHeading title="Testimonials" />
+          <SectionHeading title={t("testimonialsTitle")} />
           <TestimonialCarousel items={quotes} />
         </Container>
       ) : null,
     videos:
       homeVideos.length > 0 ? (
         <Container className="py-4">
-          <SectionHeading title="Watch and shop" />
+          <SectionHeading title={t("watchAndShopTitle")} />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {homeVideos.map((video) => (
               <div key={video.id}>
@@ -245,16 +255,16 @@ export default async function HomePage() {
       instagramUrls.length > 0 ? (
         <Container className="py-6">
           <SectionHeading
-            title="Instagram"
+            title={t("instagramTitle")}
             href={social.instagram || undefined}
-            action={social.instagram ? "Open profile" : undefined}
+            action={social.instagram ? t("openProfile") : undefined}
           />
           <InstagramFeed urls={instagramUrls} />
         </Container>
       ) : null,
     blog: (
       <Container className="py-6">
-        <SectionHeading title="From the blog" href="/blog" action="All posts" />
+        <SectionHeading title={t("blogTitle")} href="/blog" action={t("allPosts")} />
         <div className="grid gap-3 md:grid-cols-3">
           {homePosts.map((post) => (
             <Link

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Container } from "@/components/ui/Container";
 import { breadcrumbJsonLd } from "@/lib/seo/schema";
@@ -21,11 +22,12 @@ export function PageTitle({
   crumbs = [],
   showHeading = true,
 }: PageTitleProps) {
+  const t = useTranslations("common");
   return (
     <div className="bg-peach">
       <Container className="py-8">
         {crumbs.length > 0 ? (
-          <nav aria-label="Breadcrumb" className="mb-3">
+          <nav aria-label={t("breadcrumbAria")} className="mb-3">
             <JsonLd data={breadcrumbJsonLd(crumbs)} />
             <ol className="flex flex-wrap items-center gap-1 text-sm text-muted">
               {crumbs.map((crumb, index) => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 export type HeroSlide = {
   id: string;
@@ -13,6 +14,7 @@ export type HeroSlide = {
 };
 
 export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
+  const t = useTranslations("home");
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -58,14 +60,14 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
           href={slide.href}
           className="mt-6 inline-flex h-11 items-center rounded-md bg-white px-4 text-sm font-semibold text-ink"
         >
-          Shop now
+          {t("shopNow")}
         </Link>
         <div className="mt-6 flex gap-2">
           {slides.map((item, itemIndex) => (
             <button
               key={item.id}
               type="button"
-              aria-label={`Show slide ${itemIndex + 1}`}
+              aria-label={t("showSlide", { number: itemIndex + 1 })}
               aria-pressed={itemIndex === index}
               onClick={() => setIndex(itemIndex)}
               className={`h-2.5 w-2.5 rounded-full ${itemIndex === index ? "bg-white" : "bg-white/40"}`}

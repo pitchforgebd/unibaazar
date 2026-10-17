@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { ProductListing } from "@/components/store/shop/ProductListing";
 import { parseShopQuery } from "@/lib/catalog/queries";
 import { getStoreBrand } from "@/server/catalog/products";
@@ -22,7 +23,8 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: BrandPageProps): Promise<Metadata> {
   const { slug } = await params;
   const brand = await getStoreBrand(slug);
-  return { title: brand?.name ?? "Brand" };
+  const t = await getTranslations("shop");
+  return { title: brand?.name ?? t("brandFallback") };
 }
 
 export default async function BrandPage({ params, searchParams }: BrandPageProps) {

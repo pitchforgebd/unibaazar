@@ -373,6 +373,7 @@ export async function POST(request: Request) {
           title: banner.title,
           href: banner.href,
           imageHue: banner.hue,
+          placement: "home",
           sortOrder: index,
         },
         create: {
@@ -380,7 +381,7 @@ export async function POST(request: Request) {
           title: banner.title,
           href: banner.href,
           imageHue: banner.hue,
-          placement: "home-side",
+          placement: "home",
           sortOrder: index,
         },
       });

@@ -1,4 +1,5 @@
 import { Quote, Star } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type Testimonial = {
   id: string;
@@ -23,6 +24,7 @@ function Stars({ rating }: { rating: number }) {
 }
 
 export function TestimonialCarousel({ items }: { items: Testimonial[] }) {
+  const t = useTranslations("home");
   if (items.length === 0) {
     return null;
   }
@@ -37,7 +39,7 @@ export function TestimonialCarousel({ items }: { items: Testimonial[] }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={item.imageUrl}
-              alt={`Message from ${item.name}`}
+              alt={t("testimonialAlt", { name: item.name })}
               className="w-full"
             />
             <figcaption className="px-3 py-2 text-xs font-semibold text-muted">

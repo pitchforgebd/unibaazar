@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
 import { ContactForm, FaqList, SizeGuide } from "@/components/store/content/CmsBlocks";
+import { siteConfig } from "@/config/site";
 import { cmsPages, getCmsPage } from "@/lib/catalog/queries";
 import { prisma } from "@/lib/db";
 import { sanitizeRichText } from "@/lib/security/sanitizeHtml";
@@ -31,13 +33,15 @@ export async function generateMetadata({ params }: CmsPageProps): Promise<Metada
   const { "page-slug": slug } = await params;
   const stored = await prisma.page.findFirst({ where: { slug, status: "PUBLISHED" } });
   const seo = stored ? await seoFor("PAGE", stored.id) : null;
+  const cms = await getTranslations("cms");
+  const faq = await getTranslations("faq");
   const fallback =
     slug === "contact-us"
-      ? "Contact us"
+      ? cms("contactUs.title")
       : slug === "faq"
-        ? "FAQs"
+        ? faq("title")
         : slug === "size-guide"
-          ? "Size guide"
+          ? cms("sizeGuide.title")
           : stored?.title || getCmsPage(slug)?.title || "Page";
   return buildMetadata({
     title: seo?.metaTitle || fallback,
@@ -52,6 +56,8 @@ export async function generateMetadata({ params }: CmsPageProps): Promise<Metada
 
 export default async function CmsRoute({ params }: CmsPageProps) {
   const { "page-slug": slug } = await params;
+  const cms = await getTranslations("cms");
+  const faq = await getTranslations("faq");
   const stored = await prisma.page.findFirst({ where: { slug, status: "PUBLISHED" } });
   const faqs = slug === "faq" ? await publishedFaqs() : [];
   const page = stored
@@ -71,11 +77,11 @@ export default async function CmsRoute({ params }: CmsPageProps) {
       : null;
   const title =
     slug === "contact-us"
-      ? "Contact us"
+      ? cms("contactUs.title")
       : slug === "faq"
-        ? "FAQs"
+        ? faq("title")
         : slug === "size-guide"
-          ? "Size guide"
+          ? cms("sizeGuide.title")
           : page?.title;
 
   if (!title) {
@@ -94,8 +100,10 @@ export default async function CmsRoute({ params }: CmsPageProps) {
         {slug === "contact-us" ? (
           <>
             <p className="mb-4 text-sm text-muted">
-              Call 01700-000000 or email hello@unibaazar.com. You can also send a message
-              here.
+              {cms("contactUs.intro", {
+                phone: siteConfig.contact.phoneDisplay,
+                email: siteConfig.contact.email,
+              })}
             </p>
             <ContactForm />
           </>

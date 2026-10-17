@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
 import { FlashCountdown } from "@/components/store/home/FlashCountdown";
@@ -6,7 +7,10 @@ import { ProductGrid } from "@/components/store/product/ProductCard";
 import { prisma } from "@/lib/db";
 import { listStoreProducts } from "@/server/catalog/products";
 
-export const metadata: Metadata = { title: "Flash deals" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("shop");
+  return { title: t("flashDealsTitle") };
+}
 
 export default async function FlashDealsPage() {
   const [products, nextFlashSale] = await Promise.all([
@@ -22,12 +26,14 @@ export default async function FlashDealsPage() {
     }),
   ]);
   const deals = products.filter((product) => product.flashSale);
+  const t = await getTranslations("shop");
+  const common = await getTranslations("common");
   return (
     <>
       <PageTitle
-        title="Flash deals"
-        subtitle="Prices and stock on these deals can change when the countdown ends."
-        crumbs={[{ href: "/", label: "Home" }, { label: "Flash deals" }]}
+        title={t("flashDealsTitle")}
+        subtitle={t("flashDealsSubtitle")}
+        crumbs={[{ href: "/", label: common("home") }, { label: t("flashDealsTitle") }]}
       />
       <Container className="py-6">
         {nextFlashSale ? (
@@ -39,7 +45,7 @@ export default async function FlashDealsPage() {
           <ProductGrid products={deals} />
         ) : (
           <p className="rounded-lg bg-card p-6 text-sm shadow-soft">
-            No flash deals are running right now.
+            {t("noFlashDeals")}
           </p>
         )}
       </Container>
