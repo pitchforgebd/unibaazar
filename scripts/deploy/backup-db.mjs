@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const envFile = readFileSync(join(root, ".env"), "utf8");
 const match = envFile.match(/^DATABASE_URL=(.*)$/m);
 const raw = match?.[1]?.trim().replace(/^["']|["']$/g, "");
