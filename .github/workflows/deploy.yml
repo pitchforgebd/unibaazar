@@ -1,0 +1,113 @@
+name: deploy
+
+on:
+  workflow_run:
+    workflows: ["ci"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Ensure the release/shared directories exist
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.APP_PATH }}"
+            mkdir -p releases shared/uploads shared/backups incoming
+            if [ ! -f shared/.env ]; then
+              echo "shared/.env is missing — first-time setup isn't finished." >&2
+              echo "See DEPLOYMENT.md 'First-time setup' before the first deploy." >&2
+              exit 1
+            fi
+
+      - name: Download the release artifact built by ci.yml
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+          name: release-${{ github.event.workflow_run.head_sha }}
+          path: artifact
+
+      - name: Upload artifact to the host
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: artifact/release.tar.gz
+          target: ${{ secrets.APP_PATH }}/incoming
+          strip_components: 1
+
+      - name: Unpack, migrate, switch, restart, smoke-test
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: SHA
+          script_stop: true
+          script: |
+            set -euo pipefail
+            SHA="${{ github.event.workflow_run.head_sha }}"
+            APP_PATH="${{ secrets.APP_PATH }}"
+            cd "$APP_PATH"
+
+            RELEASE_DIR="releases/$SHA"
+            mkdir -p "$RELEASE_DIR"
+            tar -xzf "incoming/release.tar.gz" -C "$RELEASE_DIR"
+            rm -f "incoming/release.tar.gz"
+
+            # Shared files/dirs survive every release.
+            mkdir -p shared/uploads shared/backups
+            ln -sfn "$APP_PATH/shared/uploads" "$RELEASE_DIR/public/uploads"
+            ln -sfn "$APP_PATH/shared/.env" "$RELEASE_DIR/.env"
+
+            PREVIOUS="$(readlink current || true)"
+
+            echo "Backing up the database..."
+            (cd "$RELEASE_DIR" && BACKUP_DIR="$APP_PATH/shared/backups" node scripts/deploy/backup-db.mjs)
+
+            echo "Applying migrations..."
+            (cd "$RELEASE_DIR" && bash scripts/deploy/apply-migrations.sh)
+
+            echo "Switching current -> $RELEASE_DIR"
+            ln -sfn "$RELEASE_DIR" current
+            mkdir -p current/tmp
+            touch current/tmp/restart.txt
+
+            echo "Smoke-testing..."
+            ok=""
+            for i in $(seq 1 12); do
+              if curl -fsS "${{ secrets.HEALTH_CHECK_URL }}" | grep -q '"status":"ok"'; then
+                ok="yes"
+                break
+              fi
+              sleep 5
+            done
+
+            if [ -z "$ok" ]; then
+              echo "Smoke test failed — rolling back to $PREVIOUS"
+              if [ -n "$PREVIOUS" ]; then
+                ln -sfn "$PREVIOUS" current
+                touch current/tmp/restart.txt
+              fi
+              exit 1
+            fi
+
+            echo "Deployed $SHA successfully."
+
+            # Keep the last 5 releases only.
+            cd releases
+            ls -1t | tail -n +6 | xargs -r rm -rf

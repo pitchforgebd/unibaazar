@@ -1,5 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -14,7 +21,11 @@ if (!raw) {
 
 const db = new URL(raw);
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-const folder = join(root, "backups");
+// On the server this is set to the shared backups dir (survives every
+// release): BACKUP_DIR=/home/USER/unibaazar/shared/backups. Defaults to a
+// repo-root folder for local use.
+const folder = process.env.BACKUP_DIR ?? join(root, "backups");
+const keep = Number(process.env.BACKUP_KEEP ?? 14);
 mkdirSync(folder, { recursive: true });
 const file = join(folder, `unibaazar-${stamp}.sql`);
 const result = spawnSync(
@@ -43,3 +54,17 @@ if (result.error || result.status !== 0) {
 
 writeFileSync(file, result.stdout);
 console.log(file);
+
+const backups = readdirSync(folder)
+  .filter((name) => name.startsWith("unibaazar-") && name.endsWith(".sql"))
+  .map((name) => ({
+    name,
+    path: join(folder, name),
+    mtime: statSync(join(folder, name)).mtimeMs,
+  }))
+  .sort((a, b) => b.mtime - a.mtime);
+
+for (const old of backups.slice(keep)) {
+  unlinkSync(old.path);
+  console.log(`removed old backup: ${old.name}`);
+}

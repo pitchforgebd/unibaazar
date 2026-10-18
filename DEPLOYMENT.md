@@ -1,204 +1,211 @@
 # Deploying UniBaazar to cPanel
 
-Target: `unibaazar.com`, repo `https://github.com/pitchforgebd/unibaazar.git`, Node.js app on cPanel (Passenger), MySQL database on the same server.
+Target: `unibaazar.com`, repo `https://github.com/pitchforgebd/unibaazar.git`,
+Node.js app on cPanel (Passenger), MySQL database on the same server.
 
-This assumes your cPanel plan has **"Setup Node.js App"** (CloudLinux Node.js Selector) and **Terminal** access — both are standard on cPanel hosts that advertise Node.js support.
+**As of Phase 1 of the v2 rebuild, deploying is automatic: merging to `main`
+deploys.** GitHub Actions builds, tests, backs up the database, migrates,
+switches the live release, restarts, and smoke-tests — then automatically
+rolls back if the smoke test fails. The server never builds, never installs
+dev tooling, and never runs the Prisma CLI — it only receives a finished
+artifact and restarts. See `UNIBAAZAR_V2_MASTER_PLAN.md` §3 for the full
+design and `docs/deploy/host-facts.md` / `docs/deploy/github-secrets.md` for
+the one-time setup this depends on.
+
+This replaces the old manual `git pull && npm install && npm run build`
+flow entirely. That flow is gone — don't run `npm run build` or
+`npx prisma migrate deploy` on the host anymore; see §12 "Troubleshooting"
+if you're tempted to.
 
 ---
 
 ## 0. Before you start
 
-- Confirm `unibaazar.com` already points at this cPanel account (A record or nameservers), otherwise the site won't be reachable even once everything below is done.
-- Confirm your cPanel plan's Node selector offers **Node 20.x** (Next.js 15 needs Node ^18.18 or >=20 — 20 LTS is the safe pick).
-- Keep your DB password and any API keys out of chat/screenshots going forward — once this deploy is live, treat `.env` as the only place they live.
+- Confirm `unibaazar.com` already points at this cPanel account.
+- Confirm your cPanel plan offers **Node.js Selector / Setup Node.js App**,
+  **SSH Access**, and **Terminal**.
+- Read `docs/deploy/host-facts.md` — it lists the exact commands to run on
+  the host once, to confirm this pipeline will work on your specific setup
+  (OpenSSL version, Node version, SSH availability).
 
 ---
 
-## 1. Create the MySQL database
+## 1. Create the MySQL database (one-time, manual)
 
 cPanel → **MySQL® Databases**.
 
-1. Under "Create New Database", create a database. cPanel will prefix whatever name you type with your cPanel username, e.g. typing `unibaazer_db` as a `pitchfor` account becomes **`pitchfor_unibaazer_db`**. Note the exact prefixed name shown on screen.
-2. Under "MySQL Users → Add New User", create `unibaazer_user` with a strong generated password (`openssl rand -base64 24`) — your call. It becomes **`pitchfor_unibaazer_user`** the same way.
-3. Under "Add User To Database", add that user to that database with **ALL PRIVILEGES**.
-
-Write down the three _final, prefixed_ values — you need them verbatim in step 5.
+1. Create a database (cPanel prefixes it with your username, e.g.
+   `pitchfor_unibaazer_db` — note the exact prefixed name).
+2. Create a DB user with a strong generated password
+   (`openssl rand -base64 24`) — note the exact prefixed username too.
+3. Add that user to that database with **ALL PRIVILEGES**.
 
 ---
 
-## 2. Create the Node.js app
+## 2. Lay out the app directory (one-time, manual)
+
+The automated pipeline expects this structure under `~/unibaazar`:
+
+```
+~/unibaazar/
+  releases/<git-sha>/   # one folder per deploy, created automatically
+  shared/
+    .env                # you create this once, by hand — never overwritten by a deploy
+    uploads/             # symlinked into every release as public/uploads
+    backups/              # mysqldump output, 14 kept automatically
+  incoming/              # deploy uploads land here briefly before unpacking
+  current -> releases/<sha>   # symlink, repointed by every deploy
+```
+
+Via Terminal:
+
+```bash
+mkdir -p ~/unibaazar/releases ~/unibaazar/shared/uploads ~/unibaazar/shared/backups ~/unibaazar/incoming
+```
+
+## 3. Create `shared/.env` (one-time, manual)
+
+```bash
+nano ~/unibaazar/shared/.env
+```
+
+```bash
+DATABASE_URL=mysql://<prefixed-user>:<password>@localhost:3306/<prefixed-db>?connection_limit=3&pool_timeout=20
+NEXT_PUBLIC_SITE_URL=https://unibaazar.com
+AUTH_SECRET=<openssl rand -hex 32>
+CRON_SECRET=<openssl rand -hex 32>
+```
+
+`connection_limit=3&pool_timeout=20` matters on this host — see
+`UNIBAAZAR_V2_MASTER_PLAN.md` §3.3. Everything else in `.env.example`
+(payment gateways, SMS, SMTP, social/pixel IDs) can stay unset — those are
+also configurable from Admin → Settings, and features using them simply
+no-op until configured.
+
+This file is **never** touched by a deploy — it's symlinked into every new
+release (`current/.env -> shared/.env`), so updating a secret here and
+restarting is all that's needed to rotate it. It's also never committed, and
+never leaves the server.
+
+## 4. Set up GitHub Actions deployment (one-time)
+
+Follow `docs/deploy/host-facts.md` (gathers the facts this needs) and then
+`docs/deploy/github-secrets.md` (adds them as GitHub Secrets:
+`SSH_HOST`, `SSH_USER`, `SSH_KEY`, `SSH_PORT`, `APP_PATH`,
+`HEALTH_CHECK_URL`).
+
+## 5. First deploy (triggers the pipeline for real, for the first time)
+
+Merge any PR to `main` (or re-run the `ci` workflow manually from the
+Actions tab, which also triggers `deploy` via `workflow_run`). Watch the
+`deploy` job in the Actions tab. On success, `~/unibaazar/current` now points
+at a real release.
+
+## 6. Create the Node.js app in cPanel (one-time, manual — only after step 5)
 
 cPanel → **Setup Node.js App** → **Create Application**.
 
-| Field                    | Value                                                                   |
-| ------------------------ | ----------------------------------------------------------------------- |
-| Node.js version          | 20.x (latest available)                                                 |
-| Application mode         | Production                                                              |
-| Application root         | `unibaazar` (a folder under your home dir, e.g. `/home/USER/unibaazar`) |
-| Application URL          | `unibaazar.com`                                                         |
-| Application startup file | `server.js`                                                             |
+| Field                    | Value               |
+| ------------------------ | ------------------- |
+| Node.js version          | 20.x                |
+| Application mode         | Production          |
+| Application root         | `unibaazar/current` |
+| Application URL          | `unibaazar.com`     |
+| Application startup file | `server.js`         |
 
-Click **Create**. cPanel creates the (mostly empty) `unibaazar` folder and a **virtual environment** for this app. The page shows a command like:
-
-```bash
-source /home/USER/nodevenv/unibaazar/20/bin/activate && cd /home/USER/unibaazar
-```
-
-Copy that exact line — you'll run it every time you `npm install`, `npm run build`, or run `npx prisma` commands, because this activates the Node version cPanel picked (plain `node`/`npm` in Terminal may point at a different/no version).
-
----
-
-## 3. Clone the repo (Terminal)
-
-```bash
-source /home/USER/nodevenv/unibaazar/20/bin/activate
-cd /home/USER
-```
-
-If `unibaazar/` is empty (cPanel just created it):
-
-```bash
-git clone https://github.com/pitchforgebd/unibaazar.git unibaazar
-cd unibaazar
-```
-
-If cPanel put placeholder files in it (non-empty), clone elsewhere and move the contents in instead:
-
-```bash
-git clone https://github.com/pitchforgebd/unibaazar.git /home/USER/unibaazar_src
-rsync -a /home/USER/unibaazar_src/ /home/USER/unibaazar/
-rm -rf /home/USER/unibaazar_src
-cd /home/USER/unibaazar
-```
-
----
-
-## 4. Create `.env`
-
-```bash
-cp .env.example .env
-nano .env
-```
-
-Fill in at minimum:
-
-```bash
-DATABASE_URL=mysql://pitchfor_unibaazer_user:<your-db-password>@localhost:3306/pitchfor_unibaazer_db
-NEXT_PUBLIC_SITE_URL=https://unibaazar.com
-AUTH_SECRET=<random 32+ char string>
-CRON_SECRET=<random string>
-```
-
-Replace the DB name/user with your _actual_ prefixed values from step 1 — `unibaazer_db`/`unibaazer_user` as typed almost certainly aren't the real names once cPanel prefixes them.
-
-Generate strong random values for `AUTH_SECRET` and `CRON_SECRET`:
-
-```bash
-openssl rand -hex 32
-```
-
-Everything else in `.env.example` (payment gateways, SMS, SMTP, social/pixel IDs) can stay blank for now — all of those are also settable from the admin panel (Settings → Integrations/Social/Tracking) after launch, and the app runs fine without them (those features just no-op until configured). `STEADFAST_API_KEY`/`STEADFAST_SECRET_KEY` likewise — Settings → Integrations now reads the DB-saved Steadfast key first and only falls back to these env vars.
-
-Save and exit (`Ctrl+O`, `Enter`, `Ctrl+X` in nano).
-
----
-
-## 5. Install, generate, migrate, build
-
-Still inside the activated venv, in `/home/USER/unibaazar`:
-
-```bash
-npm install
-npx prisma generate
-npx prisma migrate deploy
-npm run build
-```
-
-- `npm install` needs the full `node_modules` (including devDependencies) because `next build` compiles TypeScript — don't use `--omit=dev`.
-- `npx prisma migrate deploy` applies the committed migrations non-interactively. Never use `prisma migrate dev` on the server — that's the local/interactive command.
-- If you want the seeded staff roles + sample catalog on a brand-new database: `npm run db:seed` (run it _before_ `npm run build`, order doesn't actually matter, but do it once, not on every deploy — it's meant for an empty DB, not a live one with real orders).
-- If `npm run build` dies (OOM) on a memory-constrained plan: retry with `NODE_OPTIONS=--max-old-space-size=2048 npm run build`.
-
----
-
-## 6. Start the app
-
-cPanel → **Setup Node.js App** → find the `unibaazar` app → **Restart**.
-
-cPanel manages the process (via Passenger) — you don't run `node server.js` yourself in a terminal session that would die when you disconnect. `server.js` already reads `PORT`/`NODE_ENV` from the environment, which Passenger sets automatically.
-
-Give it 10–20 seconds after a restart before testing — a fresh Next.js process takes a moment to boot.
-
----
+**This is the one thing I couldn't verify myself**: whether Passenger
+accepts `current` as a symlink and follows it correctly, vs. needing the
+application root to be a real directory. Click **Create**, then **Restart**,
+then check `https://unibaazar.com/api/health`. If it works, you're done —
+every future deploy just updates where the symlink points and touches
+`tmp/restart.txt`, no further cPanel UI steps needed. If Passenger errors
+on a symlinked root, tell me and I'll switch the pipeline to the documented
+fallback (rsync the release into a fixed directory with `--delete-after`,
+excluding `shared/`) — see the ADR this phase records either way.
 
 ## 7. SSL
 
-cPanel → **SSL/TLS Status** → run **AutoSSL** for `unibaazar.com` if it isn't already issued. Next.js doesn't need any code change for this — cPanel/Apache terminates TLS in front of the Node app.
+cPanel → **SSL/TLS Status** → run **AutoSSL** for `unibaazar.com` if not
+already issued.
 
 ---
 
-## 8. Cron jobs
+## Normal deploys (after first-time setup)
 
-cPanel → **Cron Jobs** → add these three (replace `YOUR_CRON_SECRET` with the real `CRON_SECRET` from `.env`):
+**Merge a PR to `main`. That's it.** GitHub Actions:
+
+1. `ci` runs the full verify suite (typecheck, lint, unit, integration, E2E
+   desktop + mobile, accessibility, Lighthouse) and builds the artifact.
+2. `deploy` uploads it, backs up the database, applies any new migrations,
+   switches `current`, restarts, and smoke-tests `/api/health`.
+3. If the smoke test fails, it automatically re-points `current` at the
+   previous release and restarts — the bad deploy never stays live.
+
+Watch progress in the repo's **Actions** tab.
+
+## Rollback
+
+Automatic on a failed smoke test (above). To roll back manually to any
+earlier release:
+
+```bash
+cd ~/unibaazar
+ls releases/              # pick a SHA
+./releases/<any-sha>/scripts/deploy/rollback.sh <sha-to-roll-back-to>
+```
+
+## Cron jobs
+
+cPanel → **Cron Jobs**. Replace `YOUR_CRON_SECRET` with the real
+`CRON_SECRET` from `shared/.env`:
 
 ```bash
 # Cancel unpaid non-COD orders stuck in PENDING for over 24h — hourly
-0 * * * * curl -fsS -X POST "https://unibaazar.com/api/v1/cron/cancel-unpaid-orders?secret=YOUR_CRON_SECRET"
+0 * * * * curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://unibaazar.com/api/v1/cron/cancel-unpaid-orders"
 
 # Catch any variant that drifted below its low-stock threshold — every 30 min
-*/30 * * * * curl -fsS -X POST "https://unibaazar.com/api/v1/cron/low-stock-sweep?secret=YOUR_CRON_SECRET"
+*/30 * * * * curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://unibaazar.com/api/v1/cron/low-stock-sweep"
 
-# Daily database backup at 2am
-0 2 * * * cd /home/USER/unibaazar && /bin/sh scripts/backup-db.sh
+# Daily database backup at 2am (also runs automatically before every deploy)
+0 2 * * * cd ~/unibaazar/current && BACKUP_DIR=~/unibaazar/shared/backups node scripts/deploy/backup-db.mjs
 ```
 
-`mysqldump` must be on the server `PATH` for the backup job — it is by default on cPanel. Backups land in `unibaazar/backups/` (gitignored, not deleted by a redeploy).
+This list grows as later phases add more scheduled routes (stock-reservation
+release, abandoned-cart reminders, courier sync, sitemap/feed regeneration,
+analytics rollups — see `UNIBAAZAR_V2_MASTER_PLAN.md` §3.5). This file gets
+updated each time one lands.
+
+These use an `Authorization: Bearer` header rather than a `?secret=` query
+parameter — a secret in a query string ends up in access logs. The endpoint
+still accepts the old `?secret=` form too (`src/server/cron/auth.ts`), so
+existing cron lines keep working, but prefer the header form for anything
+you add or edit from here on.
 
 ---
 
-## 9. First login and smoke test
+## First login and smoke test (after the very first deploy)
 
 Visit `https://unibaazar.com`.
 
-Admin login: phone `01700000000`, password set by `prisma/seed.ts` (check that file locally — **never commit the real value**) — **this is a seeded default password, change it immediately** (Users → your account → change password, or the password-reset flow) once you've confirmed login works.
+Admin login: phone `01700000000`, password set by `prisma/seed.ts` (check
+that file locally — **never commit the real value**, and change it
+immediately after first login via Users → your account → change password).
 
-Walk through:
-
-- Homepage loads, images render, add a product to cart.
-- Place one real test order end to end.
-- `/admin` dashboard loads, shows the test order.
-- Settings → Integrations shows the Steadfast webhook Callback URL as `https://unibaazar.com/api/webhooks/steadfast` (confirms `NEXT_PUBLIC_SITE_URL` is set correctly) — paste that plus a generated Auth token into your real Steadfast merchant panel's webhook settings when you're ready to go live with courier booking.
-- Settings → General → upload the real logo/favicon.
-
----
-
-## 10. Redeploying later
-
-Every time you push new code to `main`:
-
-```bash
-source /home/USER/nodevenv/unibaazar/20/bin/activate
-cd /home/USER/unibaazar
-git pull origin main
-npm install
-npx prisma migrate deploy
-npm run build
-```
-
-Then cPanel → Setup Node.js App → **Restart**.
-
-(`npx prisma migrate deploy` is a no-op if there's nothing new to apply — always safe to run.)
+Walk through: homepage loads and images render, add a product to cart, place
+one real test order end to end, `/admin` shows the test order, Settings →
+General has the real logo/favicon.
 
 ---
 
 ## Troubleshooting
 
-| Symptom                                                    | Likely cause                                                                                                                                                               |
-| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Blank/500 page right after restart                         | Give it 10–20s; Passenger is still booting the process                                                                                                                     |
-| "Module not found" after a pull                            | Forgot `npm install` (new dependency)                                                                                                                                      |
-| Prisma client errors after a pull                          | Forgot `npx prisma generate` or `npx prisma migrate deploy` (schema changed)                                                                                               |
-| `npm`/`node` not found, or wrong version                   | You didn't `source .../activate` first in this Terminal session                                                                                                            |
-| `npm run build` killed / OOM                               | Retry with `NODE_OPTIONS=--max-old-space-size=2048 npm run build`, or build locally and upload `.next/`                                                                    |
-| Uploaded product/banner images missing after a fresh clone | Expected — `public/uploads/` is gitignored on purpose (user-uploaded, not source code); it's only empty on the very first deploy and persists across `git pull` after that |
-| Logs                                                       | cPanel → Setup Node.js App → the app → log file path shown on that page                                                                                                    |
+| Symptom                                                                               | Likely cause                                                                                                                          |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `deploy` job fails at "Ensure the release/shared directories exist"                   | SSH secrets are wrong, or `shared/.env` hasn't been created yet (§3)                                                                  |
+| Prisma engine fails to load (`Error loading shared library`)                          | `binaryTargets` in `prisma/schema.prisma` doesn't match the host's OpenSSL — see `docs/deploy/host-facts.md` §1                       |
+| Smoke test times out, auto-rollback fires                                             | App didn't come up in 60s after restart, or `/api/health` isn't reachable at `HEALTH_CHECK_URL` — check the Node app's logs in cPanel |
+| `/api/health` returns `db: "fail"`                                                    | `shared/.env`'s `DATABASE_URL` is wrong, or the DB is unreachable                                                                     |
+| Blank/500 page right after a deploy                                                   | Give it 10–20s — Passenger is still booting the new process                                                                           |
+| Uploaded product/banner images missing after a fresh server setup                     | Expected on the very first deploy — `shared/uploads/` starts empty and persists across every deploy after that                        |
+| I manually ran `npm install`/`npm run build` on the server and now something's broken | Don't — the server never builds (§12 intro). Re-deploy from `main` to get back to a known-good artifact, or roll back (above)         |
+| Logs                                                                                  | cPanel → Setup Node.js App → the app → log file path shown on that page                                                               |
