@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm ci)",
+      "Bash(npm install *)",
+      "Bash(npx prisma *)",
+      "Bash(npx playwright *)",
+      "Bash(npx vitest *)",
+      "Bash(docker compose *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Bash(git push origin v2/*)",
+      "Bash(gh pr create *)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push origin main*)",
+      "Bash(git reset --hard*)",
+      "Bash(ssh *)",
+      "Bash(rm -rf /*)",
+      "Bash(npx prisma migrate reset*)"
+    ]
+  }
+}

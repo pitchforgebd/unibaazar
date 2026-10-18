@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { isStoredOrder, readPlacedOrders } from "@/lib/orders/session";
 import { formatTaka } from "@/lib/utils/currency";
 import type { Order } from "@/types/catalog";
@@ -15,6 +16,7 @@ type Account = {
 export function AccountDashboard() {
   const [account, setAccount] = useState<Account | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const t = useTranslations("account");
 
   useEffect(() => {
     const placed = readPlacedOrders();
@@ -67,7 +69,9 @@ export function AccountDashboard() {
       <section className="rounded-lg bg-card p-5 shadow-soft">
         {account ? (
           <>
-            <h2 className="text-lg font-semibold">Hello, {account.name}</h2>
+            <h2 className="text-lg font-semibold">
+              {t("greeting", { name: account.name })}
+            </h2>
             <p className="mt-1 text-sm text-muted">
               {account.phone}
               {account.email ? ` · ${account.email}` : ""}
@@ -75,24 +79,22 @@ export function AccountDashboard() {
           </>
         ) : (
           <>
-            <h2 className="text-lg font-semibold">Your account</h2>
-            <p className="mt-1 text-sm text-muted">
-              Log in to see orders placed with your phone number.
-            </p>
+            <h2 className="text-lg font-semibold">{t("guestHeading")}</h2>
+            <p className="mt-1 text-sm text-muted">{t("guestIntro")}</p>
             <Link
               href="/login"
               className="mt-3 inline-block text-sm font-semibold text-primary"
             >
-              Login
+              {t("loginLink")}
             </Link>
           </>
         )}
       </section>
       <div className="grid gap-3 sm:grid-cols-3">
         {[
-          { label: "Orders", value: String(orders.length) },
-          { label: "Spent", value: formatTaka(spent) },
-          { label: "Addresses", value: "—" },
+          { label: t("statOrders"), value: String(orders.length) },
+          { label: t("statSpent"), value: formatTaka(spent) },
+          { label: t("statAddresses"), value: "—" },
         ].map((item) => (
           <div key={item.label} className="rounded-lg bg-card p-4 shadow-soft">
             <p className="text-sm text-muted">{item.label}</p>
@@ -101,7 +103,7 @@ export function AccountDashboard() {
         ))}
       </div>
       <section className="rounded-lg bg-card p-5 shadow-soft">
-        <h2 className="font-semibold">Recent orders</h2>
+        <h2 className="font-semibold">{t("recentOrdersHeading")}</h2>
         <ul className="mt-3 space-y-2 text-sm">
           {orders.slice(0, 3).map((order) => (
             <li key={order.id} className="flex items-center justify-between gap-3">

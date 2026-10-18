@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
 import { ProductMedia } from "@/components/store/product/ProductMedia";
 import { blogPosts } from "@/lib/catalog/queries";
 import { prisma } from "@/lib/db";
 
-export const metadata: Metadata = { title: "Blog" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("blog");
+  return { title: t("metaTitle") };
+}
 
 // If Next can statically render this list, this caps staleness at 5
 // minutes — editorial content changes rarely, so a longer window than
@@ -15,6 +19,8 @@ export const metadata: Metadata = { title: "Blog" };
 export const revalidate = 300;
 
 export default async function BlogPage() {
+  const t = await getTranslations("blog");
+  const common = await getTranslations("common");
   const stored = await prisma.blogPost.findMany({
     where: { status: "PUBLISHED" },
     orderBy: { publishedAt: "desc" },
@@ -34,27 +40,33 @@ export default async function BlogPage() {
   return (
     <>
       <PageTitle
-        title="Blog"
-        crumbs={[{ href: "/", label: "Home" }, { label: "Blog" }]}
+        title={t("pageTitle")}
+        crumbs={[{ href: "/", label: common("home") }, { label: t("pageTitle") }]}
       />
-      <Container className="grid gap-4 py-6 md:grid-cols-3">
-        {posts.map((post) => (
-          <Link
-            key={post.slug}
-            href={`/blog/${post.slug}`}
-            className="overflow-hidden rounded-lg bg-card shadow-soft"
-          >
-            <ProductMedia hue={post.hue} name={post.title} className="h-36" />
-            <div className="p-4">
-              <p className="text-xs text-muted">
-                {post.date} · {post.author}
-              </p>
-              <h2 className="mt-1 font-semibold">{post.title}</h2>
-              <p className="mt-2 text-sm text-muted">{post.excerpt}</p>
-            </div>
-          </Link>
-        ))}
-      </Container>
+      {posts.length > 0 ? (
+        <Container className="grid gap-4 py-6 md:grid-cols-3">
+          {posts.map((post) => (
+            <Link
+              key={post.slug}
+              href={`/blog/${post.slug}`}
+              className="overflow-hidden rounded-lg bg-card shadow-soft"
+            >
+              <ProductMedia hue={post.hue} name={post.title} className="h-36" />
+              <div className="p-4">
+                <p className="text-xs text-muted">
+                  {post.date} · {post.author}
+                </p>
+                <h2 className="mt-1 font-semibold">{post.title}</h2>
+                <p className="mt-2 text-sm text-muted">{post.excerpt}</p>
+              </div>
+            </Link>
+          ))}
+        </Container>
+      ) : (
+        <Container className="py-6">
+          <p className="rounded-lg bg-card p-6 text-sm shadow-soft">{t("empty")}</p>
+        </Container>
+      )}
     </>
   );
 }

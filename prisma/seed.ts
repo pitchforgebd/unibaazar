@@ -400,6 +400,7 @@ async function main(): Promise<void> {
         title: banner.title,
         href: banner.href,
         imageHue: banner.hue,
+        placement: "home",
         sortOrder: index,
       },
       create: {
@@ -407,7 +408,7 @@ async function main(): Promise<void> {
         title: banner.title,
         href: banner.href,
         imageHue: banner.hue,
-        placement: "home-side",
+        placement: "home",
         sortOrder: index,
       },
     });

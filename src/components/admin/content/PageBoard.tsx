@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { pageAction } from "@/app/(admin)/admin/content-actions";
+import {
+  pageAction,
+  uploadContentImageAction,
+} from "@/app/(admin)/admin/content-actions";
 import { RichTextField } from "@/components/admin/catalog/RichTextField";
 import { SeoHints } from "@/components/admin/seo/SeoHints";
 import { buttonClass, fieldClass } from "@/components/ui/controls";
@@ -94,7 +97,12 @@ export function PageBoard({ rows }: { rows: PageRow[] }) {
             />
           </label>
         </div>
-        <RichTextField label="Body" value={body} onChange={setBody} />
+        <RichTextField
+          label="Body"
+          value={body}
+          onChange={setBody}
+          uploadAction={uploadContentImageAction}
+        />
         <label className="block text-sm">
           <span className="mb-1 block font-semibold text-ink">Status</span>
           <select

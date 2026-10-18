@@ -1,16 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { shopHref } from "@/lib/catalog/queries";
 import type { ShopQuery, ShopSort } from "@/types/catalog";
-
-const options: { value: ShopSort; label: string }[] = [
-  { value: "newest", label: "Newest" },
-  { value: "price-asc", label: "Price: low to high" },
-  { value: "price-desc", label: "Price: high to low" },
-  { value: "rating", label: "Top rated" },
-  { value: "name", label: "Name" },
-];
 
 type SortSelectProps = {
   basePath: string;
@@ -19,12 +12,21 @@ type SortSelectProps = {
 
 export function SortSelect({ basePath, query }: SortSelectProps) {
   const router = useRouter();
+  const t = useTranslations("shop");
+
+  const options: { value: ShopSort; label: string }[] = [
+    { value: "newest", label: t("sortNewest") },
+    { value: "price-asc", label: t("sortPriceAsc") },
+    { value: "price-desc", label: t("sortPriceDesc") },
+    { value: "rating", label: t("sortTopRated") },
+    { value: "name", label: t("sortName") },
+  ];
 
   return (
     <label className="flex items-center gap-2 text-sm text-muted">
-      Sort
+      {t("sortLabel")}
       <select
-        aria-label="Sort products"
+        aria-label={t("sortProductsAria")}
         value={query.sort}
         className="h-10 rounded-md border border-black/10 bg-card px-2 text-sm text-foreground"
         onChange={(event) => {

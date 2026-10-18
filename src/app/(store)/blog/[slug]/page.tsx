@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
@@ -43,6 +45,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
 
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { slug } = await params;
+  const t = await getTranslations("blog");
   const stored = await prisma.blogPost.findFirst({
     where: { slug, status: "PUBLISHED" },
   });
@@ -84,7 +87,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       <JsonLd
         data={breadcrumbJsonLd([
           { href: "/", label: "Home" },
-          { href: "/blog", label: "Blog" },
+          { href: "/blog", label: t("pageTitle") },
           { label: post.title },
         ])}
       />
@@ -93,7 +96,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         subtitle={`${post.date} · ${post.author}`}
         crumbs={[
           { href: "/", label: "Home" },
-          { href: "/blog", label: "Blog" },
+          { href: "/blog", label: t("pageTitle") },
           { label: post.title },
         ]}
       />
@@ -112,6 +115,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             ))}
           </div>
         )}
+        <Link
+          href="/blog"
+          className="mt-4 inline-block text-sm text-primary hover:underline"
+        >
+          {t("backToList")}
+        </Link>
       </Container>
     </>
   );

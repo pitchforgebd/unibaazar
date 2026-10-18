@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Container } from "@/components/ui/Container";
 import { buttonClass } from "@/components/ui/controls";
 import { PageTitle } from "@/components/store/common/PageTitle";
@@ -10,17 +11,19 @@ import { trackPurchase } from "@/lib/tracking/events";
 import { formatTaka } from "@/lib/utils/currency";
 import type { Order } from "@/types/catalog";
 
-const paymentLabels: Record<Order["paymentMethod"], string> = {
-  cod: "Cash on delivery",
-  bkash: "bKash",
-  nagad: "Nagad",
-  rocket: "Rocket",
-  card: "Card",
-};
-
 export function OrderSuccessView({ id }: { id: string }) {
   const [order, setOrder] = useState<Order | null>(null);
   const tracked = useRef(false);
+  const t = useTranslations("orders");
+  const checkout = useTranslations("checkout");
+  const common = useTranslations("common");
+  const paymentLabels: Record<Order["paymentMethod"], string> = {
+    cod: checkout("paymentCod"),
+    bkash: checkout("paymentBkash"),
+    nagad: checkout("paymentNagad"),
+    rocket: checkout("paymentRocket"),
+    card: checkout("paymentCard"),
+  };
 
   useEffect(() => {
     const next = findPlacedOrder(id) ?? null;
@@ -34,10 +37,10 @@ export function OrderSuccessView({ id }: { id: string }) {
   if (!order) {
     return (
       <>
-        <PageTitle title="Order not found" />
+        <PageTitle title={t("notFoundTitle")} />
         <Container className="py-8">
           <Link href="/shop" className={buttonClass("primary")}>
-            Back to shop
+            {t("backToShop")}
           </Link>
         </Container>
       </>
@@ -47,15 +50,16 @@ export function OrderSuccessView({ id }: { id: string }) {
   return (
     <>
       <PageTitle
-        title="Order placed"
-        subtitle={`Order ${order.id}`}
-        crumbs={[{ href: "/", label: "Home" }, { label: "Order placed" }]}
+        title={t("placedTitle")}
+        subtitle={t("placedSubtitle", { id: order.id })}
+        crumbs={[{ href: "/", label: common("home") }, { label: t("placedCrumb") }]}
       />
       <Container className="grid gap-6 py-6 lg:grid-cols-2">
         <section className="rounded-lg bg-card p-5 shadow-soft">
-          <h2 className="text-lg font-semibold">Summary</h2>
+          <h2 className="text-lg font-semibold">{t("summaryHeading")}</h2>
           <p className="mt-2 text-sm text-muted">
-            Tracking ID <span className="font-semibold text-ink">{order.trackingId}</span>
+            {t("trackingIdLabel")}
+            <span className="font-semibold text-ink">{order.trackingId}</span>
           </p>
           <ul className="mt-4 space-y-2 text-sm">
             {order.items.map((item) => (
@@ -69,23 +73,25 @@ export function OrderSuccessView({ id }: { id: string }) {
           </ul>
           <dl className="mt-4 space-y-1 border-t border-black/5 pt-3 text-sm">
             <div className="flex justify-between">
-              <dt>Delivery</dt>
+              <dt>{t("delivery")}</dt>
               <dd>
-                {order.deliveryCharge === 0 ? "Free" : formatTaka(order.deliveryCharge)}
+                {order.deliveryCharge === 0
+                  ? t("deliveryFree")
+                  : formatTaka(order.deliveryCharge)}
               </dd>
             </div>
             <div className="flex justify-between font-semibold">
-              <dt>Total</dt>
+              <dt>{t("total")}</dt>
               <dd>{formatTaka(order.total)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt>Payment</dt>
+              <dt>{t("paymentLabel")}</dt>
               <dd>{paymentLabels[order.paymentMethod]}</dd>
             </div>
           </dl>
         </section>
         <section className="rounded-lg bg-card p-5 shadow-soft">
-          <h2 className="text-lg font-semibold">Deliver to</h2>
+          <h2 className="text-lg font-semibold">{t("deliverToHeading")}</h2>
           <p className="mt-2 text-sm">
             {order.name}
             <br />
@@ -97,7 +103,7 @@ export function OrderSuccessView({ id }: { id: string }) {
             href={`/track-order?order=${order.id}&phone=${order.phone}`}
             className={`${buttonClass("ink")} mt-4`}
           >
-            Track now
+            {t("trackNow")}
           </Link>
         </section>
       </Container>

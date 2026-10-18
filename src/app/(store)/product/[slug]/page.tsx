@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
@@ -25,16 +26,17 @@ type ProductPageProps = {
   params: Promise<{ slug: string }>;
 };
 
-// Prerendered pages otherwise never refresh after build — this bounds how
-// stale an admin price/stock/content edit can be on the live site.
-export const revalidate = 60;
-
-// No eager list here on purpose: with thousands of products this would mean
-// a DB query per product at build time. Pages are generated on first visit
-// instead and then cached per `revalidate` (ISR), same end state either way.
-export async function generateStaticParams() {
-  return [];
-}
+// Pre-existing bug (not introduced by the i18n work below): the root layout
+// (src/app/layout.tsx) reads the locale cookie via next-intl's getLocale()/
+// getMessages() on every render. Combined with `generateStaticParams`
+// returning [] + a `revalidate` value, Next.js treats the first request for
+// any slug as "generate once, cache for everyone" and refuses to let that
+// path read request-specific data — it throws DYNAMIC_SERVER_USAGE for
+// every single request, in production, on this and the category/brand
+// pages. `force-dynamic` opts this route out of that static/ISR caching
+// entirely (same as /shop), which fixes it. The cost is one DB query per
+// request instead of a cached one every 60s.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;
@@ -67,6 +69,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
       (item) => item.slug !== product.slug && item.categorySlug === product.categorySlug,
     )
     .slice(0, 4);
+  const t = await getTranslations("product");
+  const common = await getTranslations("common");
 
   return (
     <>
@@ -74,8 +78,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
         title={product.name}
         showHeading={false}
         crumbs={[
-          { href: "/", label: "Home" },
-          { href: "/shop", label: "Shop" },
+          { href: "/", label: common("home") },
+          { href: "/shop", label: common("shop") },
           ...(category
             ? [{ href: `/category/${category.slug}`, label: category.name }]
             : []),
@@ -85,8 +89,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
       <JsonLd data={productJsonLd(product)} />
       <JsonLd
         data={breadcrumbJsonLd([
-          { href: "/", label: "Home" },
-          { href: "/shop", label: "Shop" },
+          { href: "/", label: common("home") },
+          { href: "/shop", label: common("shop") },
           ...(category
             ? [{ href: `/category/${category.slug}`, label: category.name }]
             : []),
@@ -111,7 +115,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         />
         {related.length > 0 ? (
           <section className="mt-10">
-            <SectionHeading title="Related products" />
+            <SectionHeading title={t("relatedHeading")} />
             <ProductGrid products={related} />
           </section>
         ) : null}

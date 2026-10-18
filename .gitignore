@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+/playwright-report
+/test-results
+/.lighthouseci
 
 # next.js
 /.next/
@@ -20,6 +23,8 @@
 # production
 /build
 /backups
+/unibaazar-build
+/next-build.zip
 
 # misc
 .DS_Store
@@ -34,6 +39,7 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+!.env.test.example
 
 # vercel
 .vercel

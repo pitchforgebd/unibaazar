@@ -161,8 +161,8 @@ export function CartView() {
             <dd>-{formatTaka(summary.discount)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt>Delivery</dt>
-            <dd>At checkout</dd>
+            <dt>{t("delivery")}</dt>
+            <dd>{t("deliveryAtCheckout")}</dd>
           </div>
           <div className="flex justify-between border-t border-black/5 pt-2 text-base font-semibold">
             <dt>{t("total")}</dt>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { buttonClass } from "@/components/ui/controls";
 import { isStoredOrder, findPlacedOrder } from "@/lib/orders/session";
 import { formatTaka } from "@/lib/utils/currency";
@@ -10,6 +11,7 @@ import type { Order } from "@/types/catalog";
 export function OrderDetail({ id }: { id: string }) {
   const [order, setOrder] = useState<Order | null>(findPlacedOrder(id) ?? null);
   const [loading, setLoading] = useState(true);
+  const t = useTranslations("orders");
 
   useEffect(() => {
     void (async () => {
@@ -25,22 +27,18 @@ export function OrderDetail({ id }: { id: string }) {
   }, [id]);
 
   if (loading) {
-    return <p className="rounded-lg bg-card p-5 shadow-soft">Loading order…</p>;
+    return <p className="rounded-lg bg-card p-5 shadow-soft">{t("detailLoading")}</p>;
   }
 
   if (!order) {
-    return (
-      <p className="rounded-lg bg-card p-5 shadow-soft">
-        That order is not on this account.
-      </p>
-    );
+    return <p className="rounded-lg bg-card p-5 shadow-soft">{t("notOnAccount")}</p>;
   }
 
   return (
     <article className="rounded-lg bg-card p-5 shadow-soft">
       <h2 className="text-lg font-semibold">{order.id}</h2>
       <p className="text-sm text-muted">
-        {order.status} · Tracking {order.trackingId}
+        {order.status} · {t("trackingLabel")} {order.trackingId}
       </p>
       <ul className="mt-4 space-y-2 text-sm">
         {order.items.map((item) => (
@@ -52,13 +50,16 @@ export function OrderDetail({ id }: { id: string }) {
           </li>
         ))}
       </ul>
-      <p className="mt-4 font-semibold">Total {formatTaka(order.total)}</p>
+      <p className="mt-4 font-semibold">
+        {t("totalLabel")}
+        {formatTaka(order.total)}
+      </p>
       <p className="mt-2 text-sm">{order.address}</p>
       <Link
         href={`/track-order?order=${order.id}&phone=${order.phone}`}
         className={`${buttonClass("ink")} mt-4`}
       >
-        Track now
+        {t("trackNow")}
       </Link>
     </article>
   );

@@ -15,6 +15,7 @@ export async function TopBar({
 }) {
   const t = await getTranslations("common");
   const links = await getTranslations("links");
+  const nav = await getTranslations("nav");
 
   return (
     <div className="text-white" style={{ backgroundColor: color }}>
@@ -27,7 +28,7 @@ export async function TopBar({
         </p>
         <div className="flex items-center gap-3">
           <LanguageToggle />
-          <nav className="hidden items-center lg:flex" aria-label="Quick links">
+          <nav className="hidden items-center lg:flex" aria-label={nav("quickLinks")}>
             {siteConfig.topBarLinks.map((link, index) => (
               <span key={link.id} className="flex items-center">
                 {index > 0 ? (

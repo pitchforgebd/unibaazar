@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { isStoredOrder, readPlacedOrders } from "@/lib/orders/session";
 import { formatTaka } from "@/lib/utils/currency";
 import type { Order } from "@/types/catalog";
@@ -10,6 +11,7 @@ export function OrderList() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [signedIn, setSignedIn] = useState(true);
+  const t = useTranslations("orders");
 
   useEffect(() => {
     const placed = readPlacedOrders();
@@ -33,15 +35,13 @@ export function OrderList() {
   }, []);
 
   if (loading) {
-    return <p className="text-sm text-muted">Loading orders…</p>;
+    return <p className="text-sm text-muted">{t("loading")}</p>;
   }
 
   if (orders.length === 0) {
     return (
       <p className="rounded-lg bg-card p-5 text-sm text-muted shadow-soft">
-        {signedIn
-          ? "You have not placed any orders yet."
-          : "Log in to see orders placed with your account."}
+        {signedIn ? t("emptySignedIn") : t("emptySignedOut")}
       </p>
     );
   }
@@ -60,7 +60,7 @@ export function OrderList() {
             <span className="text-sm">{order.status}</span>
           </div>
           <p className="mt-1 text-sm text-muted">
-            {order.items.length} items · {formatTaka(order.total)}
+            {t("listMeta", { count: order.items.length, total: formatTaka(order.total) })}
           </p>
         </li>
       ))}

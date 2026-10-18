@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
 import { LoginForm } from "@/components/store/auth/AuthForms";
 import { SocialLoginButtons } from "@/components/store/auth/SocialLoginButtons";
 import { oauthConfigured } from "@/server/auth/oauth";
 
-export const metadata: Metadata = { title: "Login" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("auth");
+  return { title: t("loginMetaTitle") };
+}
 
 type LoginPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -20,11 +24,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     oauthConfigured("google"),
     oauthConfigured("facebook"),
   ]);
+  const t = await getTranslations("auth");
+  const common = await getTranslations("common");
   return (
     <>
       <PageTitle
-        title="Login"
-        crumbs={[{ href: "/", label: "Home" }, { label: "Login" }]}
+        title={t("loginPageTitle")}
+        crumbs={[{ href: "/", label: common("home") }, { label: t("loginCrumb") }]}
       />
       <Container className="py-8">
         {error ? (
@@ -38,11 +44,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </div>
         <p className="mx-auto mt-4 max-w-md text-sm text-muted">
           <Link href="/register" className="font-semibold text-primary">
-            Create an account
+            {t("createAccountLink")}
           </Link>
           {" · "}
           <Link href="/forgot-password" className="font-semibold text-primary">
-            Forgot password
+            {t("forgotPasswordLink")}
           </Link>
         </p>
       </Container>

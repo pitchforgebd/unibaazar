@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { buttonClass, fieldClass } from "@/components/ui/controls";
@@ -12,6 +13,7 @@ import {
   type PasswordInput,
   type ProfileInput,
 } from "@/lib/validation/customer";
+import { translatedError } from "@/lib/validation/messages";
 
 type Address = {
   id: string;
@@ -24,12 +26,6 @@ type Address = {
   isDefault: boolean;
 };
 
-const labelText: Record<Address["label"], string> = {
-  HOME: "Home",
-  OFFICE: "Office",
-  OTHER: "Other",
-};
-
 async function readBody(response: Response): Promise<{ data?: unknown; error?: string }> {
   const body: unknown = await response.json().catch(() => null);
   if (typeof body !== "object" || body === null) {
@@ -39,6 +35,14 @@ async function readBody(response: Response): Promise<{ data?: unknown; error?: s
 }
 
 export function AddressBook() {
+  const t = useTranslations("account");
+  const checkout = useTranslations("checkout");
+  const v = useTranslations("validation");
+  const labelText: Record<Address["label"], string> = {
+    HOME: t("labelHome"),
+    OFFICE: t("labelOffice"),
+    OTHER: t("labelOther"),
+  };
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -70,7 +74,7 @@ export function AddressBook() {
     });
     const body = await readBody(response);
     if (!response.ok) {
-      setError(body.error ?? "Could not save that address");
+      setError(body.error ?? t("errorSaveAddress"));
       return;
     }
     setAddresses((current) => [...current, body.data as Address]);
@@ -92,7 +96,7 @@ export function AddressBook() {
   }
 
   if (loading) {
-    return <p className="text-sm text-muted">Loading addresses…</p>;
+    return <p className="text-sm text-muted">{t("loadingAddresses")}</p>;
   }
 
   return (
@@ -100,7 +104,7 @@ export function AddressBook() {
       <ul className="space-y-3">
         {addresses.length === 0 ? (
           <li className="rounded-lg bg-card p-4 text-sm text-muted shadow-soft">
-            No saved addresses yet.
+            {t("noAddresses")}
           </li>
         ) : null}
         {addresses.map((address) => (
@@ -111,14 +115,16 @@ export function AddressBook() {
                   {labelText[address.label]}
                   {address.isDefault ? (
                     <span className="ml-2 rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                      Default
+                      {t("defaultBadge")}
                     </span>
                   ) : null}
                 </p>
                 <p className="text-sm text-muted">{address.line1}</p>
                 <p className="text-sm text-muted">
                   {address.city} ·{" "}
-                  {address.area === "inside-dhaka" ? "Inside Dhaka" : "Outside Dhaka"}
+                  {address.area === "inside-dhaka"
+                    ? checkout("areaInsideDhaka")
+                    : checkout("areaOutsideDhaka")}
                 </p>
                 <p className="text-sm text-muted">{address.phone}</p>
               </div>
@@ -127,7 +133,7 @@ export function AddressBook() {
                 className="text-xs font-semibold text-red-700"
                 onClick={() => onDelete(address.id)}
               >
-                Remove
+                {t("removeAddress")}
               </button>
             </div>
           </li>
@@ -140,61 +146,63 @@ export function AddressBook() {
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-sm">
-            Label
+            {t("fieldLabel")}
             <select className={`${fieldClass} mt-1`} {...register("label")}>
-              <option value="HOME">Home</option>
-              <option value="OFFICE">Office</option>
-              <option value="OTHER">Other</option>
+              <option value="HOME">{t("labelHome")}</option>
+              <option value="OFFICE">{t("labelOffice")}</option>
+              <option value="OTHER">{t("labelOther")}</option>
             </select>
           </label>
           <label className="block text-sm">
-            Area
+            {t("fieldArea")}
             <select className={`${fieldClass} mt-1`} {...register("area")}>
-              <option value="inside-dhaka">Inside Dhaka</option>
-              <option value="outside-dhaka">Outside Dhaka</option>
+              <option value="inside-dhaka">{checkout("areaInsideDhaka")}</option>
+              <option value="outside-dhaka">{checkout("areaOutsideDhaka")}</option>
             </select>
           </label>
         </div>
         <label className="block text-sm">
-          Recipient name
+          {t("fieldRecipientName")}
           <input className={`${fieldClass} mt-1`} {...register("name")} />
           {errors.name ? (
-            <span className="mt-1 block text-xs text-red-700">{errors.name.message}</span>
+            <span className="mt-1 block text-xs text-red-700">
+              {translatedError(v, errors.name.message)}
+            </span>
           ) : null}
         </label>
         <label className="block text-sm">
-          Phone
+          {t("fieldPhone")}
           <input className={`${fieldClass} mt-1`} {...register("phone")} />
           {errors.phone ? (
             <span className="mt-1 block text-xs text-red-700">
-              {errors.phone.message}
+              {translatedError(v, errors.phone.message)}
             </span>
           ) : null}
         </label>
         <label className="block text-sm">
-          Full address
+          {t("fieldFullAddress")}
           <input className={`${fieldClass} mt-1`} {...register("line1")} />
           {errors.line1 ? (
             <span className="mt-1 block text-xs text-red-700">
-              {errors.line1.message}
+              {translatedError(v, errors.line1.message)}
             </span>
           ) : null}
         </label>
         <label className="block text-sm">
-          City
+          {t("fieldCity")}
           <input
             className={`${fieldClass} mt-1`}
-            placeholder="Dhaka"
+            placeholder={t("cityPlaceholder")}
             {...register("city")}
           />
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" {...register("isDefault")} />
-          Make this the default address
+          {t("makeDefaultCheckbox")}
         </label>
         {error ? <p className="text-sm text-red-700">{error}</p> : null}
         <button type="submit" className={buttonClass("primary")} disabled={isSubmitting}>
-          {isSubmitting ? "Saving…" : "Save address"}
+          {isSubmitting ? t("savingAddress") : t("saveAddress")}
         </button>
       </form>
     </div>
@@ -202,6 +210,8 @@ export function AddressBook() {
 }
 
 export function ProfileForm() {
+  const t = useTranslations("account");
+  const v = useTranslations("validation");
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -240,14 +250,14 @@ export function ProfileForm() {
     });
     const body = await readBody(response);
     if (!response.ok) {
-      setError(body.error ?? "Could not save your profile");
+      setError(body.error ?? t("errorSaveProfile"));
       return;
     }
     setSaved(true);
   }
 
   if (loading) {
-    return <p className="text-sm text-muted">Loading profile…</p>;
+    return <p className="text-sm text-muted">{t("loadingProfile")}</p>;
   }
 
   return (
@@ -257,41 +267,45 @@ export function ProfileForm() {
       noValidate
     >
       <label className="block text-sm">
-        Name
+        {t("fieldName")}
         <input className={`${fieldClass} mt-1`} {...register("name")} />
         {errors.name ? (
-          <span className="mt-1 block text-xs text-red-700">{errors.name.message}</span>
+          <span className="mt-1 block text-xs text-red-700">
+            {translatedError(v, errors.name.message)}
+          </span>
         ) : null}
       </label>
       <label className="block text-sm">
-        Phone
+        {t("fieldPhone")}
         <input
           className={`${fieldClass} mt-1 bg-black/5`}
           value={phone}
           disabled
           readOnly
         />
-        <span className="mt-1 block text-xs text-muted">
-          Your phone number is your login ID and cannot be changed here.
-        </span>
+        <span className="mt-1 block text-xs text-muted">{t("phoneImmutableNote")}</span>
       </label>
       <label className="block text-sm">
-        Email
+        {t("fieldEmail")}
         <input className={`${fieldClass} mt-1`} {...register("email")} />
         {errors.email ? (
-          <span className="mt-1 block text-xs text-red-700">{errors.email.message}</span>
+          <span className="mt-1 block text-xs text-red-700">
+            {translatedError(v, errors.email.message)}
+          </span>
         ) : null}
       </label>
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
       <button type="submit" className={buttonClass("primary")} disabled={isSubmitting}>
-        {isSubmitting ? "Saving…" : "Save profile"}
+        {isSubmitting ? t("savingProfile") : t("saveProfile")}
       </button>
-      {saved ? <p className="text-sm text-success">Profile saved.</p> : null}
+      {saved ? <p className="text-sm text-success">{t("profileSaved")}</p> : null}
     </form>
   );
 }
 
 export function PasswordForm() {
+  const t = useTranslations("account");
+  const v = useTranslations("validation");
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const {
@@ -311,7 +325,7 @@ export function PasswordForm() {
     });
     const body = await readBody(response);
     if (!response.ok) {
-      setError(body.error ?? "Could not update your password");
+      setError(body.error ?? t("errorUpdatePassword"));
       return;
     }
     setSaved(true);
@@ -325,7 +339,7 @@ export function PasswordForm() {
       onSubmit={handleSubmit(onSubmit)}
     >
       <label className="block text-sm">
-        Current password
+        {t("fieldCurrentPassword")}
         <input
           type="password"
           className={`${fieldClass} mt-1`}
@@ -333,12 +347,12 @@ export function PasswordForm() {
         />
         {errors.currentPassword ? (
           <span className="mt-1 block text-xs text-red-700">
-            {errors.currentPassword.message}
+            {translatedError(v, errors.currentPassword.message)}
           </span>
         ) : null}
       </label>
       <label className="block text-sm">
-        New password
+        {t("fieldNewPassword")}
         <input
           type="password"
           className={`${fieldClass} mt-1`}
@@ -346,12 +360,12 @@ export function PasswordForm() {
         />
         {errors.nextPassword ? (
           <span className="mt-1 block text-xs text-red-700">
-            {errors.nextPassword.message}
+            {translatedError(v, errors.nextPassword.message)}
           </span>
         ) : null}
       </label>
       <label className="block text-sm">
-        Confirm password
+        {t("fieldConfirmPassword")}
         <input
           type="password"
           className={`${fieldClass} mt-1`}
@@ -359,15 +373,15 @@ export function PasswordForm() {
         />
         {errors.confirmPassword ? (
           <span className="mt-1 block text-xs text-red-700">
-            {errors.confirmPassword.message}
+            {translatedError(v, errors.confirmPassword.message)}
           </span>
         ) : null}
       </label>
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
       <button type="submit" className={buttonClass("ink")} disabled={isSubmitting}>
-        {isSubmitting ? "Updating…" : "Update password"}
+        {isSubmitting ? t("updatingPassword") : t("updatePassword")}
       </button>
-      {saved ? <p className="text-sm text-success">Password updated.</p> : null}
+      {saved ? <p className="text-sm text-success">{t("passwordUpdated")}</p> : null}
     </form>
   );
 }
