@@ -8,6 +8,16 @@ Each finding is tagged with a category and a severity (high/medium/low) and poin
 exact files. "Non-findings" (things explicitly checked and found correct) are included
 where useful, so a later phase doesn't re-verify the same claim from scratch.
 
+**Phase 2 update (2026-10-18):** every finding under MOCK/HARDCODED below was
+fixed this phase (see `docs/qa/phase-02-report.md`) — the homepage blog teaser,
+the generic CMS page route, the FAQ block, the blog listing/detail pages (found
+during the fix, not in the original Phase 0 pass), and the cart's stock check
+all now read the real database or show a real empty state instead of mock
+data. SECURITY findings #1 (hardcoded webhook secret) and #2 (`Math.random()`
+for OTP) were fixed in Phase 0 already. The findings below are left exactly as
+written at the time (a historical record of what Phase 0 found), not updated
+in place — don't treat MOCK/HARDCODED as still-open.
+
 ## Executive summary — highest priority items
 
 1. **Delivery-charge calculation is duplicated and already known to disagree**
