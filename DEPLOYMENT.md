@@ -3,14 +3,23 @@
 Target: `unibaazar.com`, repo `https://github.com/pitchforgebd/unibaazar.git`,
 Node.js app on cPanel (Passenger), MySQL database on the same server.
 
-**As of Phase 1 of the v2 rebuild, deploying is automatic: merging to `main`
-deploys.** GitHub Actions builds, tests, backs up the database, migrates,
-switches the live release, restarts, and smoke-tests — then automatically
-rolls back if the smoke test fails. The server never builds, never installs
-dev tooling, and never runs the Prisma CLI — it only receives a finished
-artifact and restarts. See `UNIBAAZAR_V2_MASTER_PLAN.md` §3 for the full
-design and `docs/deploy/host-facts.md` / `docs/deploy/github-secrets.md` for
-the one-time setup this depends on.
+**As of Phase 1 of the v2 rebuild, there's a real CI/CD pipeline — but
+deploying is currently a deliberate manual step, not automatic on merge.**
+The plan (`docs/decisions/0007-manual-deploy-trigger.md`) is to build the
+whole v2 rebuild first and do one real deploy once everything's ready, not
+deploy after every phase. Every push to `main` still runs the full test
+suite and builds a release artifact (`ci.yml`) — that part always runs and
+keeps `main` provably deployable — but shipping that artifact to the server
+only happens when someone runs the `deploy` workflow by hand from the
+Actions tab (**Actions → deploy → Run workflow**, enter the commit SHA to
+ship). When it does run: GitHub Actions uploads the artifact, backs up the
+database, migrates, switches the live release, restarts, and smoke-tests —
+then automatically rolls back if the smoke test fails. The server never
+builds, never installs dev tooling, and never runs the Prisma CLI — it only
+receives a finished artifact and restarts. See
+`UNIBAAZAR_V2_MASTER_PLAN.md` §3 for the full design and
+`docs/deploy/host-facts.md` / `docs/deploy/github-secrets.md` for the
+one-time setup this depends on — **not needed until the first real deploy**.
 
 This replaces the old manual `git pull && npm install && npm run build`
 flow entirely. That flow is gone — don't run `npm run build` or
@@ -96,10 +105,10 @@ Follow `docs/deploy/host-facts.md` (gathers the facts this needs) and then
 
 ## 5. First deploy (triggers the pipeline for real, for the first time)
 
-Merge any PR to `main` (or re-run the `ci` workflow manually from the
-Actions tab, which also triggers `deploy` via `workflow_run`). Watch the
-`deploy` job in the Actions tab. On success, `~/unibaazar/current` now points
-at a real release.
+Make sure `main` has at least one successful `ci` run (every push to `main`
+triggers one automatically). Then: **Actions tab → `deploy` → Run workflow
+→** enter that commit's full SHA → **Run workflow**. Watch the `deploy` job.
+On success, `~/unibaazar/current` now points at a real release.
 
 ## 6. Create the Node.js app in cPanel (one-time, manual — only after step 5)
 
@@ -132,16 +141,19 @@ already issued.
 
 ## Normal deploys (after first-time setup)
 
-**Merge a PR to `main`. That's it.** GitHub Actions:
-
-1. `ci` runs the full verify suite (typecheck, lint, unit, integration, E2E
-   desktop + mobile, accessibility, Lighthouse) and builds the artifact.
-2. `deploy` uploads it, backs up the database, applies any new migrations,
+1. Merging a PR to `main` runs `ci` automatically: the full verify suite
+   (typecheck, lint, unit, integration, E2E desktop + mobile, accessibility,
+   Lighthouse) and builds a release artifact. **This alone does not touch
+   the server** — see `docs/decisions/0007-manual-deploy-trigger.md` for why
+   deploys are currently manual.
+2. When you're actually ready to ship: **Actions tab → `deploy` → Run
+   workflow →** enter the commit SHA to deploy → **Run workflow**. It
+   uploads the artifact, backs up the database, applies any new migrations,
    switches `current`, restarts, and smoke-tests `/api/health`.
 3. If the smoke test fails, it automatically re-points `current` at the
    previous release and restarts — the bad deploy never stays live.
 
-Watch progress in the repo's **Actions** tab.
+Watch progress in the repo's **Actions** tab either way.
 
 ## Rollback
 

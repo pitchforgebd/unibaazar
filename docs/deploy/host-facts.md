@@ -1,4 +1,10 @@
-# Host facts needed from the human (Phase 1)
+# Host facts needed from the human (before the first real deploy)
+
+**Not blocking right now.** Per `docs/decisions/0007-manual-deploy-trigger.md`,
+the plan is to build the whole v2 rebuild first and deploy once at the end,
+so none of this needs an answer before Phase 2+ can start. Come back to this
+document when you're ready to actually run the `deploy` workflow for the
+first time.
 
 I can't connect to the production server or run anything on it myself (the
 master plan forbids this). The CI/CD pipeline this phase builds is written to

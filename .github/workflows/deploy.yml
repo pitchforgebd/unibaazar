@@ -1,14 +1,41 @@
 name: deploy
 
+# Manual on purpose: UniBaazar is live, and the team is deliberately building
+# the rest of the v2 rebuild locally/in CI before deploying anything for
+# real (see docs/decisions/0007-manual-deploy-trigger.md). `ci` still runs
+# and packages a release artifact on every push to main; this workflow picks
+# a specific already-built, already-green artifact and ships it, only when
+# someone explicitly runs it.
 on:
-  workflow_run:
-    workflows: ["ci"]
-    types: [completed]
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Full commit SHA to deploy (must have a successful ci run on main)"
+        required: true
 
 jobs:
+  find-ci-run:
+    runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.find.outputs.run_id }}
+    steps:
+      - id: find
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          run_id=$(gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow=ci.yml \
+            --json headSha,databaseId,conclusion,status \
+            --jq "[.[] | select(.headSha==\"${{ inputs.sha }}\" and .status==\"completed\" and .conclusion==\"success\")][0].databaseId")
+          if [ -z "$run_id" ] || [ "$run_id" = "null" ]; then
+            echo "No successful ci run found for ${{ inputs.sha }} — check the Actions tab." >&2
+            exit 1
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
   deploy:
-    if: github.event.workflow_run.conclusion == 'success'
+    needs: find-ci-run
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -34,8 +61,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
-          name: release-${{ github.event.workflow_run.head_sha }}
+          run-id: ${{ needs.find-ci-run.outputs.run_id }}
+          name: release-${{ inputs.sha }}
           path: artifact
 
       - name: Upload artifact to the host
@@ -60,7 +87,7 @@ jobs:
           script: |
             set -euo pipefail
             cd "${{ secrets.APP_PATH }}"
-            RELEASE_DIR="releases/${{ github.event.workflow_run.head_sha }}"
+            RELEASE_DIR="releases/${{ inputs.sha }}"
             mkdir -p "$RELEASE_DIR"
             tar -xzf "incoming/release.tar.gz" -C "$RELEASE_DIR"
             rm -f "incoming/release.tar.gz"
@@ -81,7 +108,7 @@ jobs:
           envs: SHA,APP_PATH,HEALTH_CHECK_URL
           script: |
             set -euo pipefail
-            export SHA="${{ github.event.workflow_run.head_sha }}"
+            export SHA="${{ inputs.sha }}"
             export APP_PATH="${{ secrets.APP_PATH }}"
             export HEALTH_CHECK_URL="${{ secrets.HEALTH_CHECK_URL }}"
             bash "$APP_PATH/releases/$SHA/scripts/deploy/deploy-release.sh"

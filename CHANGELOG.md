@@ -4,6 +4,46 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Phase 1 — Deployment pipeline (2026-10-18)
+
+### Added
+
+- `.github/workflows/ci.yml`: full verify suite against a MySQL 8 service
+  container on every push; builds and packages a release artifact on `main`.
+- `.github/workflows/deploy.yml`: uploads a release over SSH, backs up the
+  database, migrates, switches the live release, restarts, smoke-tests, and
+  auto-rolls-back on failure. **Manual trigger** (`workflow_dispatch`), not
+  automatic on merge — see "Scope change" below.
+- `scripts/deploy/apply-migrations.sh`: applies committed Prisma migrations
+  via the `mysql` CLI only, no Prisma CLI/Node — verified end to end
+  locally (checksums match real `prisma migrate deploy` exactly).
+- `scripts/deploy/deploy-release.sh`: the switch-over logic (backup,
+  migrate, symlink switch, restart, smoke test, rollback on failure).
+- `scripts/deploy/rollback.sh`: manual one-command rollback to any previous
+  release.
+- `GET /api/health`: `{status, version, db, uptime}`.
+- `docs/deploy/host-facts.md`, `docs/deploy/github-secrets.md`: what's
+  needed from the host/GitHub before the first real deploy.
+
+### Changed
+
+- `scripts/backup-db.{sh,mjs}` moved to `scripts/deploy/`, extended with a
+  configurable `BACKUP_DIR` and 14-backup retention.
+- `DEPLOYMENT.md` rewritten for the new pipeline.
+- `CLAUDE.md` updated with the deploy-is-manual decision.
+
+### Scope change (agreed with the project owner mid-phase)
+
+Deploys are deliberately manual for now, not automatic on merge — the plan
+is to build every v2 phase first and do one real production deploy once
+everything's ready, since the site is live but not yet carrying real sales
+traffic. See `docs/decisions/0007-manual-deploy-trigger.md`. `ci.yml` still
+tests and builds on every push regardless, so `main` stays provably
+deployable throughout. This also means this phase's original "done when"
+criterion (a live dry-run deploy including a forced rollback) is deferred
+to whenever that first real deploy happens, not a Phase 1 exit gate — see
+`docs/qa/phase-01-report.md`.
+
 ## Phase 0 — Audit, safety, and baseline (2026-10-18)
 
 ### Security fixes
