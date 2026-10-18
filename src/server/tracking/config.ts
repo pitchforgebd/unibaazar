@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { loadSecret } from "@/server/settings/secret";
 import { saveSetting } from "@/server/settings/store";
 
 export type TrackingSettings = {
@@ -71,17 +72,12 @@ export async function saveTracking(input: TrackingSettings): Promise<void> {
   await saveSetting("tracking", input as unknown as Prisma.InputJsonValue);
 }
 
-async function secretValue(key: string): Promise<string> {
-  const row = await prisma.setting.findUnique({ where: { key } });
-  return typeof row?.value === "string" ? row.value : "";
-}
-
 export async function metaAccessToken(): Promise<string> {
-  return secretValue("secret.meta");
+  return loadSecret("secret.meta");
 }
 
 export async function tiktokAccessToken(): Promise<string> {
-  return secretValue("secret.tiktok");
+  return loadSecret("secret.tiktok");
 }
 
 export async function saveSecretToken(
