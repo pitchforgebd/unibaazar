@@ -86,11 +86,12 @@ Everything else below is left as-is, for the phase that already owns it.
    brand with non-standard sizing has no way to change this without a code change.
 5. **[LOW, fixed]** `src/lib/mock/cart.ts` — dead export, zero importers. Removed in
    Phase 0 (see above).
-6. **[informational]** `src/app/api/v1/cron/seed-catalog/route.ts` — intentional,
-   documented (ARCHITECTURE.md §9) one-off bootstrap that upserts the mock
-   catalog/content into the real DB. Worth noting because it's the thing that makes
-   every "fallback to mock" path above dormant once it's been run once in
-   production.
+6. **[informational, superseded in Phase 2]** `src/app/api/v1/cron/seed-catalog/route.ts`
+   — intentional, documented (ARCHITECTURE.md §9) one-off bootstrap that upserts the
+   mock catalog/content into the real DB. Worth noting because it's the thing that
+   makes every "fallback to mock" path above dormant once it's been run once in
+   production. This route is now deleted; the same upsert logic moved unchanged
+   into the "Seed demo catalog" job in Admin → Maintenance (ARCHITECTURE.md §9).
 
 ## DUPLICATED
 

@@ -69,14 +69,16 @@ server.js              custom Node HTTP server wrapping Next's request handler
 
 **Mock data** (`src/lib/mock/*`, `catalog.ts`/`content.ts`) was the Phase-1
 prototype's data source. As of Phase 2, it's used **only** as seed-data content
-(`prisma/seed.ts` and the `seed-catalog` cron route — see §9) — every runtime
-fallback-to-mock path found in the Phase 0 audit (homepage blog teaser, the
-generic CMS route, the FAQ block, the blog listing/detail pages, and the
-Zustand cart store's stock check) was removed; each now either shows a real
-empty state or reads the real database, including the cart, which resolves
-stock via the same `/api/v1/products/[slug]` endpoint the product page uses
-instead of the mock catalog. See `docs/audit/current-state.md` for the original
-findings and the Phase 2 QA report for what replaced each one.
+— via `prisma/seed.ts` and the "Seed demo catalog" job in Admin → Maintenance
+(see §9; the old `seed-catalog`/`bootstrap-admin` cron routes were removed and
+replaced by that module). Every runtime fallback-to-mock path found in the
+Phase 0 audit (homepage blog teaser, the generic CMS route, the FAQ block, the
+blog listing/detail pages, and the Zustand cart store's stock check) was
+removed; each now either shows a real empty state or reads the real database,
+including the cart, which resolves stock via the same
+`/api/v1/products/[slug]` endpoint the product page uses instead of the mock
+catalog. See `docs/audit/current-state.md` for the original findings and the
+Phase 2 QA report for what replaced each one.
 
 ## 3. Rendering strategy (storefront)
 
@@ -172,7 +174,10 @@ roles:
 `src/server/admin/access.ts` exposes one `require*()` guard per domain
 (`requireCatalog`, `requireOrders`, `requireContent`, etc.) that every admin server
 action calls first — authorization is enforced server-side, never by hiding a
-button in the UI.
+button in the UI. One guard, `requireSuperAdmin()`, is role-based rather than
+permission-based: `admin` and `super-admin` hold identical permission grants (see
+the table above), so a `roleAllows()` check can't tell them apart, and the Admin →
+Maintenance module (§9) needs exactly that distinction.
 
 ## 6. Storefront feature map
 
@@ -211,6 +216,9 @@ have full create/edit/delete, not just create. The rich-text editor
 (`RichTextField.tsx`, Tiptap-based) is shared across product descriptions, blog
 posts, CMS pages, and category descriptions, with inline image upload wired to a
 permission-appropriate upload action (`catalog.manage` vs `content.manage`).
+Admin → Maintenance (super-admin only) is the one exception to "one module per
+domain" — it's a registry of idempotent one-off jobs (cache clear, demo-catalog
+seed, admin bootstrap, a stubbed media backfill) rather than a CRUD module; see §9.
 
 ## 8. API layer
 
@@ -226,21 +234,30 @@ components and (for a few endpoints) external systems:
 - `payments/*` — gateway initiate/verify/callback/webhooks (bKash/Nagad/
   SSLCommerz/Aamarpay, configured via `.env` or Admin → Settings)
 - `contact`, `newsletter` — public lead-capture forms
-- `cron/*` — `CRON_SECRET`-gated maintenance endpoints (see §9)
+- `cron/*` — `CRON_SECRET`-gated **scheduled** maintenance endpoints (see §9)
 - `webhooks/steadfast` — inbound courier status updates
 
-## 9. The `cron/*` pattern (specific to this host)
+## 9. The `cron/*` pattern (specific to this host) and Admin → Maintenance
 
 `src/app/api/v1/cron/*` are POST routes gated by `assertCronSecret()`
 (`src/server/cron/auth.ts`, compares a bearer token against `CRON_SECRET`). They
-exist for two reasons: scheduled maintenance (`low-stock-sweep`,
-`cancel-unpaid-orders`) and, unusually, **one-off database bootstrap operations**
-(`bootstrap-admin`, `seed-catalog`) that would normally be a CLI script run once
-during deployment. On this host, standalone `node`/`tsx` processes reliably crash
-(see §12), so anything that would normally be `npm run db:seed` is instead built as
-a route that runs inside the already-running, already-warm application process and
-is invoked via `curl` after deployment. These routes are idempotent (safe to
-re-run) by design.
+exist for recurring scheduled maintenance only — `low-stock-sweep` and
+`cancel-unpaid-orders` — invoked by a real cron entry (see `DEPLOYMENT.md`).
+
+Two routes used to live here for a different reason: **one-off database bootstrap
+operations** (`bootstrap-admin`, `seed-catalog`) that would normally be a CLI script
+run once during deployment, reachable through a curl'd route instead because
+standalone `node`/`tsx` processes reliably crash on this host (see §12). As of
+Phase 2, those two are gone — their logic moved, unchanged (still upsert-based, safe
+to re-run), into **Admin → Maintenance**
+(`src/app/(admin)/admin/maintenance/page.tsx`, super-admin only): a job registry
+(`src/server/admin/maintenance/jobs.ts`) a staff member triggers from the admin UI
+instead of curl, still executing inside the same already-running, already-warm
+application process. The module also replaces the ad hoc "run it once and hope" of
+those cron routes with a `MaintenanceJobRun` log (who ran what, when, and the
+result) and two additional jobs: a cache-clear button and stated no-ops for sitemap
+rebuild/search reindex (neither has a real artifact to rebuild on this codebase —
+see the module's own code comments for why).
 
 ## 10. Security measures
 

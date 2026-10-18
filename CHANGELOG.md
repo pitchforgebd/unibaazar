@@ -4,6 +4,49 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Phase 2 (slice) — Admin Maintenance module (2026-10-18)
+
+One slice of Phase 2 ("Foundation refactor"); the rest of the phase is still
+in progress.
+
+### Added
+
+- `/admin/maintenance`: a super-admin-only admin module that runs idempotent
+  maintenance jobs inside the already-warm app process (no background
+  workers/queues — this host can't support them, see `ARCHITECTURE.md` §12).
+  Registry in `src/server/admin/maintenance/jobs.ts`: cache clear, sitemap
+  rebuild (no-op — `/sitemap.xml` is already always-fresh), search reindex
+  (no-op — search has no separate index to rebuild), media backfill (stubbed;
+  see "Scope note" below), seed demo catalog, and bootstrap admin account.
+- `MaintenanceJobRun` Prisma model: logs every run (job, status, who
+  triggered it, when, result summary) and backs the "last 5 runs" table shown
+  per job.
+- `requireSuperAdmin()`/`superAdminAccess()` in `src/server/admin/access.ts`
+  — the first admin guard that checks the `super-admin` role directly rather
+  than a permission slug, because `admin` and `super-admin` hold identical
+  permission grants today.
+- `src/server/media/backfill.ts`: a placeholder `backfillMediaVariants()`
+  (exact signature the media-pipeline slice is expected to implement) so the
+  Maintenance module's media-backfill job compiles and is wired up ahead of
+  that parallel task landing.
+
+### Removed
+
+- `src/app/api/v1/cron/seed-catalog/route.ts` and
+  `src/app/api/v1/cron/bootstrap-admin/route.ts` — the curl'd, `CRON_SECRET`-
+  gated one-off bootstrap routes. Their upsert-based logic moved unchanged
+  into the Maintenance module's "Seed demo catalog" and "Bootstrap admin
+  account" jobs. The `cron/*` route pattern itself is unchanged for the
+  remaining _scheduled_ jobs (`low-stock-sweep`, `cancel-unpaid-orders`).
+
+### Scope note
+
+`backfillMediaVariants()` is a stub (`throw new Error("not implemented yet
+— see the media pipeline task")`) because the real implementation belongs to
+a separate, parallel Phase 2 slice (the media pipeline) that may not have
+landed yet. Whoever lands it replaces `src/server/media/backfill.ts` in
+place; nothing else in the Maintenance module needs to change.
+
 ## Phase 1 — Deployment pipeline (2026-10-18)
 
 ### Added

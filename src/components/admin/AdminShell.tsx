@@ -23,6 +23,7 @@ import {
   Activity,
   UserCog,
   Users,
+  Wrench,
 } from "lucide-react";
 import { LogoutButton } from "@/components/admin/LogoutButton";
 import { NotificationBell } from "@/components/admin/NotificationBell";
@@ -51,6 +52,7 @@ export function AdminShell({
   canReports,
   canSettings,
   canUsers,
+  canMaintenance,
   children,
 }: {
   name: string;
@@ -61,6 +63,7 @@ export function AdminShell({
   canReports: boolean;
   canSettings: boolean;
   canUsers: boolean;
+  canMaintenance: boolean;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -130,6 +133,14 @@ export function AdminShell({
               { href: "/admin/tracking", label: "Tracking", icon: Activity },
               { href: "/admin/seo", label: "SEO", icon: Search },
             ],
+          },
+        ]
+      : []),
+    ...(canMaintenance
+      ? [
+          {
+            label: "Maintenance",
+            links: [{ href: "/admin/maintenance", label: "Maintenance", icon: Wrench }],
           },
         ]
       : []),
