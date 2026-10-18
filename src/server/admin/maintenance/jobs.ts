@@ -68,13 +68,15 @@ export const maintenanceJobs: MaintenanceJob[] = [
     label: "Media backfill",
     description:
       "Generate missing AVIF/WebP variants for existing product images, in batches. " +
-      "Owned by the media-pipeline slice — stubbed until that lands.",
+      "Resumable — run again to pick up where the last batch left off.",
     form: "mediaBackfill",
     run: async (input) => {
       const parsed = mediaBackfillInputSchema.parse(input ?? {});
       const result = await runMediaBackfill(parsed);
       return {
-        summary: `Processed ${result.processed}, skipped ${result.skipped}, failed ${result.failed}.`,
+        summary:
+          `Processed ${result.processed}, skipped ${result.skipped}, failed ${result.failed}. ` +
+          `${result.remaining} remaining.`,
         details: result,
       };
     },
