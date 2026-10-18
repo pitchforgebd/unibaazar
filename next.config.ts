@@ -54,6 +54,17 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Next's built-in image optimizer re-encodes images on demand, at request
+  // time, in the server process — another multi-threaded workload the
+  // production host's ~5-OS-thread ceiling can't survive (see
+  // ARCHITECTURE.md §12). Variants are pre-generated at upload time instead
+  // (src/server/media/variants.ts) and this custom loader just maps a
+  // requested width onto the nearest pre-generated file; see
+  // src/lib/media/imageLoader.ts for the AVIF/WebP tradeoff.
+  images: {
+    loader: "custom",
+    loaderFile: "./src/lib/media/imageLoader.ts",
+  },
   async headers() {
     const headers = [
       { key: "X-Frame-Options", value: "DENY" },
