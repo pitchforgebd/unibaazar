@@ -181,11 +181,12 @@ Maintenance module (§9) needs exactly that distinction.
 
 ## 6. Storefront feature map
 
-Homepage (`src/app/(store)/page.tsx`) assembles, in parallel: categories, hero
-slider + side banners (`publicBanners()`), featured/recent/best-seller product
+Homepage (`src/app/[locale]/(store)/page.tsx`) assembles, in parallel: categories,
+hero slider + side banners (`publicBanners()`), featured/recent/best-seller product
 rails (all filtered from one real `listStoreProducts()` call), an active flash sale
 with a real countdown, testimonials, up to 4 homepage videos, and a blog teaser
-section (falls back to mock posts only when zero real posts are published).
+section — real published posts only; the section is omitted entirely when none
+exist (see §2's mock-data note).
 
 Product browsing: `/shop`, `/category/[slug]`, `/brand/[slug]`, `/search`, `/offers`,
 `/flash-deals` all share `ProductListing`/`ProductCard` and the same filter/sort/
@@ -218,7 +219,8 @@ posts, CMS pages, and category descriptions, with inline image upload wired to a
 permission-appropriate upload action (`catalog.manage` vs `content.manage`).
 Admin → Maintenance (super-admin only) is the one exception to "one module per
 domain" — it's a registry of idempotent one-off jobs (cache clear, demo-catalog
-seed, admin bootstrap, a stubbed media backfill) rather than a CRUD module; see §9.
+seed, admin bootstrap, resumable media-variant backfill) rather than a CRUD
+module; see §9.
 
 ## 8. API layer
 
@@ -255,9 +257,12 @@ to re-run), into **Admin → Maintenance**
 instead of curl, still executing inside the same already-running, already-warm
 application process. The module also replaces the ad hoc "run it once and hope" of
 those cron routes with a `MaintenanceJobRun` log (who ran what, when, and the
-result) and two additional jobs: a cache-clear button and stated no-ops for sitemap
-rebuild/search reindex (neither has a real artifact to rebuild on this codebase —
-see the module's own code comments for why).
+result) and additional jobs: a tag-aware cache-clear button (fires
+`revalidateTag` for every tag in `src/server/cache/tags.ts`, not just
+`revalidatePath`), a resumable media-variant backfill (`generateImageVariants()`,
+§12), and stated no-ops for sitemap rebuild/search reindex (neither has a real
+artifact to rebuild on this codebase — see the module's own code comments for
+why).
 
 ## 10. Security measures
 
@@ -335,6 +340,9 @@ how it was discovered: Next.js's build worker pool (fixed with
 `experimental.cpus: 1` in `next.config.ts`), any freshly-spawned `node`/`tsx`
 process trying to cold-start the Prisma query engine (works fine only inside the
 already-running, warm Passenger-managed process — see §9), and esbuild entirely.
+For the same reason, `src/server/media/variants.ts` calls
+`sharp.concurrency(1)` unconditionally at module load — sharp's default
+thread pool alone can exceed the ceiling under concurrent uploads.
 **Practical consequence**: `npm run build`, `prisma migrate deploy`, and
 `npm run db:seed` must never be run on the production host. As of Phase 1
 (`UNIBAAZAR_V2_MASTER_PLAN.md` §3), this is handled by a GitHub Actions
