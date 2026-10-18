@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { reportError } from "@/lib/logger";
+
 export default function GlobalError({
   error,
   reset,
@@ -7,6 +10,14 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // This is the last-resort fallback Next.js renders when the root layout itself
+  // throws, so it deliberately has no dependency on anything that could also be
+  // broken (no next-intl provider, no shared UI components) — see the note on
+  // src/lib/logger.ts for why pino is still safe to use here.
+  useEffect(() => {
+    reportError(error, { scope: "errorBoundary.global", digest: error.digest });
+  }, [error]);
+
   return (
     <html lang="en">
       <body

@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { Container } from "@/components/ui/Container";
 import { buttonClass } from "@/components/ui/controls";
+import { reportError } from "@/lib/logger";
 
 export default function StoreError({
   error,
@@ -13,6 +15,11 @@ export default function StoreError({
   reset: () => void;
 }) {
   const t = useTranslations("error");
+
+  useEffect(() => {
+    reportError(error, { scope: "errorBoundary.store", digest: error.digest });
+  }, [error]);
+
   return (
     <Container className="py-16">
       <h1 className="text-2xl font-bold text-ink">{t("boundary.title")}</h1>
@@ -29,6 +36,9 @@ export default function StoreError({
         </button>
         <Link href="/" className={buttonClass("outline")}>
           {t("boundary.homeButton")}
+        </Link>
+        <Link href="/shop" className={buttonClass("outline")}>
+          {t("notFound.shopButton")}
         </Link>
       </div>
     </Container>
