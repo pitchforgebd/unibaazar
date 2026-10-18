@@ -6,18 +6,15 @@ import { parseShopQuery } from "@/lib/catalog/queries";
 import { getStoreBrand } from "@/server/catalog/products";
 
 type BrandPageProps = {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-// Pre-existing bug (not introduced by the i18n work below): the root layout
-// reads the locale cookie via next-intl's getLocale()/getMessages() on every
-// render. Combined with `generateStaticParams` returning [] + a
-// `revalidate` value, Next.js throws DYNAMIC_SERVER_USAGE on every request
-// in production, since it refuses to cache one visitor's locale for all
-// future visitors. `force-dynamic` opts this route out of that static/ISR
-// caching entirely (same as /shop), which fixes it.
-export const dynamic = "force-dynamic";
+// Justified-dynamic, not ISR — same reasoning as
+// src/app/[locale]/(store)/category/[slug]/page.tsx: reads searchParams
+// server-side for filtering, so Next.js renders it dynamically per request
+// regardless of any caching directive. getStoreBrand is still cached via
+// unstable_cache (src/server/catalog/products.ts).
 
 export async function generateMetadata({ params }: BrandPageProps): Promise<Metadata> {
   const { slug } = await params;

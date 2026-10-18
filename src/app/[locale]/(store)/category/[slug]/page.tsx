@@ -11,18 +11,19 @@ import { findSeo } from "@/server/seo/public";
 import { getStoreCategory } from "@/server/catalog/products";
 
 type CategoryPageProps = {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-// Pre-existing bug (not introduced by the i18n work below): the root layout
-// reads the locale cookie via next-intl's getLocale()/getMessages() on every
-// render. Combined with `generateStaticParams` returning [] + a
-// `revalidate` value, Next.js throws DYNAMIC_SERVER_USAGE on every request
-// in production, since it refuses to cache one visitor's locale for all
-// future visitors. `force-dynamic` opts this route out of that static/ISR
-// caching entirely (same as /shop), which fixes it.
-export const dynamic = "force-dynamic";
+// Justified-dynamic, not ISR: this page reads `searchParams` server-side to
+// drive filtering/sorting (via parseShopQuery below), and Next.js renders
+// any route that reads searchParams dynamically per request — same as
+// /shop and /search, which have never had a `dynamic`/`revalidate` export
+// either. No explicit `dynamic` export is needed; this comment exists so a
+// future reader doesn't wonder why there's no caching directive here. The
+// expensive part (the category + its data) is still cached — see
+// getStoreCategory in src/server/catalog/products.ts, wrapped in
+// unstable_cache with on-demand revalidateTag() invalidation.
 
 export async function generateMetadata({
   params,

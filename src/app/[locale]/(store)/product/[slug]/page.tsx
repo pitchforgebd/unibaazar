@@ -23,20 +23,29 @@ import {
 import { loadSocial } from "@/server/settings/store";
 
 type ProductPageProps = {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 };
 
-// Pre-existing bug (not introduced by the i18n work below): the root layout
-// (src/app/layout.tsx) reads the locale cookie via next-intl's getLocale()/
-// getMessages() on every render. Combined with `generateStaticParams`
-// returning [] + a `revalidate` value, Next.js treats the first request for
-// any slug as "generate once, cache for everyone" and refuses to let that
-// path read request-specific data — it throws DYNAMIC_SERVER_USAGE for
-// every single request, in production, on this and the category/brand
-// pages. `force-dynamic` opts this route out of that static/ISR caching
-// entirely (same as /shop), which fixes it. The cost is one DB query per
-// request instead of a cached one every 60s.
-export const dynamic = "force-dynamic";
+// Justified-dynamic, not page-level ISR. Was force-dynamic pre-Phase-2
+// because the old root layout read the locale cookie on every render,
+// which conflicted with generateStaticParams+revalidate (ARCHITECTURE.md
+// §12). Locale now comes from the URL segment via middleware, which fixed
+// that — but testing uncovered a second, narrower issue: with this page's
+// own `generateStaticParams() { return []; }` nested under [locale]'s
+// generateStaticParams (which returns both "en" and "bn"), the *second*
+// locale value consistently 500s with digest DYNAMIC_SERVER_USAGE on this
+// Next.js version (15.5.27), even though neither page reads any dynamic
+// API — confirmed by removing generateStaticParams here entirely, which
+// fixes /bn/product/[slug] immediately. This looks like a framework
+// limitation with nested dynamic-params fallback across a parent's
+// multiple static param values, not something fixable in app code.
+// No generateStaticParams, no `dynamic`/`revalidate` export: Next renders
+// this per request (confirmed `ƒ` in the build output), same as
+// category/brand. getStoreProduct is still cached via unstable_cache
+// (src/server/catalog/products.ts) with on-demand revalidateTag()
+// invalidation, so the expensive part doesn't hit the DB every request —
+// only the page HTML itself isn't cached. Revisit page-level ISR here once
+// a Next.js upgrade is verified to fix the underlying issue.
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;
