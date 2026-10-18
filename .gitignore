@@ -25,6 +25,8 @@
 /backups
 /unibaazar-build
 /next-build.zip
+/release-info.json
+/artifact
 
 # misc
 .DS_Store

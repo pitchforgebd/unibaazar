@@ -1,0 +1,146 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    # Mirrors the production host's thread ceiling (see ARCHITECTURE.md §12)
+    # so a thread-related regression is caught here, not after deploy.
+    env:
+      UV_THREADPOOL_SIZE: "2"
+      NEXT_TELEMETRY_DISABLED: "1"
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: unibaazar_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # @prisma/client's own postinstall should already do this, but making
+      # it explicit removes any doubt and is cheap/idempotent.
+      - run: npx prisma generate
+
+      - run: npx playwright install --with-deps chromium
+
+      - uses: browser-actions/setup-chrome@v2
+        id: setup-chrome
+        with:
+          chrome-version: stable
+
+      - name: Write .env.test
+        run: |
+          cat > .env.test <<EOF
+          DATABASE_URL=mysql://root@127.0.0.1:3306/unibaazar_test
+          NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3100
+          AUTH_SECRET=ci-only-secret-${{ github.run_id }}-not-for-production
+          CRON_SECRET=ci-only-cron-secret-${{ github.run_id }}
+          EOF
+
+      - run: npm run db:migrate:test
+      - run: npm run db:seed:test
+
+      - name: Run the full verify suite (typecheck, lint, unit, integration, e2e, a11y, lighthouse)
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+        run: npm run verify:full
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: .lighthouseci/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  build-artifact:
+    needs: verify
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      UV_THREADPOOL_SIZE: "2"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # Full install (incl. devDependencies) because `next build` compiles
+      # TypeScript; production node_modules are pruned after the build below.
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      # No real DB connection is needed at build time — every DB-backed route
+      # is dynamic (ARCHITECTURE.md §3) — but PrismaClient's constructor
+      # requires DATABASE_URL to be a syntactically valid URL even though
+      # it's never queried during the build.
+      - name: Build
+        env:
+          NEXT_PUBLIC_SITE_URL: https://unibaazar.com
+          DATABASE_URL: mysql://build:build@127.0.0.1:3306/build
+        run: npm run build
+
+      - name: Record the release SHA for /api/health
+        run: echo "{\"sha\":\"${{ github.sha }}\",\"builtAt\":\"$(date -u +%FT%TZ)\"}" > release-info.json
+
+      - name: Prune to production node_modules
+        run: npm prune --omit=dev
+
+      - name: Package the release artifact
+        run: |
+          mkdir -p artifact
+          tar -czf artifact/release.tar.gz \
+            .next \
+            public \
+            node_modules \
+            prisma \
+            server.js \
+            seo-hook.cjs \
+            package.json \
+            package-lock.json \
+            release-info.json \
+            --exclude='.next/cache'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.sha }}
+          path: artifact/release.tar.gz
+          retention-days: 14

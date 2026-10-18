@@ -270,11 +270,16 @@ how it was discovered: Next.js's build worker pool (fixed with
 process trying to cold-start the Prisma query engine (works fine only inside the
 already-running, warm Passenger-managed process — see §9), and esbuild entirely.
 **Practical consequence**: `npm run build`, `prisma migrate deploy`, and
-`npm run db:seed` must never be run on the production host. The workflow is:
-build locally (or on any machine with normal resource limits) → zip
-`.next/*` excluding `.next/cache` → upload via cPanel File Manager → extract →
-`chmod` (zip extraction drops the execute bit on directories) → restart via
-cPanel's Node.js Selector.
+`npm run db:seed` must never be run on the production host. As of Phase 1
+(`UNIBAAZAR_V2_MASTER_PLAN.md` §3), this is handled by a GitHub Actions
+pipeline instead of the old manual zip/upload flow: CI builds the artifact
+(including the generated Prisma client) on a GitHub-hosted runner, a deploy
+workflow uploads it over SSH, and `scripts/deploy/apply-migrations.sh`
+applies migrations via the `mysql` CLI directly — no Prisma CLI, no Node
+process cold-starting the query engine, on the host at all. See
+`DEPLOYMENT.md`. (As of Phase 1, the deploy workflow is a manual trigger
+rather than automatic on merge — see `docs/decisions/0007-manual-deploy-trigger.md`
+— but the mechanism itself replaces the manual zip/upload flow either way.)
 
 **ISR + cookie-based i18n is incompatible for routes with no pre-known params.**
 The root layout reads the locale cookie on every request (required for i18n to

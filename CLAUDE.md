@@ -13,6 +13,17 @@ those commands reliably crash there (see `ARCHITECTURE.md` §12). If you need a 
 only the host can give you, print the exact command and stop until the human pastes
 back the output.
 
+**Deploys are currently manual, not automatic on merge** (decided 2026-10-18,
+`docs/decisions/0007-manual-deploy-trigger.md`): the plan is to build every phase of
+the v2 rebuild first and do one real deploy once it's all ready, since the site is
+live but not yet being used for real sales. `ci.yml` still runs on every push to
+`main` (tests + builds an artifact); `deploy.yml` only ships that artifact when
+someone runs it by hand from the Actions tab. **This means `docs/deploy/host-facts.md`'s
+questions (OpenSSL version, SSH access, a staging target) are not blocking for Phase
+2 onward** — don't stop a later phase to ask about them; they only matter again right
+before the first real deploy. Keep following the normal phase-by-phase branch → PR →
+human-merge workflow below regardless — only the "merge also deploys" part is paused.
+
 ## Autonomy
 
 Inside a phase, make the call yourself and keep going — don't ask about routine

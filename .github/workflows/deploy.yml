@@ -1,0 +1,114 @@
+name: deploy
+
+# Manual on purpose: UniBaazar is live, and the team is deliberately building
+# the rest of the v2 rebuild locally/in CI before deploying anything for
+# real (see docs/decisions/0007-manual-deploy-trigger.md). `ci` still runs
+# and packages a release artifact on every push to main; this workflow picks
+# a specific already-built, already-green artifact and ships it, only when
+# someone explicitly runs it.
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Full commit SHA to deploy (must have a successful ci run on main)"
+        required: true
+
+jobs:
+  find-ci-run:
+    runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.find.outputs.run_id }}
+    steps:
+      - id: find
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          run_id=$(gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow=ci.yml \
+            --json headSha,databaseId,conclusion,status \
+            --jq "[.[] | select(.headSha==\"${{ inputs.sha }}\" and .status==\"completed\" and .conclusion==\"success\")][0].databaseId")
+          if [ -z "$run_id" ] || [ "$run_id" = "null" ]; then
+            echo "No successful ci run found for ${{ inputs.sha }} — check the Actions tab." >&2
+            exit 1
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: find-ci-run
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Ensure the release/shared directories exist
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.APP_PATH }}"
+            mkdir -p releases shared/uploads shared/backups incoming
+            if [ ! -f shared/.env ]; then
+              echo "shared/.env is missing — first-time setup isn't finished." >&2
+              echo "See DEPLOYMENT.md 'First-time setup' before the first deploy." >&2
+              exit 1
+            fi
+
+      - name: Download the release artifact built by ci.yml
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ needs.find-ci-run.outputs.run_id }}
+          name: release-${{ inputs.sha }}
+          path: artifact
+
+      - name: Upload artifact to the host
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: artifact/release.tar.gz
+          target: ${{ secrets.APP_PATH }}/incoming
+          strip_components: 1
+
+      - name: Unpack the release
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.APP_PATH }}"
+            RELEASE_DIR="releases/${{ inputs.sha }}"
+            mkdir -p "$RELEASE_DIR"
+            tar -xzf "incoming/release.tar.gz" -C "$RELEASE_DIR"
+            rm -f "incoming/release.tar.gz"
+
+      # Everything past this point — shared-dir symlinks, DB backup,
+      # migrations, the current symlink switch, the restart, the smoke
+      # test, and the automatic rollback on failure — lives in
+      # scripts/deploy/deploy-release.sh (shipped inside the release
+      # itself), so it's version-controlled and testable outside CI.
+      - name: Migrate, switch, restart, smoke-test (auto-rollback on failure)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script_stop: true
+          envs: SHA,APP_PATH,HEALTH_CHECK_URL
+          script: |
+            set -euo pipefail
+            export SHA="${{ inputs.sha }}"
+            export APP_PATH="${{ secrets.APP_PATH }}"
+            export HEALTH_CHECK_URL="${{ secrets.HEALTH_CHECK_URL }}"
+            bash "$APP_PATH/releases/$SHA/scripts/deploy/deploy-release.sh"
