@@ -10,7 +10,6 @@ import { TestimonialCarousel } from "@/components/store/home/TestimonialCarousel
 import { ProductGrid } from "@/components/store/product/ProductCard";
 import { ProductMedia } from "@/components/store/product/ProductMedia";
 import { prisma } from "@/lib/db";
-import { blogPosts } from "@/lib/mock/content";
 import { InstagramFeed } from "@/components/store/social/InstagramFeed";
 import { YouTubeEmbed } from "@/components/store/social/YouTubeEmbed";
 import { absoluteUrl } from "@/lib/seo/urls";
@@ -82,22 +81,13 @@ export default async function HomePage() {
     }),
   ]);
   const instagramUrls = instagramPostUrls(social.instagramPosts);
-  const homePosts =
-    storedPosts.length > 0
-      ? storedPosts.map((post) => ({
-          slug: post.slug,
-          title: post.title,
-          excerpt: post.excerpt,
-          date: (post.publishedAt ?? post.createdAt).toISOString().slice(0, 10),
-          hue: post.imageHue ?? 24,
-        }))
-      : blogPosts.map((post) => ({
-          slug: post.slug,
-          title: post.title,
-          excerpt: post.excerpt,
-          date: post.date,
-          hue: post.hue,
-        }));
+  const homePosts = storedPosts.map((post) => ({
+    slug: post.slug,
+    title: post.title,
+    excerpt: post.excerpt,
+    date: (post.publishedAt ?? post.createdAt).toISOString().slice(0, 10),
+    hue: post.imageHue ?? 24,
+  }));
   const flash = products.filter((product) => product.flashSale);
   const sideBanners = banners.filter((banner) => banner.placement === "home");
   const featuredTarget =
@@ -262,27 +252,28 @@ export default async function HomePage() {
           <InstagramFeed urls={instagramUrls} />
         </Container>
       ) : null,
-    blog: (
-      <Container className="py-6">
-        <SectionHeading title={t("blogTitle")} href="/blog" action={t("allPosts")} />
-        <div className="grid gap-3 md:grid-cols-3">
-          {homePosts.map((post) => (
-            <Link
-              key={post.slug}
-              href={`/blog/${post.slug}`}
-              className="overflow-hidden rounded-lg bg-card shadow-soft"
-            >
-              <ProductMedia hue={post.hue} name={post.title} className="h-36" />
-              <div className="p-4">
-                <p className="text-xs text-muted">{post.date}</p>
-                <h3 className="mt-1 font-semibold text-ink">{post.title}</h3>
-                <p className="mt-2 text-sm text-muted">{post.excerpt}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </Container>
-    ),
+    blog:
+      homePosts.length > 0 ? (
+        <Container className="py-6">
+          <SectionHeading title={t("blogTitle")} href="/blog" action={t("allPosts")} />
+          <div className="grid gap-3 md:grid-cols-3">
+            {homePosts.map((post) => (
+              <Link
+                key={post.slug}
+                href={`/blog/${post.slug}`}
+                className="overflow-hidden rounded-lg bg-card shadow-soft"
+              >
+                <ProductMedia hue={post.hue} name={post.title} className="h-36" />
+                <div className="p-4">
+                  <p className="text-xs text-muted">{post.date}</p>
+                  <h3 className="mt-1 font-semibold text-ink">{post.title}</h3>
+                  <p className="mt-2 text-sm text-muted">{post.excerpt}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </Container>
+      ) : null,
   };
 
   return (

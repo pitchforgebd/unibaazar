@@ -57,11 +57,11 @@ export function ProductPurchase({
     setQty(1);
   }
 
-  function add(goToCheckout: boolean) {
+  async function add(goToCheckout: boolean) {
     if (!variant || variant.stock <= 0) {
       return;
     }
-    const added = addToCart(
+    const added = await addToCart(
       { slug: product.slug, variantId: variant.id, qty },
       { openDrawer: !goToCheckout },
     );
@@ -155,7 +155,7 @@ export function ProductPurchase({
             type="button"
             className={buttonClass("ink")}
             disabled={!variant || variant.stock <= 0}
-            onClick={() => add(true)}
+            onClick={() => void add(true)}
           >
             {t("buy")}
           </button>
@@ -163,7 +163,7 @@ export function ProductPurchase({
             type="button"
             className={buttonClass("primary")}
             disabled={!variant || variant.stock <= 0}
-            onClick={() => add(false)}
+            onClick={() => void add(false)}
           >
             {t("add")}
           </button>

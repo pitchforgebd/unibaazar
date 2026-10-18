@@ -4,9 +4,12 @@ import { getTranslations } from "next-intl/server";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
-import { ContactForm, FaqList, SizeGuide } from "@/components/store/content/CmsBlocks";
+import {
+  ContactForm,
+  FaqEmptyState,
+  SizeGuide,
+} from "@/components/store/content/CmsBlocks";
 import { siteConfig } from "@/config/site";
-import { cmsPages, getCmsPage } from "@/lib/catalog/queries";
 import { prisma } from "@/lib/db";
 import { sanitizeRichText } from "@/lib/security/sanitizeHtml";
 import { buildMetadata } from "@/lib/seo/metadata";
@@ -23,10 +26,13 @@ type CmsPageProps = {
 // changes rarely, so a longer window than product/category pages is fine.
 export const revalidate = 300;
 
-export function generateStaticParams() {
-  return [...cmsPages.map((page) => page.slug), ...extras].map((slug) => ({
-    "page-slug": slug,
-  }));
+export async function generateStaticParams() {
+  const pages = await prisma.page.findMany({
+    where: { status: "PUBLISHED" },
+    select: { slug: true },
+  });
+  const slugs = new Set([...pages.map((page) => page.slug), ...extras]);
+  return [...slugs].map((slug) => ({ "page-slug": slug }));
 }
 
 export async function generateMetadata({ params }: CmsPageProps): Promise<Metadata> {
@@ -42,7 +48,7 @@ export async function generateMetadata({ params }: CmsPageProps): Promise<Metada
         ? faq("title")
         : slug === "size-guide"
           ? cms("sizeGuide.title")
-          : stored?.title || getCmsPage(slug)?.title || "Page";
+          : (stored?.title ?? "Page");
   return buildMetadata({
     title: seo?.metaTitle || fallback,
     description: seo?.metaDescription,
@@ -68,13 +74,7 @@ export default async function CmsRoute({ params }: CmsPageProps) {
           : stored.body.split(/\n\n+/).filter(Boolean),
         html: stored.body.includes("<") ? sanitizeRichText(stored.body) : "",
       }
-    : getCmsPage(slug)
-      ? {
-          title: getCmsPage(slug)?.title ?? "",
-          paragraphs: getCmsPage(slug)?.paragraphs ?? [],
-          html: "",
-        }
-      : null;
+    : null;
   const title =
     slug === "contact-us"
       ? cms("contactUs.title")
@@ -108,7 +108,7 @@ export default async function CmsRoute({ params }: CmsPageProps) {
             <ContactForm />
           </>
         ) : null}
-        {slug === "faq" && faqs.length === 0 ? <FaqList /> : null}
+        {slug === "faq" && faqs.length === 0 ? <FaqEmptyState /> : null}
         {slug === "faq" && faqs.length > 0 ? (
           <div className="mb-4 space-y-3">
             {faqs.map((item) => (

@@ -2,8 +2,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { getProduct } from "@/lib/catalog/queries";
-import type { CartLine, DeliveryArea } from "@/types/catalog";
+import type { CartLine, DeliveryArea, Product } from "@/types/catalog";
 
 type AddResult = "added" | "out-of-stock";
 
@@ -13,8 +12,8 @@ type CartState = {
   couponDiscount: number;
   hasHydrated: boolean;
   setHasHydrated: (value: boolean) => void;
-  addLine: (line: CartLine) => AddResult;
-  setQty: (slug: string, variantId: string, qty: number) => void;
+  addLine: (line: CartLine) => Promise<AddResult>;
+  setQty: (slug: string, variantId: string, qty: number) => Promise<void>;
   removeLine: (slug: string, variantId: string) => void;
   applyCoupon: (code: string) => Promise<string | null>;
   clearCoupon: () => void;
@@ -26,10 +25,24 @@ function lineKey(line: Pick<CartLine, "slug" | "variantId">): string {
   return `${line.slug}:${line.variantId}`;
 }
 
-function stockFor(line: Pick<CartLine, "slug" | "variantId">): number {
-  const product = getProduct(line.slug);
-  const variant = product?.variants.find((item) => item.id === line.variantId);
-  return variant?.stock ?? 0;
+// Resolves against the real database via the same /api/v1/products/[slug]
+// endpoint the storefront's product pages use (see useResolvedProducts),
+// not a hardcoded mock catalog. Plain fetch rather than that hook because
+// Zustand actions aren't React components — they can't call hooks.
+async function stockFor(line: Pick<CartLine, "slug" | "variantId">): Promise<number> {
+  try {
+    const response = await fetch(`/api/v1/products/${line.slug}`);
+    if (!response.ok) {
+      return 0;
+    }
+    const body: unknown = await response.json();
+    const record = typeof body === "object" && body !== null ? body : {};
+    const product = "data" in record ? (record.data as Product) : null;
+    const variant = product?.variants.find((item) => item.id === line.variantId);
+    return variant?.stock ?? 0;
+  } catch {
+    return 0;
+  }
 }
 
 async function quoteDiscount(
@@ -74,8 +87,8 @@ export const useCartStore = create<CartState>()(
       couponDiscount: 0,
       hasHydrated: false,
       setHasHydrated: (value) => set({ hasHydrated: value }),
-      addLine: (line) => {
-        const stock = stockFor(line);
+      addLine: async (line) => {
+        const stock = await stockFor(line);
         if (stock <= 0) {
           return "out-of-stock";
         }
@@ -97,8 +110,8 @@ export const useCartStore = create<CartState>()(
         void get().refreshCoupon();
         return "added";
       },
-      setQty: (slug, variantId, qty) => {
-        const stock = stockFor({ slug, variantId });
+      setQty: async (slug, variantId, qty) => {
+        const stock = await stockFor({ slug, variantId });
         set((state) => ({
           lines: state.lines.flatMap((item) => {
             if (lineKey(item) !== lineKey({ slug, variantId })) {

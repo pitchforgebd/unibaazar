@@ -454,7 +454,8 @@
   },
   "faq": {
     "title": "FAQs",
-    "heading": "Frequently asked questions"
+    "heading": "Frequently asked questions",
+    "empty": "No questions have been published yet. Check back soon."
   },
   "error": {
     "notFound": {

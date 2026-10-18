@@ -4,7 +4,6 @@ import { getTranslations } from "next-intl/server";
 import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
 import { ProductMedia } from "@/components/store/product/ProductMedia";
-import { blogPosts } from "@/lib/catalog/queries";
 import { prisma } from "@/lib/db";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -25,17 +24,14 @@ export default async function BlogPage() {
     where: { status: "PUBLISHED" },
     orderBy: { publishedAt: "desc" },
   });
-  const posts =
-    stored.length > 0
-      ? stored.map((post) => ({
-          slug: post.slug,
-          title: post.title,
-          excerpt: post.excerpt,
-          author: post.authorName,
-          date: (post.publishedAt ?? post.createdAt).toISOString().slice(0, 10),
-          hue: post.imageHue ?? 24,
-        }))
-      : blogPosts;
+  const posts = stored.map((post) => ({
+    slug: post.slug,
+    title: post.title,
+    excerpt: post.excerpt,
+    author: post.authorName,
+    date: (post.publishedAt ?? post.createdAt).toISOString().slice(0, 10),
+    hue: post.imageHue ?? 24,
+  }));
 
   return (
     <>

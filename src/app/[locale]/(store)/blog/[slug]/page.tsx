@@ -5,7 +5,6 @@ import { getTranslations } from "next-intl/server";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
-import { blogPosts, getBlogPost } from "@/lib/catalog/queries";
 import { prisma } from "@/lib/db";
 import { sanitizeRichText } from "@/lib/security/sanitizeHtml";
 import { buildMetadata } from "@/lib/seo/metadata";
@@ -20,8 +19,12 @@ type BlogPostPageProps = {
 // changes rarely, so a longer window than product/category pages is fine.
 export const revalidate = 300;
 
-export function generateStaticParams() {
-  return blogPosts.map((post) => ({ slug: post.slug }));
+export async function generateStaticParams() {
+  const posts = await prisma.blogPost.findMany({
+    where: { status: "PUBLISHED" },
+    select: { slug: true },
+  });
+  return posts.map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
@@ -30,10 +33,9 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
     where: { slug, status: "PUBLISHED" },
   });
   const seo = stored ? await seoFor("BLOG_POST", stored.id) : null;
-  const post = getBlogPost(slug);
   return buildMetadata({
-    title: seo?.metaTitle || stored?.title || post?.title || "Blog",
-    description: seo?.metaDescription || stored?.excerpt || post?.excerpt,
+    title: seo?.metaTitle || stored?.title || "Blog",
+    description: seo?.metaDescription || stored?.excerpt,
     path: `/blog/${slug}`,
     canonical: seo?.canonical,
     ogImage: seo?.ogImage,
@@ -49,7 +51,6 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const stored = await prisma.blogPost.findFirst({
     where: { slug, status: "PUBLISHED" },
   });
-  const fallback = getBlogPost(slug);
   const post = stored
     ? {
         title: stored.title,
@@ -60,15 +61,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           ? []
           : stored.content.split(/\n\n+/).filter(Boolean),
       }
-    : fallback
-      ? {
-          title: fallback.title,
-          date: fallback.date,
-          author: fallback.author,
-          html: "",
-          paragraphs: fallback.content,
-        }
-      : null;
+    : null;
   if (!post) {
     notFound();
   }
@@ -78,7 +71,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       <JsonLd
         data={articleJsonLd({
           title: post.title,
-          description: stored?.excerpt || fallback?.excerpt || post.title,
+          description: stored?.excerpt || post.title,
           path: `/blog/${slug}`,
           date: post.date,
           author: post.author,

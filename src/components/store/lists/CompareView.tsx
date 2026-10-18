@@ -92,7 +92,7 @@ export function CompareView() {
                     className={buttonClass("primary")}
                     disabled={variant.stock <= 0}
                     onClick={() =>
-                      addLine({ slug: product.slug, variantId: variant.id, qty: 1 })
+                      void addLine({ slug: product.slug, variantId: variant.id, qty: 1 })
                     }
                   >
                     {productT("add")}
