@@ -79,9 +79,12 @@ choices. Record non-obvious decisions as ADRs in `docs/decisions/NNNN-title.md`
 - Business logic lives in `modules/<domain>/` (catalog, pricing, inventory, cart,
   checkout, orders, customers, promotions, content, media, auth, access, settings,
   notifications, audit) and `integrations/<provider>/` (payments, courier, sms,
-  email, meta, analytics, seo, captcha). This structure doesn't exist yet as of
-  Phase 0 — the real code is still under `src/server/*`, `src/lib/*`,
-  `src/components/*`, grouped by feature. It's introduced in Phase 2.
+  email, meta, analytics, seo, captcha). This structure doesn't exist yet — the
+  real code is still under `src/server/*`, `src/lib/*`, `src/components/*`,
+  grouped by feature. Per `docs/decisions/0010-folder-structure-move-deferred-to-phase-3.md`,
+  it's introduced in Phase 3, as the natural shape of that phase's own work
+  (`modules/pricing`, `modules/catalog`, etc. are exactly what §5.1-§5.4 build),
+  not as a separate reorganization task.
 - Once `modules/` exists: modules talk to each other only through their exported
   `index.ts`, enforced by an ESLint import-boundary rule (deferred until then — see
   `docs/decisions/0001-defer-import-boundaries-to-phase-2.md`).
