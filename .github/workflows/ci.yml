@@ -42,9 +42,13 @@ jobs:
 
       - run: npm ci
 
+      # @prisma/client's own postinstall should already do this, but making
+      # it explicit removes any doubt and is cheap/idempotent.
+      - run: npx prisma generate
+
       - run: npx playwright install --with-deps chromium
 
-      - uses: browser-actions/setup-chrome@v1
+      - uses: browser-actions/setup-chrome@v2
         id: setup-chrome
         with:
           chrome-version: stable
