@@ -49,65 +49,39 @@ jobs:
           target: ${{ secrets.APP_PATH }}/incoming
           strip_components: 1
 
-      - name: Unpack, migrate, switch, restart, smoke-test
+      - name: Unpack the release
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          envs: SHA
           script_stop: true
           script: |
             set -euo pipefail
-            SHA="${{ github.event.workflow_run.head_sha }}"
-            APP_PATH="${{ secrets.APP_PATH }}"
-            cd "$APP_PATH"
-
-            RELEASE_DIR="releases/$SHA"
+            cd "${{ secrets.APP_PATH }}"
+            RELEASE_DIR="releases/${{ github.event.workflow_run.head_sha }}"
             mkdir -p "$RELEASE_DIR"
             tar -xzf "incoming/release.tar.gz" -C "$RELEASE_DIR"
             rm -f "incoming/release.tar.gz"
 
-            # Shared files/dirs survive every release.
-            mkdir -p shared/uploads shared/backups
-            ln -sfn "$APP_PATH/shared/uploads" "$RELEASE_DIR/public/uploads"
-            ln -sfn "$APP_PATH/shared/.env" "$RELEASE_DIR/.env"
-
-            PREVIOUS="$(readlink current || true)"
-
-            echo "Backing up the database..."
-            (cd "$RELEASE_DIR" && BACKUP_DIR="$APP_PATH/shared/backups" node scripts/deploy/backup-db.mjs)
-
-            echo "Applying migrations..."
-            (cd "$RELEASE_DIR" && bash scripts/deploy/apply-migrations.sh)
-
-            echo "Switching current -> $RELEASE_DIR"
-            ln -sfn "$RELEASE_DIR" current
-            mkdir -p current/tmp
-            touch current/tmp/restart.txt
-
-            echo "Smoke-testing..."
-            ok=""
-            for i in $(seq 1 12); do
-              if curl -fsS "${{ secrets.HEALTH_CHECK_URL }}" | grep -q '"status":"ok"'; then
-                ok="yes"
-                break
-              fi
-              sleep 5
-            done
-
-            if [ -z "$ok" ]; then
-              echo "Smoke test failed — rolling back to $PREVIOUS"
-              if [ -n "$PREVIOUS" ]; then
-                ln -sfn "$PREVIOUS" current
-                touch current/tmp/restart.txt
-              fi
-              exit 1
-            fi
-
-            echo "Deployed $SHA successfully."
-
-            # Keep the last 5 releases only.
-            cd releases
-            ls -1t | tail -n +6 | xargs -r rm -rf
+      # Everything past this point — shared-dir symlinks, DB backup,
+      # migrations, the current symlink switch, the restart, the smoke
+      # test, and the automatic rollback on failure — lives in
+      # scripts/deploy/deploy-release.sh (shipped inside the release
+      # itself), so it's version-controlled and testable outside CI.
+      - name: Migrate, switch, restart, smoke-test (auto-rollback on failure)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script_stop: true
+          envs: SHA,APP_PATH,HEALTH_CHECK_URL
+          script: |
+            set -euo pipefail
+            export SHA="${{ github.event.workflow_run.head_sha }}"
+            export APP_PATH="${{ secrets.APP_PATH }}"
+            export HEALTH_CHECK_URL="${{ secrets.HEALTH_CHECK_URL }}"
+            bash "$APP_PATH/releases/$SHA/scripts/deploy/deploy-release.sh"
