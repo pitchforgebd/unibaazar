@@ -275,6 +275,16 @@ in Phase 0: the master plan's Phase 5 redoes the mobile bottom nav as "sticky
 bottom nav, bottom sheets, and thumb-reachable CTAs" (§4.3), so this is a
 stacking-context problem that rebuild should design around from the start.
 
+**[MEDIUM]** Same class of bug, a second instance: the **sticky top header**
+(the logo) can overlap the checkout page's "Place order" button at the scroll
+position a short page lands on, on narrow mobile viewports — reproduced
+deterministically in CI (`e2e/flows/critical-path.spec.ts`, mobile project;
+confirmed via the real GitHub Actions log, not just locally). The E2E test now
+force-clicks past this (same rationale as the cookie-banner case — the button is
+independently confirmed visible/enabled, just geometrically covered), but the
+underlying overlap is a real mobile tap-target problem a live shopper would also
+hit. Same Phase 5 fix as above.
+
 ## Dependency vulnerabilities (pre-existing, not fixed in Phase 0)
 
 `npm audit` reports 34 vulnerabilities in production dependencies, all requiring
