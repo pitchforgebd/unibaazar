@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { TAGS } from "@/server/cache/tags";
 import { requireCatalog } from "@/server/admin/access";
 import {
   answerQuestion,
@@ -59,6 +60,17 @@ function refreshCatalog(slug?: string): void {
   revalidatePath("/admin/questions");
   if (slug) {
     revalidatePath(`/product/${slug}`);
+  }
+  // Every write here can affect product listings (attributes/units/labels/
+  // tags all show up on product pages or shop filters), so invalidate
+  // broadly rather than trying to track exactly which entity type touches
+  // which pages — these admin writes are infrequent relative to storefront
+  // traffic, so the extra cache-busting is cheap.
+  revalidateTag(TAGS.products);
+  revalidateTag(TAGS.categories);
+  revalidateTag(TAGS.brands);
+  if (slug) {
+    revalidateTag(TAGS.product(slug));
   }
 }
 
@@ -122,14 +134,14 @@ export async function quickEditAction(input: {
 }): Promise<ActionResult> {
   const session = await requireCatalog();
   try {
-    await quickEditAdminProduct(input);
+    const { slug } = await quickEditAdminProduct(input);
     await recordAudit({
       actorId: session.userId,
       action: "catalog.product.quick-edit",
       entityType: "product",
       entityId: input.id,
     });
-    refreshCatalog();
+    refreshCatalog(slug);
     return { ok: true, message: "Product updated." };
   } catch (error) {
     return { ok: false, message: actionError(error) };
