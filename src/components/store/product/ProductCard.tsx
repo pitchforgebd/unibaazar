@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { discountPercent, displayPrice, productImage } from "@/lib/catalog/pricing";
 import { ProductMedia } from "@/components/store/product/ProductMedia";
 import { PriceBlock } from "@/components/store/product/PriceBlock";

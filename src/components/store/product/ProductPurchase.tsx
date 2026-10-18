@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { buttonClass } from "@/components/ui/controls";
 import { ProductMedia } from "@/components/store/product/ProductMedia";

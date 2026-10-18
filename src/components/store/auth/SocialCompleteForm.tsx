@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { CaptchaField } from "@/components/store/auth/CaptchaField";
 import { buttonClass, fieldClass } from "@/components/ui/controls";

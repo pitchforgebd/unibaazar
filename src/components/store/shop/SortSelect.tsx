@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { shopHref } from "@/lib/catalog/queries";
 import type { ShopQuery, ShopSort } from "@/types/catalog";
 

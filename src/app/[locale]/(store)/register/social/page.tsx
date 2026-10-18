@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
 import { SocialCompleteForm } from "@/components/store/auth/SocialCompleteForm";
+import { redirect } from "@/i18n/navigation";
 import { oauthPendingCookie, readPendingOAuth } from "@/server/auth/oauth";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -17,7 +17,8 @@ export default async function SocialRegisterPage() {
   const token = jar.get(oauthPendingCookie.name)?.value;
   const pending = token ? await readPendingOAuth(token) : null;
   if (!pending) {
-    redirect("/login");
+    redirect({ href: "/login", locale: await getLocale() });
+    return;
   }
   const t = await getTranslations("auth");
   const common = await getTranslations("common");

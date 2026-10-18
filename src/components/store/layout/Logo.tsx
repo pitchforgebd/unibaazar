@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { siteConfig } from "@/config/site";
 import { cn } from "@/lib/utils/cn";
 
