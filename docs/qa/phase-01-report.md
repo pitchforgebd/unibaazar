@@ -87,14 +87,21 @@ branch/PR/review cadence otherwise unchanged.
 
 ## Known limitations
 
-- **The GitHub Actions workflows have not been run for real.** I have no way
-  to trigger a workflow run from this sandbox (no `gh` CLI, and pushing to
-  `main` myself is against the rules). They're written to well-established
-  patterns (`appleboy/ssh-action`, `appleboy/scp-action`,
-  `browser-actions/setup-chrome`, GitHub's own service-container syntax) and
-  pass YAML validation, but the first real run — likely `ci.yml`, since it
-  needs no secrets — will be the first real signal of whether they're
-  correct. If it fails, send me the Actions log and I'll fix it.
+- **`ci.yml` has run for real (on the Phase 1 PR) and is not fully green
+  yet.** The repo is private, so I can't read Actions logs myself without
+  `gh` CLI (declined, to keep things simple) — the human pasted the actual
+  failure text once, which found and fixed a real bug (the mobile E2E
+  checkout click was blocked by a sticky-header overlap — same class of
+  issue as the cookie-banner finding below, now fixed with a force-click
+  and documented in the audit doc). Two earlier reasoning-only fixes
+  (explicit `prisma generate`, pinning `setup-chrome` to `v2`) were applied
+  blind, before that log was available, and may or may not have been
+  necessary. **Per the human's explicit instruction (2026-10-18): stop
+  chasing CI green here and keep moving through phases** — CI health is
+  revisited before the first real deploy, not a gate on phase-to-phase
+  progress while deployment itself is deferred (see
+  `docs/decisions/0007-manual-deploy-trigger.md`). A future session picking
+  this up should check `main`'s Actions tab rather than assume green.
 - **The symlink-switch logic in `deploy-release.sh` and `rollback.sh` could
   not be exercised locally.** This Windows sandbox's filesystem doesn't
   support the `ln -s` / `readlink` calls those scripts depend on (confirmed:
