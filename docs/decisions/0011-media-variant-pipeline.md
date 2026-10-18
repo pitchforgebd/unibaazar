@@ -1,4 +1,4 @@
-# 0008: Media variant pipeline — sizing grid, format split, and backfill scope
+# 0011: Media variant pipeline — sizing grid, format split, and backfill scope
 
 ## Context
 
