@@ -20,11 +20,10 @@ not automatically via `workflow_run` after `ci` succeeds on `main`. A
 no risk of deploying something that wasn't tested.
 
 `ci.yml` itself is unchanged: it still runs the full verify suite and builds
-
-- packages a release artifact on every push to `main`, regardless of whether
-  anyone ever deploys it. That's valuable on its own (catches regressions
-  immediately, keeps `main` always in a known-good, deployable state) and
-  costs nothing extra to keep running.
+and packages a release artifact on every push to `main`, regardless of
+whether anyone ever deploys it. That's valuable on its own (catches
+regressions immediately, keeps `main` always in a known-good, deployable
+state) and costs nothing extra to keep running.
 
 The phase-by-phase branch → PR → merge workflow (§0.3) is unchanged — each
 phase still gets its own PR that the human reviews and merges before the
