@@ -46,8 +46,24 @@ This phase explicitly **defers** (tracked here, not silently dropped):
   category-to-attribute-set admin UI. The data model already supports
   per-product attributes; what's deferred is the "category drives which
   fields show in the admin form" configuration layer.
-- Digital product type (§5.2) — `simple`/`variable`/`bundle` are in scope;
-  `digital` was already marked optional in the spec.
+- **Bundle and digital product types (§5.2) — correcting this ADR's
+  original text, which wrongly said bundle was in scope.** The schema's
+  `ProductType` enum only has `SIMPLE`/`VARIABLE` today; adding `BUNDLE`
+  for real means component-based pricing (a bundle's price derives from
+  its parts) and component-based availability (a bundle is only in stock
+  if every component is), which is its own `modules/pricing`/
+  `modules/inventory` design problem, not a quick enum addition. Deferred
+  alongside the already-optional `digital` type to the same follow-up
+  pass as the rest of this list.
+- **Decimal quantities (e.g. 0.5 kg) and per-category size charts (§5.2).**
+  Every quantity column (`CartItem.qty`, `OrderItem.qty`,
+  `ProductVariant.stock`, `InventoryLog.delta`, the new
+  `StockReservation.qty`) is `Int` throughout the schema and this phase's
+  new modules. Supporting fractional units is a schema-wide type change
+  with the same blast radius as the Decimal-to-Int money migration
+  discussed above, not a Phase 3 scope item. Per-category size charts are
+  a catalog/content display feature with no money or stock correctness
+  implication, deferred with the rest of §5.2's admin-configuration work.
 
 ## Addendum (during implementation)
 
