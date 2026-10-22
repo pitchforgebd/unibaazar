@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { buttonClass, fieldClass } from "@/components/ui/controls";
 import { ProductMedia } from "@/components/store/product/ProductMedia";
@@ -75,7 +75,7 @@ export function CartView() {
                   aria-label={t("decrease")}
                   className="grid h-8 w-8 place-items-center rounded-md border border-black/10"
                   onClick={() =>
-                    setQty(item.line.slug, item.line.variantId, item.line.qty - 1)
+                    void setQty(item.line.slug, item.line.variantId, item.line.qty - 1)
                   }
                 >
                   −
@@ -88,7 +88,7 @@ export function CartView() {
                   aria-label={t("increase")}
                   className="grid h-8 w-8 place-items-center rounded-md border border-black/10"
                   onClick={() =>
-                    setQty(item.line.slug, item.line.variantId, item.line.qty + 1)
+                    void setQty(item.line.slug, item.line.variantId, item.line.qty + 1)
                   }
                 >
                   +

@@ -11,14 +11,17 @@ type AddOptions = {
   openDrawer?: boolean;
 };
 
-export function useAddToCart(): (line: CartLine, options?: AddOptions) => boolean {
+export function useAddToCart(): (
+  line: CartLine,
+  options?: AddOptions,
+) => Promise<boolean> {
   const addLine = useCartStore((state) => state.addLine);
   const openCart = useUiStore((state) => state.openCart);
   const push = useToastStore((state) => state.push);
   const t = useTranslations("toast");
 
-  return (line, options) => {
-    const result = addLine(line);
+  return async (line, options) => {
+    const result = await addLine(line);
     if (result === "out-of-stock") {
       push(t("outOfStock"));
       return false;

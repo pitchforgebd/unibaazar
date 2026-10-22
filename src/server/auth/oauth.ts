@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { prisma } from "@/lib/db";
 import { normalizeBdPhone } from "@/lib/validation/customer";
 import { ApiError } from "@/server/http";
+import { loadSecret } from "@/server/settings/secret";
 import { loadSocial, saveSetting } from "@/server/settings/store";
 import { siteOrigin } from "@/server/tracking/config";
 
@@ -21,17 +22,12 @@ function secret(): Uint8Array {
   return new TextEncoder().encode(value || "unibaazar-dev-secret");
 }
 
-async function secretValue(key: string): Promise<string> {
-  const row = await prisma.setting.findUnique({ where: { key } });
-  return typeof row?.value === "string" ? row.value : "";
-}
-
 export async function oauthConfigured(provider: OAuthProvider): Promise<boolean> {
   const social = await loadSocial();
   if (provider === "google") {
-    return Boolean(social.googleClientId && (await secretValue("secret.google")));
+    return Boolean(social.googleClientId && (await loadSecret("secret.google")));
   }
-  return Boolean(social.facebookAppId && (await secretValue("secret.facebook")));
+  return Boolean(social.facebookAppId && (await loadSecret("secret.facebook")));
 }
 
 export async function oauthStartUrl(provider: OAuthProvider): Promise<string> {
@@ -39,7 +35,7 @@ export async function oauthStartUrl(provider: OAuthProvider): Promise<string> {
   const origin = siteOrigin();
   if (provider === "google") {
     const clientId = social.googleClientId;
-    const clientSecret = await secretValue("secret.google");
+    const clientSecret = await loadSecret("secret.google");
     if (!clientId || !clientSecret) {
       throw new ApiError(400, "Google sign-in is not configured");
     }
@@ -53,7 +49,7 @@ export async function oauthStartUrl(provider: OAuthProvider): Promise<string> {
     return url.toString();
   }
   const appId = social.facebookAppId;
-  const appSecret = await secretValue("secret.facebook");
+  const appSecret = await loadSecret("secret.facebook");
   if (!appId || !appSecret) {
     throw new ApiError(400, "Facebook sign-in is not configured");
   }
@@ -74,7 +70,7 @@ async function googleProfile(code: string): Promise<PendingOAuth> {
     body: new URLSearchParams({
       code,
       client_id: social.googleClientId,
-      client_secret: await secretValue("secret.google"),
+      client_secret: await loadSecret("secret.google"),
       redirect_uri: `${origin}/api/v1/auth/oauth/google/callback`,
       grant_type: "authorization_code",
     }),
@@ -113,7 +109,7 @@ async function facebookProfile(code: string): Promise<PendingOAuth> {
   const origin = siteOrigin();
   const tokenUrl = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
   tokenUrl.searchParams.set("client_id", social.facebookAppId);
-  tokenUrl.searchParams.set("client_secret", await secretValue("secret.facebook"));
+  tokenUrl.searchParams.set("client_secret", await loadSecret("secret.facebook"));
   tokenUrl.searchParams.set(
     "redirect_uri",
     `${origin}/api/v1/auth/oauth/facebook/callback`,
@@ -299,7 +295,7 @@ export async function completeOAuthRegistration(
 }
 
 export async function facebookPageToken(): Promise<string> {
-  return secretValue("secret.facebookPage");
+  return loadSecret("secret.facebookPage");
 }
 
 export async function postProductToFacebook(input: {

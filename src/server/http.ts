@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { reportError } from "@/lib/logger";
 
 export class ApiError extends Error {
   status: number;
@@ -17,7 +18,7 @@ export async function handle(action: () => Promise<unknown>): Promise<NextRespon
     if (error instanceof ApiError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error(error);
+    reportError(error, { scope: "api.handle" });
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname } from "@/i18n/navigation";
 import { ensureFbq, hasTrackingConsent, track } from "@/lib/tracking/browser";
 import type { TrackingSettings } from "@/server/tracking/config";
 

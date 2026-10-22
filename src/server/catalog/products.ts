@@ -1,10 +1,18 @@
+import { unstable_cache } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { activeFlashSalePrice } from "@/server/catalog/flash";
 import { ApiError } from "@/server/http";
 import { readSession } from "@/server/auth/session";
+import { TAGS } from "@/server/cache/tags";
 import type { QuestionInput, ReviewInput } from "@/lib/validation/customer";
 import type { Product, ProductAttribute, Review } from "@/types/catalog";
+
+// 5 minutes matches the timer this project already used for blog/CMS ISR
+// before this phase; on-demand revalidateTag() calls from admin writes
+// (see src/app/(admin)/admin/catalog-actions.ts) make updates show up
+// immediately in practice — this is just the safety-net ceiling.
+const CATALOG_REVALIDATE_SECONDS = 300;
 
 const productInclude = {
   brand: true,
@@ -114,16 +122,22 @@ export function toProduct(row: ProductRow): Product {
   };
 }
 
-export async function listStoreCategories(): Promise<
-  { slug: string; name: string; hue: number }[]
-> {
-  const rows = await prisma.category.findMany({
-    where: { isActive: true },
-    orderBy: { sortOrder: "asc" },
-    select: { slug: true, name: true, imageHue: true },
-  });
-  return rows.map((row) => ({ slug: row.slug, name: row.name, hue: row.imageHue ?? 0 }));
-}
+export const listStoreCategories = unstable_cache(
+  async (): Promise<{ slug: string; name: string; hue: number }[]> => {
+    const rows = await prisma.category.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+      select: { slug: true, name: true, imageHue: true },
+    });
+    return rows.map((row) => ({
+      slug: row.slug,
+      name: row.name,
+      hue: row.imageHue ?? 0,
+    }));
+  },
+  ["store-categories"],
+  { tags: [TAGS.categories], revalidate: CATALOG_REVALIDATE_SECONDS },
+);
 
 export async function listStoreCategorySlugs(): Promise<string[]> {
   const rows = await prisma.category.findMany({
@@ -133,21 +147,33 @@ export async function listStoreCategorySlugs(): Promise<string[]> {
   return rows.map((row) => row.slug);
 }
 
-export async function getStoreCategory(slug: string): Promise<{
+export function getStoreCategory(slug: string): Promise<{
   slug: string;
   name: string;
   description: string;
   seoText: string;
 } | null> {
-  const row = await prisma.category.findFirst({ where: { slug, isActive: true } });
-  return row
-    ? {
-        slug: row.slug,
-        name: row.name,
-        description: row.description,
-        seoText: row.seoText,
-      }
-    : null;
+  // Tags are evaluated per call (via closure over `slug`), not fixed at
+  // wrap time, so revalidateTag(TAGS.category(slug)) can target just this
+  // one category instead of every cached category.
+  return unstable_cache(
+    async () => {
+      const row = await prisma.category.findFirst({ where: { slug, isActive: true } });
+      return row
+        ? {
+            slug: row.slug,
+            name: row.name,
+            description: row.description,
+            seoText: row.seoText,
+          }
+        : null;
+    },
+    ["store-category", slug],
+    {
+      tags: [TAGS.categories, TAGS.category(slug)],
+      revalidate: CATALOG_REVALIDATE_SECONDS,
+    },
+  )();
 }
 
 export async function listStoreBrandSlugs(): Promise<string[]> {
@@ -158,19 +184,31 @@ export async function listStoreBrandSlugs(): Promise<string[]> {
   return rows.map((row) => row.slug);
 }
 
-export async function listStoreBrands(): Promise<{ slug: string; name: string }[]> {
-  return prisma.brand.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" },
-    select: { slug: true, name: true },
-  });
-}
+export const listStoreBrands = unstable_cache(
+  async (): Promise<{ slug: string; name: string }[]> => {
+    return prisma.brand.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { slug: true, name: true },
+    });
+  },
+  ["store-brands"],
+  { tags: [TAGS.brands], revalidate: CATALOG_REVALIDATE_SECONDS },
+);
 
-export async function getStoreBrand(
+export function getStoreBrand(
   slug: string,
 ): Promise<{ slug: string; name: string; description: string } | null> {
-  const row = await prisma.brand.findFirst({ where: { slug, isActive: true } });
-  return row ? { slug: row.slug, name: row.name, description: row.description } : null;
+  return unstable_cache(
+    async () => {
+      const row = await prisma.brand.findFirst({ where: { slug, isActive: true } });
+      return row
+        ? { slug: row.slug, name: row.name, description: row.description }
+        : null;
+    },
+    ["store-brand", slug],
+    { tags: [TAGS.brands, TAGS.brand(slug)], revalidate: CATALOG_REVALIDATE_SECONDS },
+  )();
 }
 
 export async function listStoreProductSlugs(): Promise<string[]> {
@@ -181,21 +219,31 @@ export async function listStoreProductSlugs(): Promise<string[]> {
   return rows.map((row) => row.slug);
 }
 
-export async function listStoreProducts(): Promise<Product[]> {
-  const rows = await prisma.product.findMany({
-    where: { status: "PUBLISHED" },
-    include: productInclude,
-    orderBy: { createdAt: "desc" },
-  });
-  return rows.map(toProduct);
-}
+export const listStoreProducts = unstable_cache(
+  async (): Promise<Product[]> => {
+    const rows = await prisma.product.findMany({
+      where: { status: "PUBLISHED" },
+      include: productInclude,
+      orderBy: { createdAt: "desc" },
+    });
+    return rows.map(toProduct);
+  },
+  ["store-products"],
+  { tags: [TAGS.products], revalidate: CATALOG_REVALIDATE_SECONDS },
+);
 
-export async function getStoreProduct(slug: string): Promise<Product | null> {
-  const row = await prisma.product.findFirst({
-    where: { slug, status: "PUBLISHED" },
-    include: productInclude,
-  });
-  return row ? toProduct(row) : null;
+export function getStoreProduct(slug: string): Promise<Product | null> {
+  return unstable_cache(
+    async () => {
+      const row = await prisma.product.findFirst({
+        where: { slug, status: "PUBLISHED" },
+        include: productInclude,
+      });
+      return row ? toProduct(row) : null;
+    },
+    ["store-product", slug],
+    { tags: [TAGS.products, TAGS.product(slug)], revalidate: CATALOG_REVALIDATE_SECONDS },
+  )();
 }
 
 export async function getStoreReviews(slug: string): Promise<Review[]> {

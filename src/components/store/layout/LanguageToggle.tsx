@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { setLocale } from "@/app/actions/locale";
 import type { Locale } from "@/i18n/config";
 

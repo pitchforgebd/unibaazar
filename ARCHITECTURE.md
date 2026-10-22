@@ -29,66 +29,89 @@ Next.js middleware.
 prisma/              schema.prisma + migrations + seed.ts
 src/
   app/
-    (store)/          customer-facing route group — one folder per page
-    (admin)/admin/    admin dashboard route group — one folder per module
+    [locale]/          next-intl locale segment ("en"/"bn", "as-needed" prefix)
+      layout.tsx        real root layout for the storefront (<html lang>, fonts,
+                         NextIntlClientProvider, header/footer scripts)
+      (store)/          customer-facing route group — one folder per page
+    (admin)/            admin dashboard — not localized, its own root layout
+      admin/            one folder per admin module
     api/v1/           versioned REST-ish API routes consumed by both storefront
                        and admin client components
     api/webhooks/     inbound webhooks (courier status updates)
+    fonts.ts, metadata.ts   shared between the two root layouts
+  middleware.ts        next-intl locale middleware (storefront routes only —
+                        matcher excludes /admin, /api, static files)
   components/
     store/            storefront UI, organized by feature (layout, home, product,
                        shop, cart, checkout, account, auth, order, lists, content)
     admin/            admin UI, organized by module (catalog, content, marketing,
                        customers, orders, security, seo, settings, users, common)
     ui/                generic primitives (Container, button/field class helpers)
+    layout/           root-layout pieces shared between the storefront and admin
+                       root layouts (header/footer script injection)
     forms/, seo/      shared form + structured-data helpers
   server/              server-only business logic, one folder per domain
                        (catalog, checkout, orders, payments, auth, account, admin,
-                       cms, courier, cron, security, seo, settings, tracking)
+                       cms, courier, cron, security, seo, settings, tracking,
+                       cache — the revalidateTag tag vocabulary)
   lib/                 shared utilities split between client-safe (catalog, cart,
                        orders session cache, utils) and server-leaning (email, sms,
-                       payment, courier, security, seo, validation, pricing)
+                       payment, courier, security, seo, validation, pricing),
+                       plus logger.ts (pino + the reportError() funnel)
   store/               Zustand stores (cart, lists, toast, ui)
   locales/             en.json / bn.json message catalogs for next-intl
-  i18n/                next-intl config + request-locale resolution
+  i18n/                routing.ts (locales/prefix config), navigation.ts
+                       (locale-aware Link/useRouter/usePathname/redirect),
+                       request.ts (resolves the middleware-set locale)
   config/site.ts        static site config (nav links, social, structural copy)
 server.js              custom Node HTTP server wrapping Next's request handler
 ```
 
-The project intentionally keeps **mock data** under `src/lib/mock/*` (`catalog.ts`,
-`content.ts`). This was the Phase-1 prototype's data source; it's still used as
-seed-data content (via `prisma/seed.ts` and the `seed-catalog` cron route — see §9)
-and as a handful of explicit empty-state fallbacks (homepage blog teaser, the generic
-CMS page route, the FAQ block — see `docs/audit/current-state.md` for the full list),
-but the live storefront otherwise reads from the database through
-`src/server/catalog/products.ts` and friends, not from the mock arrays directly.
-One client-side exception is not just an empty-state fallback: the Zustand cart store
-(`src/store/cart.ts`) resolves stock for add-to-cart/quantity checks from the mock
-catalog, not the database — see the audit doc for why this is a real bug, not a
-documented fallback.
+**Mock data** (`src/lib/mock/*`, `catalog.ts`/`content.ts`) was the Phase-1
+prototype's data source. As of Phase 2, it's used **only** as seed-data content
+— via `prisma/seed.ts` and the "Seed demo catalog" job in Admin → Maintenance
+(see §9; the old `seed-catalog`/`bootstrap-admin` cron routes were removed and
+replaced by that module). Every runtime fallback-to-mock path found in the
+Phase 0 audit (homepage blog teaser, the generic CMS route, the FAQ block, the
+blog listing/detail pages, and the Zustand cart store's stock check) was
+removed; each now either shows a real empty state or reads the real database,
+including the cart, which resolves stock via the same
+`/api/v1/products/[slug]` endpoint the product page uses instead of the mock
+catalog. See `docs/audit/current-state.md` for the original findings and the
+Phase 2 QA report for what replaced each one.
 
 ## 3. Rendering strategy (storefront)
 
-Every storefront route is one of three rendering modes, and the choice matters a lot
-on this specific host (see §12):
+As of Phase 2 of the v2 rebuild, every storefront route lives under
+`src/app/[locale]/(store)/` (see §11) and is one of these rendering modes:
 
 - **Fully dynamic (`ƒ`)** — `/shop`, `/search`, `/cart`, `/checkout`, `/account/*`,
-  `/login`, `/register`, `/offers`, `/flash-deals`, etc. Rendered fresh per request.
-  No caching conflict with anything that reads request-specific data (cookies,
-  search params).
-- **ISR with known params (`●`, real `generateStaticParams`)** — `/blog/[slug]` and
-  the generic CMS route `/[page-slug]` (contact-us, faq, size-guide, and any
-  database-backed `Page`). These are prerendered for their known slugs at build
-  time and revalidate on a timer (`revalidate = 300`).
-- **ISR with no known params (`generateStaticParams` returns `[]`)** —
-  `/product/[slug]`, `/category/[slug]`, `/brand/[slug]`. These were originally
-  configured this way specifically to avoid querying the database for every
-  product/category/brand slug at build time (the host can't tolerate that — see
-  §12). **As of the October 2026 i18n work these three routes were changed to
-  `export const dynamic = "force-dynamic"`** after discovering they returned a hard
-  500 in production — see §12 for why.
+  `/login`, `/register`, `/offers`, `/flash-deals`, `/category/[slug]`,
+  `/brand/[slug]`, etc. Rendered fresh per request. Category and brand are
+  _justified_-dynamic specifically because both read `searchParams` server-side
+  for filtering, which forces per-request rendering in Next.js regardless of any
+  caching directive (see `docs/decisions/0008-product-page-justified-dynamic-not-isr.md`)
+  — their underlying data reads are still cached, just not the page HTML.
+- **ISR with known params (`●`, real `generateStaticParams`)** — `/blog/[slug]`,
+  `/blog`, and the generic CMS route `/[page-slug]` (contact-us, faq, size-guide,
+  and any database-backed `Page`). These are prerendered for their known slugs
+  (queried from the real database at build time, not a hardcoded list — see §6)
+  and revalidate on a timer (`revalidate = 300`) plus `revalidateTag`/`revalidatePath`
+  from the relevant admin write.
+- **Plain dynamic, cached data layer** — `/product/[slug]`. Page-level ISR
+  (`generateStaticParams() { return []; }`) was the original pre-regression
+  design intent here too, but testing found a Next.js 15.5.27 bug where the
+  _second_ locale value under `[locale]`'s own `generateStaticParams`
+  consistently 500s — see ADR 0008 for the full story. The page renders per
+  request; `getStoreProduct()` (`src/server/catalog/products.ts`) is wrapped in
+  `unstable_cache` with tag-based on-demand invalidation
+  (`src/server/cache/tags.ts`, fired from `src/app/(admin)/admin/catalog-actions.ts`'s
+  `refreshCatalog()`), so the expensive DB query is still cached even though the
+  HTML isn't.
 
-Admin routes are not statically generated at all; every admin page requires a live
-session check against the database on each request.
+Admin routes (`src/app/(admin)/`, not under `[locale]`) are not statically
+generated at all; every admin page requires a live session check against the
+database on each request.
 
 ## 4. Data layer
 
@@ -151,15 +174,19 @@ roles:
 `src/server/admin/access.ts` exposes one `require*()` guard per domain
 (`requireCatalog`, `requireOrders`, `requireContent`, etc.) that every admin server
 action calls first — authorization is enforced server-side, never by hiding a
-button in the UI.
+button in the UI. One guard, `requireSuperAdmin()`, is role-based rather than
+permission-based: `admin` and `super-admin` hold identical permission grants (see
+the table above), so a `roleAllows()` check can't tell them apart, and the Admin →
+Maintenance module (§9) needs exactly that distinction.
 
 ## 6. Storefront feature map
 
-Homepage (`src/app/(store)/page.tsx`) assembles, in parallel: categories, hero
-slider + side banners (`publicBanners()`), featured/recent/best-seller product
+Homepage (`src/app/[locale]/(store)/page.tsx`) assembles, in parallel: categories,
+hero slider + side banners (`publicBanners()`), featured/recent/best-seller product
 rails (all filtered from one real `listStoreProducts()` call), an active flash sale
 with a real countdown, testimonials, up to 4 homepage videos, and a blog teaser
-section (falls back to mock posts only when zero real posts are published).
+section — real published posts only; the section is omitted entirely when none
+exist (see §2's mock-data note).
 
 Product browsing: `/shop`, `/category/[slug]`, `/brand/[slug]`, `/search`, `/offers`,
 `/flash-deals` all share `ProductListing`/`ProductCard` and the same filter/sort/
@@ -190,6 +217,10 @@ have full create/edit/delete, not just create. The rich-text editor
 (`RichTextField.tsx`, Tiptap-based) is shared across product descriptions, blog
 posts, CMS pages, and category descriptions, with inline image upload wired to a
 permission-appropriate upload action (`catalog.manage` vs `content.manage`).
+Admin → Maintenance (super-admin only) is the one exception to "one module per
+domain" — it's a registry of idempotent one-off jobs (cache clear, demo-catalog
+seed, admin bootstrap, resumable media-variant backfill) rather than a CRUD
+module; see §9.
 
 ## 8. API layer
 
@@ -205,21 +236,33 @@ components and (for a few endpoints) external systems:
 - `payments/*` — gateway initiate/verify/callback/webhooks (bKash/Nagad/
   SSLCommerz/Aamarpay, configured via `.env` or Admin → Settings)
 - `contact`, `newsletter` — public lead-capture forms
-- `cron/*` — `CRON_SECRET`-gated maintenance endpoints (see §9)
+- `cron/*` — `CRON_SECRET`-gated **scheduled** maintenance endpoints (see §9)
 - `webhooks/steadfast` — inbound courier status updates
 
-## 9. The `cron/*` pattern (specific to this host)
+## 9. The `cron/*` pattern (specific to this host) and Admin → Maintenance
 
 `src/app/api/v1/cron/*` are POST routes gated by `assertCronSecret()`
 (`src/server/cron/auth.ts`, compares a bearer token against `CRON_SECRET`). They
-exist for two reasons: scheduled maintenance (`low-stock-sweep`,
-`cancel-unpaid-orders`) and, unusually, **one-off database bootstrap operations**
-(`bootstrap-admin`, `seed-catalog`) that would normally be a CLI script run once
-during deployment. On this host, standalone `node`/`tsx` processes reliably crash
-(see §12), so anything that would normally be `npm run db:seed` is instead built as
-a route that runs inside the already-running, already-warm application process and
-is invoked via `curl` after deployment. These routes are idempotent (safe to
-re-run) by design.
+exist for recurring scheduled maintenance only — `low-stock-sweep` and
+`cancel-unpaid-orders` — invoked by a real cron entry (see `DEPLOYMENT.md`).
+
+Two routes used to live here for a different reason: **one-off database bootstrap
+operations** (`bootstrap-admin`, `seed-catalog`) that would normally be a CLI script
+run once during deployment, reachable through a curl'd route instead because
+standalone `node`/`tsx` processes reliably crash on this host (see §12). As of
+Phase 2, those two are gone — their logic moved, unchanged (still upsert-based, safe
+to re-run), into **Admin → Maintenance**
+(`src/app/(admin)/admin/maintenance/page.tsx`, super-admin only): a job registry
+(`src/server/admin/maintenance/jobs.ts`) a staff member triggers from the admin UI
+instead of curl, still executing inside the same already-running, already-warm
+application process. The module also replaces the ad hoc "run it once and hope" of
+those cron routes with a `MaintenanceJobRun` log (who ran what, when, and the
+result) and additional jobs: a tag-aware cache-clear button (fires
+`revalidateTag` for every tag in `src/server/cache/tags.ts`, not just
+`revalidatePath`), a resumable media-variant backfill (`generateImageVariants()`,
+§12), and stated no-ops for sitemap rebuild/search reindex (neither has a real
+artifact to rebuild on this codebase — see the module's own code comments for
+why).
 
 ## 10. Security measures
 
@@ -242,14 +285,55 @@ re-run) by design.
 
 ## 11. Internationalization
 
-`next-intl` is cookie-based (`NEXT_LOCALE`), not URL-prefixed — there is no
-`/en/...` or `/bn/...` segment. `src/i18n/request.ts` reads the cookie and loads
-the matching `src/locales/{en,bn}.json` file. `src/app/layout.tsx` resolves the
-locale once per request (`getLocale()`/`getMessages()`) and wraps the tree in
-`NextIntlClientProvider`; client components then use `useTranslations()` (reads
-from that context, not the cookie again), while server components/pages use
-`await getTranslations()` (reads the cookie directly). Both locale files are kept
-in lockstep — every key that exists in one must exist in the other.
+As of Phase 2, `next-intl` is **URL-prefixed** with `localePrefix: "as-needed"`
+(`src/i18n/routing.ts`): English stays unprefixed (`/shop`), Bengali lives under
+`/bn` (`/bn/shop`). `src/middleware.ts` runs `next-intl`'s middleware on every
+storefront route (matcher explicitly excludes `/admin`, `/api`, static files —
+admin isn't localized, see below); it resolves the locale from the URL segment
+(falling back to the `NEXT_LOCALE` cookie / `Accept-Language` for the bare `/`
+path) and redirects an unprefixed path to its `/bn/...` form when the cookie
+names Bengali — this is what makes the existing `LanguageToggle` component work
+unchanged (it just sets the cookie and calls `router.refresh()`).
+
+The entire `(store)` route group lives under `src/app/[locale]/(store)/`.
+`src/app/[locale]/layout.tsx` is the real root layout for the storefront
+(`<html lang={locale}>`, `NextIntlClientProvider`, fonts, header/footer scripts);
+it calls `setRequestLocale()` and has its own `generateStaticParams` (`en`/`bn`).
+`src/i18n/request.ts` resolves the locale from that middleware-set `requestLocale`
+now, not a cookie read — this is also what fixed the `DYNAMIC_SERVER_USAGE` bug
+described in the old version of this section (the root cause was the _cookie
+read inside the render path_, not Bengali itself).
+
+**Admin is not localized** (`src/app/(admin)/`, outside `[locale]`, its own root
+layout) — confirmed zero `useTranslations`/`getTranslations` usage anywhere in
+`src/components/admin/` or `src/app/(admin)/`, consistent with the master plan's
+explicit permission to leave admin unprefixed (§2.2). Storefront client
+components use locale-aware `Link`/`useRouter`/`usePathname`/`redirect` from
+`src/i18n/navigation.ts` (not `next/link`/`next/navigation` directly) so
+in-app navigation stays within the current locale.
+
+`hreflang`/`x-default`: two mechanisms, both active. next-intl's middleware
+sets an HTTP `Link` response header (`alternateLinks: true`, the default) on
+every storefront response. On top of that, `src/lib/seo/urls.ts`'s
+`localeAlternates(path)` (built on next-intl's `getPathname`) feeds
+per-page HTML `<link rel="alternate" hreflang="...">` tags via
+`generateMetadata` — wired into every page using `src/lib/seo/metadata.ts`'s
+`buildMetadata()` (product, category, brand, blog post, CMS, search) plus
+the homepage and `/blog`. This is deliberately belt-and-suspenders: Google's
+own guidance treats the HTML `<link>` form (or a sitemap entry) as the
+reliable signal for HTML pages and the HTTP header as the fallback for
+non-HTML content, so the header alone — correct as it is — wasn't enough to
+satisfy the master plan's Phase 2 "done when" criterion on its own. Cart,
+login, register, offers, and flash-deals don't set their own `alternates`
+yet (lower priority — robots.txt already disallows the ones that matter
+most for indexing, `/account`, `/checkout`, `/search`); extending them is a
+cheap follow-up, not tracked as a blocking gap.
+
+Client components use `useTranslations()` (reads from `NextIntlClientProvider`
+context), server components/pages use `await getTranslations()`. Both locale
+files are kept in lockstep — every key that exists in one must exist in the
+other (confirmed via a flattened key-set diff during the Phase 0 audit: 421
+keys each, zero mismatches, and this hasn't regressed since).
 
 Validation error messages are a special case: because the zod schemas in
 `src/lib/validation/customer.ts` are shared with server-side API routes (which
@@ -269,6 +353,9 @@ how it was discovered: Next.js's build worker pool (fixed with
 `experimental.cpus: 1` in `next.config.ts`), any freshly-spawned `node`/`tsx`
 process trying to cold-start the Prisma query engine (works fine only inside the
 already-running, warm Passenger-managed process — see §9), and esbuild entirely.
+For the same reason, `src/server/media/variants.ts` calls
+`sharp.concurrency(1)` unconditionally at module load — sharp's default
+thread pool alone can exceed the ceiling under concurrent uploads.
 **Practical consequence**: `npm run build`, `prisma migrate deploy`, and
 `npm run db:seed` must never be run on the production host. As of Phase 1
 (`UNIBAAZAR_V2_MASTER_PLAN.md` §3), this is handled by a GitHub Actions
@@ -281,19 +368,23 @@ process cold-starting the query engine, on the host at all. See
 rather than automatic on merge — see `docs/decisions/0007-manual-deploy-trigger.md`
 — but the mechanism itself replaces the manual zip/upload flow either way.)
 
-**ISR + cookie-based i18n is incompatible for routes with no pre-known params.**
-The root layout reads the locale cookie on every request (required for i18n to
-work at all). For a route configured as `generateStaticParams() { return []; }` +
-`revalidate = N`, Next.js treats the very first request for any given param as a
-"generate once, cache for every future visitor" render, and refuses to let that
-render read request-specific data — it throws `DYNAMIC_SERVER_USAGE` for every
-single request in production (not caught by `next dev`, which doesn't enforce the
-distinction). This is why `/product/[slug]`, `/category/[slug]`, and
-`/brand/[slug]` are `force-dynamic` rather than ISR, despite that being the
-original design intent (to avoid build-time DB queries on this same
-thread-constrained host). Routes with real, known `generateStaticParams` values
-(`/blog/[slug]`, the CMS catch-all) don't hit this, because the problematic
-param-generation path never runs for them.
+**(Resolved in Phase 2) ISR + cookie-based i18n was incompatible for routes with
+no pre-known params.** The old root layout read the locale cookie on every
+request (required for i18n to work at all). For a route configured as
+`generateStaticParams() { return []; }` + `revalidate = N`, Next.js treated the
+very first request for any given param as a "generate once, cache for every
+future visitor" render, and refused to let that render read request-specific
+data — it threw `DYNAMIC_SERVER_USAGE` for every single request in production
+(not caught by `next dev`, which doesn't enforce the distinction). Moving to
+URL-based locale routing (§11) removed the cookie read from the render path
+entirely, which fixed this for `/category/[slug]` and `/brand/[slug]` (now
+dynamic for an unrelated, legitimate reason — `searchParams` — see §3) and
+_mostly_ fixed it for `/product/[slug]`: a related but narrower Next.js bug
+remained there even after the cookie fix, specific to a child route's empty
+`generateStaticParams` nested under a parent's multi-value one — see
+`docs/decisions/0008-product-page-justified-dynamic-not-isr.md` for the full
+investigation. `/blog/[slug]` and the CMS catch-all were never affected, because
+they always had real, known `generateStaticParams` values.
 
 **`output: "standalone"` is deliberately not used.** `server.js` runs against a
 full `node_modules` install, not the trimmed `.next/standalone` bundle, so

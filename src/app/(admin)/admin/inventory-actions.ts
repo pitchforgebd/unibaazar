@@ -1,7 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { requireCatalog } from "@/server/admin/access";
+import { TAGS } from "@/server/cache/tags";
 import {
   adjustStock,
   assignBarcodes,
@@ -28,6 +29,17 @@ function refreshInventory(): void {
   revalidatePath("/admin/inventory/purchases");
 }
 
+// Stock changes affect product/shop/category/brand pages (stock and
+// availability badges), but nothing here ever told the storefront's cached
+// product reads to refresh before this phase — adjustStockAction and
+// receivePurchaseAction both change stock, and neither revalidated
+// anything outside /admin. Uses the broad products tag rather than
+// resolving the exact product slug(s) a SKU or a multi-line purchase
+// touches, same tradeoff as refreshStorefront() in marketing-actions.ts.
+function refreshStorefrontStock(): void {
+  revalidateTag(TAGS.products);
+}
+
 export async function adjustStockAction(input: {
   sku: string;
   change: string;
@@ -40,6 +52,7 @@ export async function adjustStockAction(input: {
     const parsed = adjustSchema.parse(input);
     const message = await adjustStock(session.userId, parsed);
     refreshInventory();
+    refreshStorefrontStock();
     return { ok: true, message };
   } catch (error) {
     return { ok: false, message: actionError(error) };
@@ -123,6 +136,7 @@ export async function receivePurchaseAction(input: {
     const parsed = purchaseIdSchema.parse(input);
     const message = await receivePurchase(session.userId, parsed.id);
     refreshInventory();
+    refreshStorefrontStock();
     revalidatePath(`/admin/inventory/purchases/${parsed.id}`);
     return { ok: true, message };
   } catch (error) {

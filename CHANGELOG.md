@@ -4,6 +4,86 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Phase 2 — Foundation refactor (2026-10-18)
+
+### Added
+
+- **URL-based locale routing**: `src/i18n/routing.ts`/`navigation.ts` +
+  `src/middleware.ts` replace cookie-based locale resolution with
+  `/bn/...`/`/...` URL prefixes (`localePrefix: "as-needed"`). This was the
+  actual root cause of the Phase 0-documented ISR/i18n production 500 —
+  locale is now resolved in middleware before rendering, not read from a
+  cookie mid-render. The old `src/app/(store)/` tree moved to
+  `src/app/[locale]/(store)/`; admin keeps its own root layout
+  (`src/app/(admin)/layout.tsx`, no `NextIntlClientProvider`, `lang="en"`).
+  `src/lib/seo/urls.ts`'s `localeAlternates()` adds real per-page
+  `hreflang`/`x-default` `<link>` tags (product, category, brand, blog,
+  CMS, home) now that locale is a URL, not a cookie.
+- **Caching restored**: `src/server/catalog/products.ts`'s store reads are
+  wrapped in `unstable_cache` with tags from the new
+  `src/server/cache/tags.ts`; every admin write that can affect the
+  storefront now calls `revalidateTag`/`revalidatePath` for the right tags
+  (catalog, marketing, inventory actions, and the Maintenance module's
+  cache-clear job). See `docs/decisions/0008-product-page-justified-dynamic-not-isr.md`
+  for why `/product/[slug]` stays plain-dynamic with a cached data layer
+  instead of page-level ISR (a Next.js 15.5.27 bug with nested
+  `generateStaticParams` under a multi-locale parent).
+- `src/lib/logger.ts`: structured pino logging + a central `reportError()`
+  funnel, wired into both root error boundaries and the server catch-all.
+- Encrypted settings-at-rest: `src/server/settings/secret.ts` now encrypts
+  any `isSecret` setting with AES-256-GCM (`SETTINGS_ENCRYPTION_KEY`), with
+  backward-compatible plaintext fallback for pre-existing values.
+- Media variant pipeline: `src/server/media/variants.ts` generates
+  AVIF/WebP variants at upload time (`sharp.concurrency(1)`, mandatory on
+  this host — see `ARCHITECTURE.md` §12); `src/lib/media/imageLoader.ts` is
+  a custom `next/image` loader serving them. See
+  `docs/decisions/0011-media-variant-pipeline.md`.
+- `/admin/maintenance`: a super-admin-only module that runs idempotent
+  maintenance jobs inside the already-warm app process (no background
+  workers/queues — this host can't support them). Registry in
+  `src/server/admin/maintenance/jobs.ts`: cache clear (now tag-aware, see
+  below), sitemap rebuild (no-op), search reindex (no-op), media backfill
+  (real implementation, resumable), seed demo catalog, bootstrap admin
+  account. Backed by the new `MaintenanceJobRun` model (logs every run) and
+  `requireSuperAdmin()`/`superAdminAccess()` in `src/server/admin/access.ts`
+  — the first admin guard checking the `super-admin` role directly, since
+  `admin` and `super-admin` hold identical permission grants today.
+- `e2e/parity/admin-storefront-parity.spec.ts`: admin-write → storefront-read
+  parity tests (settings, menus, product quick-edit), desktop + mobile.
+
+### Removed
+
+- Every runtime fallback-to-mock-data path found in the Phase 0 audit:
+  homepage blog teaser, the generic CMS route, the FAQ block, the blog
+  listing/detail pages, and the Zustand cart store's stock check (now
+  resolves via `/api/v1/products/[slug]`, async). Mock data under
+  `src/lib/mock/*` remains only as seed-data content.
+- `src/app/api/v1/cron/seed-catalog/route.ts` and
+  `.../cron/bootstrap-admin/route.ts` — replaced by the Maintenance module's
+  "Seed demo catalog" and "Bootstrap admin account" jobs. The `cron/*`
+  pattern is unchanged for the remaining _scheduled_ jobs (`low-stock-sweep`,
+  `cancel-unpaid-orders`).
+- Dead code in `src/lib/catalog/queries.ts` (`getBlogPost`, `getCmsPage`,
+  `getCategory`, `getBrand`, `getRelatedProducts`, `searchSuggestions`,
+  `getReviews`, `getQuestions`, `getProduct`) left over from the mock-data
+  removal above.
+
+### Fixed
+
+- `src/server/admin/maintenance/jobs.ts`'s cache-clear job now also calls
+  `revalidateTag` for every static tag in `src/server/cache/tags.ts` —
+  `revalidatePath("/", "layout")` alone didn't purge the `unstable_cache`
+  entries the catalog reads use.
+
+### Docs
+
+- `ARCHITECTURE.md` rewritten: repository layout, rendering strategy,
+  internationalization, and hosting-reality sections all updated for this
+  phase's changes.
+- `docs/decisions/0008`–`0011` — ADRs for the product-page ISR workaround,
+  the Rust-free Prisma client spike (deferred), the `modules/` move
+  (deferred to Phase 3), and the media variant pipeline.
+
 ## Phase 1 — Deployment pipeline (2026-10-18)
 
 ### Added

@@ -29,6 +29,7 @@ const eslintConfig = [
       "unibaazar-build/**",
       "playwright-report/**",
       "test-results/**",
+      ".claude/**",
     ],
   },
 ];

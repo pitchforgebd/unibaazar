@@ -18,7 +18,9 @@ export function QuickAdd({ product }: QuickAddProps) {
   return (
     <button
       type="button"
-      onClick={() => addToCart({ slug: product.slug, variantId: variant.id, qty: 1 })}
+      onClick={() =>
+        void addToCart({ slug: product.slug, variantId: variant.id, qty: 1 })
+      }
       disabled={disabled}
       className="mt-3 h-9 w-full rounded-md bg-primary text-sm font-semibold text-white transition-transform duration-150 ease-out hover:bg-primary-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
     >

@@ -1,5 +1,3 @@
-import { blogPosts, cmsPages } from "@/lib/mock/content";
-import { brands, categories, products, questions, reviews } from "@/lib/mock/catalog";
 import { displayPrice, totalStock } from "@/lib/catalog/pricing";
 import { matchScore } from "@/lib/catalog/search";
 import type { Product, ShopQuery, ShopSort } from "@/types/catalog";
@@ -121,7 +119,7 @@ function matchesAttributes(product: Product, query: ShopQuery): boolean {
 export function filterProducts(
   query: ShopQuery,
   scope: ListingScope = {},
-  source: Product[] = products,
+  source: Product[],
 ): Product[] {
   const q = query.q.trim();
 
@@ -178,10 +176,8 @@ export function filterProducts(
 }
 
 function searchHaystack(product: Product): string {
-  const brand = getBrand(product.brandSlug)?.name ?? "";
-  const category = getCategory(product.categorySlug)?.name ?? "";
   const skus = product.variants.map((variant) => variant.sku).join(" ");
-  return `${product.name} ${brand} ${category} ${skus}`;
+  return `${product.name} ${product.brandName} ${product.categorySlug} ${skus}`;
 }
 
 function compareProducts(a: Product, b: Product, sort: ShopSort): number {
@@ -220,53 +216,7 @@ export function paginateProducts(
   };
 }
 
-export function getProduct(slug: string): Product | undefined {
-  return products.find((product) => product.slug === slug);
-}
-
-export function getCategory(slug: string): CategoryLookup | undefined {
-  return categories.find((category) => category.slug === slug);
-}
-
-type CategoryLookup = (typeof categories)[number];
-
-export function getBrand(slug: string): (typeof brands)[number] | undefined {
-  return brands.find((brand) => brand.slug === slug);
-}
-
-export function getRelatedProducts(product: Product): Product[] {
-  return products
-    .filter(
-      (item) => item.slug !== product.slug && item.categorySlug === product.categorySlug,
-    )
-    .slice(0, 4);
-}
-
-export function searchSuggestions(term: string): Product[] {
-  const q = term.trim().toLowerCase();
-  if (q.length < 2) {
-    return [];
-  }
-  return products.filter((product) => product.name.toLowerCase().includes(q)).slice(0, 6);
-}
-
-export function getReviews(slug: string) {
-  return reviews.filter((review) => review.productSlug === slug);
-}
-
-export function getQuestions(slug: string) {
-  return questions.filter((question) => question.productSlug === slug);
-}
-
-export function getBlogPost(slug: string) {
-  return blogPosts.find((post) => post.slug === slug);
-}
-
-export function getCmsPage(slug: string) {
-  return cmsPages.find((page) => page.slug === slug);
-}
-
-export function facetValues(source: Product[] = products): {
+export function facetValues(source: Product[]): {
   sizes: string[];
   colors: string[];
 } {
@@ -287,5 +237,3 @@ export function facetValues(source: Product[] = products): {
     colors: [...colors],
   };
 }
-
-export { blogPosts, brands, categories, cmsPages, products };

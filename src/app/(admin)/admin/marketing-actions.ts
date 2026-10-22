@@ -1,7 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { requireCatalog } from "@/server/admin/access";
+import { TAGS } from "@/server/cache/tags";
 import {
   deleteBanner,
   deleteCoupon,
@@ -39,6 +40,18 @@ function refresh(): void {
   revalidatePath("/admin/marketing/banners");
   revalidatePath("/admin/marketing/audience");
   revalidatePath("/admin/marketing/relations");
+}
+
+// Flash sales, banners, sliders, and product relations all render on the
+// storefront (home, flash-deals, offers, product pages) but `refresh()`
+// above only ever touched /admin/* paths — these never revalidated the
+// storefront at all before this phase.
+function refreshStorefront(): void {
+  revalidatePath("/");
+  revalidatePath("/flash-deals");
+  revalidatePath("/offers");
+  revalidateTag(TAGS.home);
+  revalidateTag(TAGS.products);
 }
 
 export async function couponAction(input: {
@@ -108,6 +121,7 @@ export async function flashAction(input: {
     const parsed = flashSchema.parse(input);
     const message = await saveFlashSale(session.userId, parsed);
     refresh();
+    refreshStorefront();
     return { ok: true, message };
   } catch (error) {
     return { ok: false, message: actionError(error) };
@@ -120,6 +134,7 @@ export async function deleteFlashAction(input: { id: string }): Promise<ActionRe
     const parsed = idSchema.parse(input);
     const message = await deleteFlashSale(session.userId, parsed.id);
     refresh();
+    refreshStorefront();
     return { ok: true, message };
   } catch (error) {
     return { ok: false, message: actionError(error) };
@@ -141,6 +156,7 @@ export async function bannerAction(input: {
     const parsed = bannerSchema.parse(input);
     const message = await saveBanner(session.userId, parsed);
     refresh();
+    refreshStorefront();
     return { ok: true, message };
   } catch (error) {
     return { ok: false, message: actionError(error) };
@@ -153,6 +169,7 @@ export async function deleteBannerAction(input: { id: string }): Promise<ActionR
     const parsed = idSchema.parse(input);
     const message = await deleteBanner(session.userId, parsed.id);
     refresh();
+    refreshStorefront();
     return { ok: true, message };
   } catch (error) {
     return { ok: false, message: actionError(error) };
@@ -173,6 +190,7 @@ export async function sliderAction(input: {
     const parsed = sliderSchema.parse(input);
     const message = await saveSlider(session.userId, parsed);
     refresh();
+    refreshStorefront();
     return { ok: true, message };
   } catch (error) {
     return { ok: false, message: actionError(error) };
@@ -185,6 +203,7 @@ export async function deleteSliderAction(input: { id: string }): Promise<ActionR
     const parsed = idSchema.parse(input);
     const message = await deleteSlider(session.userId, parsed.id);
     refresh();
+    refreshStorefront();
     return { ok: true, message };
   } catch (error) {
     return { ok: false, message: actionError(error) };
@@ -246,6 +265,7 @@ export async function relationAction(input: {
     const parsed = relationSchema.parse(input);
     const message = await saveRelation(session.userId, parsed);
     refresh();
+    refreshStorefront();
     return { ok: true, message };
   } catch (error) {
     return { ok: false, message: actionError(error) };
@@ -258,6 +278,7 @@ export async function deleteRelationAction(input: { id: string }): Promise<Actio
     const parsed = idSchema.parse(input);
     const message = await deleteRelation(session.userId, parsed.id);
     refresh();
+    refreshStorefront();
     return { ok: true, message };
   } catch (error) {
     return { ok: false, message: actionError(error) };

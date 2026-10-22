@@ -135,3 +135,26 @@ export async function requireSettings(): Promise<Session> {
   }
   return session;
 }
+
+// Stricter than every other guard above: `admin` holds the same permission
+// grants as `super-admin` (see src/server/security/permissions.ts), so a
+// permission check can't tell them apart. Maintenance jobs can seed demo
+// data or re-bootstrap the admin account, so this checks the role itself.
+export async function superAdminAccess(): Promise<Session | null> {
+  const session = await readSession();
+  if (!session) {
+    redirect("/login");
+  }
+  if (session.role !== "super-admin") {
+    return null;
+  }
+  return session;
+}
+
+export async function requireSuperAdmin(): Promise<Session> {
+  const session = await superAdminAccess();
+  if (!session) {
+    throw new Error("You do not have access to maintenance");
+  }
+  return session;
+}

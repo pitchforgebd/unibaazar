@@ -844,7 +844,7 @@ export async function bulkAdminProducts(input: unknown): Promise<string> {
   return `Updated categories on ${parsed.ids.length} products.`;
 }
 
-export async function quickEditAdminProduct(input: unknown): Promise<void> {
+export async function quickEditAdminProduct(input: unknown): Promise<{ slug: string }> {
   const parsed = quickEditSchema.parse(input);
   const [variant, current] = await Promise.all([
     prisma.productVariant.findFirst({
@@ -853,7 +853,7 @@ export async function quickEditAdminProduct(input: unknown): Promise<void> {
     }),
     prisma.product.findUnique({
       where: { id: parsed.id },
-      select: { publishedAt: true },
+      select: { publishedAt: true, slug: true },
     }),
   ]);
   if (!variant || !current) {
@@ -873,6 +873,7 @@ export async function quickEditAdminProduct(input: unknown): Promise<void> {
     where: { id: variant.id },
     data: { price: decimal(parsed.price), stock: Number(parsed.stock) },
   });
+  return { slug: current.slug };
 }
 
 export async function exportProductsCsv(query: ProductListQuery): Promise<string> {

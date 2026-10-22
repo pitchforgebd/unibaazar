@@ -64,6 +64,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       canReports={roleAllows(session.role, "reports.view")}
       canSettings={roleAllows(session.role, "settings.manage")}
       canUsers={roleAllows(session.role, "users.manage")}
+      canMaintenance={session.role === "super-admin"}
     >
       {children}
     </AdminShell>

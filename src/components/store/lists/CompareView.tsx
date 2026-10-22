@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { buttonClass } from "@/components/ui/controls";
 import { ProductMedia } from "@/components/store/product/ProductMedia";
@@ -92,7 +92,7 @@ export function CompareView() {
                     className={buttonClass("primary")}
                     disabled={variant.stock <= 0}
                     onClick={() =>
-                      addLine({ slug: product.slug, variantId: variant.id, qty: 1 })
+                      void addLine({ slug: product.slug, variantId: variant.id, qty: 1 })
                     }
                   >
                     {productT("add")}

@@ -1,28 +1,24 @@
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
-import { MissBeacon } from "@/components/store/seo/MissBeacon";
-import { Container } from "@/components/ui/Container";
-import { buttonClass } from "@/components/ui/controls";
-import { PageTitle } from "@/components/store/common/PageTitle";
-import { StoreShell } from "@/components/store/layout/StoreShell";
 
-export default async function NotFound() {
-  const t = await getTranslations("error");
+// This is the outermost fallback, reached only when a request doesn't even
+// resolve to a valid locale segment (so there's no next-intl context to read
+// a translation from — see src/app/[locale]/layout.tsx's notFound() call).
+// Deliberately plain next/link, not the locale-aware one: this page exists
+// precisely for the case where a locale couldn't be determined. The normal
+// in-app 404 is src/app/[locale]/(store)/not-found.tsx, which is properly
+// translated and themed.
+export default function RootNotFound() {
   return (
-    <StoreShell>
-      <MissBeacon />
-      <PageTitle title={t("notFound.title")} />
-      <Container className="py-10">
-        <p className="text-sm text-muted">{t("notFound.body")}</p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link href="/" className={buttonClass("primary")}>
-            {t("notFound.homeButton")}
+    <html lang="en">
+      <body style={{ margin: 0, fontFamily: "sans-serif" }}>
+        <main style={{ maxWidth: 480, margin: "15vh auto", textAlign: "center" }}>
+          <h1 style={{ fontSize: 28 }}>Page not found</h1>
+          <p style={{ color: "#6B7280" }}>That page is not on UniBaazar.</p>
+          <Link href="/" style={{ color: "#F95B09" }}>
+            Go home
           </Link>
-          <Link href="/shop" className={buttonClass("outline")}>
-            {t("notFound.shopButton")}
-          </Link>
-        </div>
-      </Container>
-    </StoreShell>
+        </main>
+      </body>
+    </html>
   );
 }

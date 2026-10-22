@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { CaptchaField } from "@/components/store/auth/CaptchaField";
 import { buttonClass, fieldClass } from "@/components/ui/controls";
-import { faqs } from "@/lib/mock/content";
 import { contactSchema, type ContactInput } from "@/lib/validation/customer";
 import { translatedError } from "@/lib/validation/messages";
 
@@ -106,21 +105,11 @@ export function ContactForm() {
   );
 }
 
-export function FaqList() {
+export function FaqEmptyState() {
   const t = useTranslations("faq");
   return (
-    <div>
-      <div className="bg-ink px-4 py-3 text-sm font-semibold text-white">
-        {t("heading")}
-      </div>
-      <div className="divide-y divide-black/5 rounded-b-lg bg-card shadow-soft">
-        {faqs.map((item) => (
-          <details key={item.question} className="p-4">
-            <summary className="cursor-pointer font-semibold">{item.question}</summary>
-            <p className="mt-2 text-sm text-muted">{item.answer}</p>
-          </details>
-        ))}
-      </div>
+    <div className="rounded-lg bg-card p-5 text-center text-sm text-muted shadow-soft">
+      {t("empty")}
     </div>
   );
 }

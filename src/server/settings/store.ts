@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { siteConfig } from "@/config/site";
 import { prisma } from "@/lib/db";
+import { encryptSecret } from "@/server/settings/secret";
 
 export type GeneralSettings = {
   name: string;
@@ -186,10 +187,14 @@ export async function saveSetting(
   value: Prisma.InputJsonValue,
   isSecret = false,
 ): Promise<void> {
+  if (isSecret && typeof value !== "string") {
+    throw new Error(`Secret setting "${key}" must be stored as a string`);
+  }
+  const stored = isSecret ? encryptSecret(value as string) : value;
   await prisma.setting.upsert({
     where: { key },
-    update: { value, isSecret },
-    create: { key, value, isSecret },
+    update: { value: stored, isSecret },
+    create: { key, value: stored, isSecret },
   });
 }
 
