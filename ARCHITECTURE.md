@@ -41,6 +41,21 @@ src/
     fonts.ts, metadata.ts   shared between the two root layouts
   middleware.ts        next-intl locale middleware (storefront routes only —
                         matcher excludes /admin, /api, static files)
+  modules/              domain business logic, introduced in Phase 3 (ADR 0010
+                        deferred the bulk src/server/* -> modules/ move; these
+                        three are the first real modules, built as the natural
+                        shape of Phase 3's own work rather than a separate
+                        reorganization task — see ARCHITECTURE.md §4):
+    pricing/            the only place price/discount/delivery/total are
+                        computed — money.ts's integer-poisha type, quote.ts's
+                        pure computeQuote(), promotions.ts's coupon
+                        eligibility rules, delivery.ts
+    inventory/          stock reservations (hold at quote time, settle at
+                        order placement) and the flash-sale qty-limit guard,
+                        both concurrency-safe and tested as such
+    orders/             the order status transition graph and the one
+                        function (transitionOrder()) allowed to change
+                        Order.status
   components/
     store/            storefront UI, organized by feature (layout, home, product,
                        shop, cart, checkout, account, auth, order, lists, content)
@@ -125,9 +140,11 @@ database on each request.
   `ProductAttribute`, `ProductImage`, `ProductVariant`,
   `VariantAttributeValue`, `ProductRelation`
 - **Inventory**: `Warehouse`, `InventoryLog`, `Supplier`, `PurchaseOrder`,
-  `PurchaseOrderItem`
-- **Marketing**: `Coupon`, `FlashSale`, `FlashSaleItem`, `Campaign`, `Banner`,
-  `Slider`
+  `PurchaseOrderItem`, `StockReservation` (Phase 3 — a short-lived hold on
+  stock between a cart quote and order placement; see §4.1)
+- **Marketing**: `Coupon`, `FlashSale`, `FlashSaleItem` (its `soldCount`
+  column, added in Phase 3, is the atomic running total checked against
+  `qtyLimit` — see §4.1), `Campaign`, `Banner`, `Slider`
 - **Cart & orders**: `Cart`, `CartItem`, `Wishlist`, `Order`, `OrderItem`,
   `OrderStatusHistory`, `Payment`, `Shipment`, `CourierWebhookLog`, `Invoice`,
   `ReturnRequest`
@@ -141,6 +158,50 @@ database on each request.
 `Setting` is the generic persistence mechanism for everything configured in
 Admin → Settings (general/branding, theme, social links, checkout, invoice,
 system/integration keys) — read via `src/server/settings/store.ts`.
+
+### 4.1 Commerce core (`src/modules/pricing`, `inventory`, `orders` — Phase 3)
+
+Money, stock, and order status each now have exactly one place they're
+computed or changed, closing three real bugs the Phase 0 audit and Phase 3's
+own research found:
+
+- **Pricing** (`src/modules/pricing`): every calculation is integer
+  **poisha** (1 BDT = 100 poisha) arithmetic — `money.ts`'s branded `Poisha`
+  type converts to/from the DB's `Decimal(12,2)` columns using Decimal's own
+  exact math, never a float round-trip. `quote.ts`'s `computeQuote()` is a
+  pure function (no DB access) that both the storefront's live checkout
+  quote and order placement call, via the thin DB-touching wrapper in
+  `src/server/checkout/quote.ts`. This is what fixed the delivery-charge
+  duplication bug: that file used to read admin-set `Setting` rows while
+  `src/lib/catalog/pricing.ts` hardcoded 70/130/6500 and could silently
+  disagree — both the checkout page's live price (via
+  `useCheckoutQuote`/`/api/v1/cart/quote`) and the actual order total now
+  come from the same `deliveryCharge()` call. `codCharge`/`vat` exist on the
+  `Quote` type per the master plan's shape but are intentionally inert — see
+  `docs/decisions/0012-phase-3-scope-core-correctness-first.md`.
+- **Inventory** (`src/modules/inventory`): `reserveStock()` holds stock for
+  a cart (identified by an opaque `reservationToken` the client mints and
+  persists — `src/store/cart.ts`) by decrementing `ProductVariant.stock`
+  immediately, atomically (`updateMany({ stock: { gte: qty } })`, the same
+  guard the pre-Phase-3 code used only at the very last step);
+  `commitStock()` settles it at order placement. `incrementFlashSold()`
+  closes a real oversell race: flash-sale `qtyLimit` used to be enforced by
+  a non-transactional `COUNT(OrderItem)` query with no lock, so two
+  concurrent checkouts near the limit could both pass it. Both guarantees
+  are concurrency-tested against the real test database (fire N parallel
+  requests at stock/qtyLimit = 1, assert exactly one wins) — see
+  `src/modules/inventory/tests/*.integration.test.ts`.
+- **Orders** (`src/modules/orders`): `state-machine.ts`'s
+  `ALLOWED_TRANSITIONS` is the first explicit transition graph
+  `Order.status` has ever had — before Phase 3, `setOrderStatus()` would
+  let a `DELIVERED` order move straight back to `PENDING`, no questions
+  asked. `transitionOrder()` is now the one function allowed to change
+  `Order.status`, called from every status-changing path (admin actions,
+  the SSLCommerz IPN handler, courier booking/sync, the Steadfast webhook,
+  the `cancel-unpaid-orders` cron, and the customer-facing cancel/return
+  actions). See `docs/decisions/0013-order-state-machine-transition-graph.md`
+  for why the graph allows forward skips across the pre-shipment pipeline
+  but never backward movement or an exit from a terminal status.
 
 ## 5. Authentication & authorization
 

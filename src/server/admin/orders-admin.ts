@@ -14,9 +14,10 @@ import { bookWithSteadfast, steadfastStatus } from "@/server/admin/courier";
 import { queueStatusNotice } from "@/server/admin/notify";
 import { recordAudit } from "@/server/security/audit";
 import { loadInvoice } from "@/server/settings/store";
+import { adjustStock } from "@/modules/inventory";
+import { canTransition, holdsStock, transitionOrder } from "@/modules/orders";
 
 const pageSize = 20;
-const releasedStatuses: OrderStatus[] = ["CANCELLED", "FAILED", "RETURNED", "REFUNDED"];
 
 const shipmentStatuses: ShipmentStatus[] = [
   "PENDING",
@@ -147,10 +148,6 @@ function isStatus(value: string): value is OrderStatus {
   return (orderStatuses as readonly string[]).includes(value);
 }
 
-function holdsStock(status: OrderStatus): boolean {
-  return !releasedStatuses.includes(status);
-}
-
 function stamp(date: Date): string {
   return new Intl.DateTimeFormat("en-GB", {
     dateStyle: "medium",
@@ -181,33 +178,10 @@ async function applyStock(
   delta: number,
   note: string,
 ): Promise<void> {
-  if (!variantId || delta === 0) {
+  if (!variantId) {
     return;
   }
-  const current = await tx.productVariant.findUnique({ where: { id: variantId } });
-  if (!current) {
-    return;
-  }
-  if (delta < 0 && current.stock < -delta) {
-    throw new Error(`Only ${current.stock} left for ${current.sku}`);
-  }
-  const quantityAfter = current.stock + delta;
-  const updated = await tx.productVariant.updateMany({
-    where: delta < 0 ? { id: variantId, stock: { gte: -delta } } : { id: variantId },
-    data: delta < 0 ? { stock: { decrement: -delta } } : { stock: { increment: delta } },
-  });
-  if (updated.count !== 1) {
-    throw new Error(`Only ${current.stock} left for ${current.sku}`);
-  }
-  await tx.inventoryLog.create({
-    data: {
-      variantId,
-      delta,
-      quantityAfter,
-      reason: delta > 0 ? "RETURN" : "SALE",
-      note,
-    },
-  });
+  await adjustStock(tx, variantId, delta, delta > 0 ? "RETURN" : "SALE", note);
 }
 
 export function parseOrderListQuery(
@@ -461,34 +435,21 @@ export async function setOrderStatus(
   if (order.status === status) {
     return "Status is already set.";
   }
-  const wasHolding = holdsStock(order.status);
-  const willHold = holdsStock(status);
-  await prisma.$transaction(async (tx) => {
-    if (wasHolding && !willHold) {
-      for (const item of order.items) {
-        await applyStock(
-          tx,
-          item.variantId,
-          item.qty,
-          `Released ${item.sku} on ${order.number}`,
-        );
-      }
-    }
-    if (!wasHolding && willHold) {
-      for (const item of order.items) {
-        await applyStock(
-          tx,
-          item.variantId,
-          -item.qty,
-          `Reserved ${item.sku} on ${order.number}`,
-        );
-      }
-    }
-    await tx.order.update({ where: { id: orderId }, data: { status } });
-    await tx.orderStatusHistory.create({
-      data: { orderId, status, note: note.trim() || null },
+  if (!canTransition(order.status, status)) {
+    // Logged even though automated callers (courier webhook, the
+    // cancel-unpaid-orders cron, the SSLCommerz IPN handler) don't inspect
+    // the return value — a rejected transition from automation is worth
+    // being able to find later, not a silent no-op.
+    await recordAudit({
+      actorId: actorId ?? undefined,
+      action: "order.status.rejected",
+      entityType: "Order",
+      entityId: orderId,
+      metadata: { from: order.status, attempted: status },
     });
-  });
+    return `Cannot move an order from ${order.status} to ${status}.`;
+  }
+  await prisma.$transaction((tx) => transitionOrder(tx, order, status, note));
   const updated = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
   await queueStatusNotice(updated);
   await recordAudit({

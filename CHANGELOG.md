@@ -4,6 +4,60 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Phase 3 — Commerce core (2026-10-22)
+
+Scope note: this phase deliberately covers the money/inventory/order
+_correctness_ core of §5.1–§5.4 to the master plan's full bar (95% branch
+coverage, concurrency-tested, every transition tested) rather than every
+bullet in those sections — see
+`docs/decisions/0012-phase-3-scope-core-correctness-first.md` for exactly
+what's deferred and why (CSV import/export, PDF invoices/labels, the
+fraud-score UI, attribute-sets-per-category, bundle/digital product types,
+decimal quantities).
+
+### Added
+
+- `src/modules/pricing/`: an integer-poisha money engine (`money.ts`) and
+  `computeQuote()` (`quote.ts`) as the single source of truth for price,
+  discount, and delivery — fixes the real delivery-charge duplication bug
+  between `src/server/checkout/quote.ts` (read admin Settings) and
+  `src/lib/catalog/pricing.ts` (hardcoded 70/130/6500); both the checkout
+  page's live price and the actual order total now come from the same
+  calculation. `applyCoupon()` ports every eligibility rule (active flag,
+  date window, usage limits, product/category scope, minimum subtotal)
+  into one pure, directly-testable function. 98.85% branch coverage.
+- `src/modules/inventory/`: `reserveStock()`/`commitStock()` hold stock
+  between a cart quote and order placement (new `StockReservation` model),
+  reusing the atomic `updateMany({stock: {gte: qty}})` guard the old code
+  only applied at the very last step; `incrementFlashSold()` closes a real
+  oversell race on flash-sale quantity limits (the old check was a
+  non-transactional `COUNT(OrderItem)` query with no lock). Both
+  guarantees are proven with a concurrency test against the real database
+  (8 parallel requests at stock/qtyLimit = 1 — exactly one wins).
+- `src/modules/orders/`: an explicit order-status transition graph
+  (`ALLOWED_TRANSITIONS`) — before this, `setOrderStatus()` had zero
+  transition-legality checks, so a `DELIVERED` order could be set straight
+  back to `PENDING`. `transitionOrder()` is now the one function allowed
+  to change `Order.status`, wired into every call site (admin actions,
+  SSLCommerz IPN, courier booking/sync, the Steadfast webhook, the
+  `cancel-unpaid-orders` cron, customer-facing cancel/return). Every
+  `(from, to)` pair is exhaustively tested.
+- `src/store/cart.ts` mints a per-cart `reservationToken`; the checkout
+  page (`useCheckoutQuote`) fetches its displayed subtotal/discount/
+  delivery/total from the live `/api/v1/cart/quote` endpoint instead of
+  computing them client-side, so the page can never show a total that
+  doesn't match what the order is then charged.
+- ADRs 0012 (Phase 3 scope) and 0013 (the transition graph's design,
+  including why it allows forward skips across the pre-shipment pipeline
+  but never backward movement).
+
+### Removed
+
+- `deliveryCharge`/`deliveryCharges`/`couponDiscount` from
+  `src/lib/catalog/pricing.ts` — the hardcoded, real-bug-causing shadow of
+  `modules/pricing`'s delivery/coupon math, dead once the checkout page
+  stopped computing its own totals.
+
 ## Phase 2 — Foundation refactor (2026-10-18)
 
 ### Added
