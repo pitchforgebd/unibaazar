@@ -18,6 +18,19 @@ for OTP) were fixed in Phase 0 already. The findings below are left exactly as
 written at the time (a historical record of what Phase 0 found), not updated
 in place — don't treat MOCK/HARDCODED as still-open.
 
+**Phase 3 update (2026-10-22):** DUPLICATED #1 (delivery-charge duplication,
+the top item in the executive summary below) is fixed — see
+`docs/qa/phase-03-report.md`. `src/modules/pricing`'s `deliveryCharge()` is
+now the only implementation; the checkout page fetches its live total from
+the same `/api/v1/cart/quote` endpoint the real order charge comes from, so
+the admin-settings-vs-preview drift this finding describes can't happen
+anymore. Most of MISSING-TEST-COVERAGE's checkout/pricing/inventory/orders
+gap is also closed — `src/modules/pricing` is at 98.85% branch coverage, and
+stock-reservation/flash-sale-limit concurrency plus every order-status
+transition now have real tests. DUPLICATED #2 and #3, and the rest of
+MISSING-TEST-COVERAGE (payments, auth), are unrelated to Phase 3's scope and
+still open.
+
 ## Executive summary — highest priority items
 
 1. **Delivery-charge calculation is duplicated and already known to disagree**
