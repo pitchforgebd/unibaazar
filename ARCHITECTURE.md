@@ -312,9 +312,22 @@ components use locale-aware `Link`/`useRouter`/`usePathname`/`redirect` from
 `src/i18n/navigation.ts` (not `next/link`/`next/navigation` directly) so
 in-app navigation stays within the current locale.
 
-`hreflang`/`x-default`: handled automatically by next-intl's middleware setting
-the `Link` response header (`alternateLinks: true`, the default) rather than
-per-page `<link rel="alternate">` metadata.
+`hreflang`/`x-default`: two mechanisms, both active. next-intl's middleware
+sets an HTTP `Link` response header (`alternateLinks: true`, the default) on
+every storefront response. On top of that, `src/lib/seo/urls.ts`'s
+`localeAlternates(path)` (built on next-intl's `getPathname`) feeds
+per-page HTML `<link rel="alternate" hreflang="...">` tags via
+`generateMetadata` — wired into every page using `src/lib/seo/metadata.ts`'s
+`buildMetadata()` (product, category, brand, blog post, CMS, search) plus
+the homepage and `/blog`. This is deliberately belt-and-suspenders: Google's
+own guidance treats the HTML `<link>` form (or a sitemap entry) as the
+reliable signal for HTML pages and the HTTP header as the fallback for
+non-HTML content, so the header alone — correct as it is — wasn't enough to
+satisfy the master plan's Phase 2 "done when" criterion on its own. Cart,
+login, register, offers, and flash-deals don't set their own `alternates`
+yet (lower priority — robots.txt already disallows the ones that matter
+most for indexing, `/account`, `/checkout`, `/search`); extending them is a
+cheap follow-up, not tracked as a blocking gap.
 
 Client components use `useTranslations()` (reads from `NextIntlClientProvider`
 context), server components/pages use `await getTranslations()`. Both locale

@@ -16,6 +16,9 @@ version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progr
   cookie mid-render. The old `src/app/(store)/` tree moved to
   `src/app/[locale]/(store)/`; admin keeps its own root layout
   (`src/app/(admin)/layout.tsx`, no `NextIntlClientProvider`, `lang="en"`).
+  `src/lib/seo/urls.ts`'s `localeAlternates()` adds real per-page
+  `hreflang`/`x-default` `<link>` tags (product, category, brand, blog,
+  CMS, home) now that locale is a URL, not a cookie.
 - **Caching restored**: `src/server/catalog/products.ts`'s store reads are
   wrapped in `unstable_cache` with tags from the new
   `src/server/cache/tags.ts`; every admin write that can affect the
