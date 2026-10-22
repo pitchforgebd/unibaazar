@@ -3,6 +3,7 @@ import { themeAction } from "@/app/(admin)/admin/settings-actions";
 import { SettingsDenied } from "@/components/admin/settings/SettingsDenied";
 import { SettingsForm } from "@/components/admin/settings/SettingsForm";
 import { SettingsNav } from "@/components/admin/settings/SettingsNav";
+import { ThemePresetPicker } from "@/components/admin/settings/ThemePresetPicker";
 import { settingsAccess } from "@/server/admin/access";
 import { loadTheme } from "@/server/settings/store";
 
@@ -17,9 +18,11 @@ export default async function ThemeSettingsPage() {
   return (
     <div className="space-y-4">
       <SettingsNav />
+      <ThemePresetPicker current={values} action={themeAction} />
       <SettingsForm
-        title="Theme"
-        intro="The top bar uses the color. Hide the top bar or the chat buttons without removing them from the code."
+        key={values.presetId}
+        title="Top bar & chat"
+        intro="The top bar uses this color — separate from the theme preset above. Hide the top bar or the chat buttons without removing them from the code."
         initial={values}
         save={themeAction}
         fields={[

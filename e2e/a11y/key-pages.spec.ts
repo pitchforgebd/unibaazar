@@ -7,6 +7,10 @@ const PAGES = [
   { name: "product", path: "/product/cotton-crew-tshirt" },
   { name: "login", path: "/login" },
   { name: "cart", path: "/cart" },
+  // The Phase 4 design-system showcase (master plan §4.1/§4.4's "done
+  // when": every primitive gets an axe pass) — dev-only, but test:a11y
+  // runs against a dev-mode build so it's reachable here.
+  { name: "design-system", path: "/_design" },
 ];
 
 for (const { name, path } of PAGES) {
@@ -14,11 +18,6 @@ for (const { name, path } of PAGES) {
     await page.goto(path);
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa"])
-      // color-contrast is disabled until Phase 4 ships contrast-checked design
-      // tokens (master plan §4.1) — see docs/audit/current-state.md for the
-      // specific violations found pre-Phase-4 (brand orange, a delivery-partner
-      // badge color). Every other WCAG 2a/2aa rule still runs and blocks.
-      .disableRules(["color-contrast"])
       .analyze();
 
     const critical = results.violations.filter(

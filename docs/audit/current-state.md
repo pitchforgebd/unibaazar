@@ -290,6 +290,20 @@ disabled in the Phase 0 suite with a comment pointing here, so the structural ch
 prematurely fixing a problem that belongs to the token system Phase 4 is about to
 build.
 
+**Phase 4 update (2026-10-22):** fixed — see `docs/qa/phase-04-report.md`. Both
+examples above are resolved (brand orange darkened into the new AA-compliant
+token set; the iEX/Pathao/RedX footer badges now use a fixed dark label color
+with the brand hue kept only on the decorative border, which just needs the
+3:1 non-text minimum). `color-contrast` is re-enabled in
+`e2e/a11y/key-pages.spec.ts` — re-enabling it surfaced two more real,
+previously-undetected failures beyond this audit's own examples (the top
+announcement bar's default color, and the homepage's hue-based placeholder
+tiles for banners/hero slides with no uploaded image), both fixed in the same
+pass. One documented, deliberate exception remains: Luxe's `primary` token
+can't simultaneously satisfy "white text reads on it" and "it reads as
+inline text on Luxe's near-black background" — proven mathematically
+impossible for a single value, not a gap — see `src/lib/theme/presets.test.ts`.
+
 **[MEDIUM]** The fixed cookie-consent banner and the fixed mobile bottom navigation
 bar (Home/Categories/Cart/Account) can stack at the bottom of narrow viewports and
 cover enough of the screen to intercept taps on page content scrolled underneath,

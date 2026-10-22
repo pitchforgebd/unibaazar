@@ -61,6 +61,7 @@ jobs:
           AUTH_SECRET=ci-only-secret-${{ github.run_id }}-not-for-production
           CRON_SECRET=ci-only-cron-secret-${{ github.run_id }}
           SETTINGS_ENCRYPTION_KEY=0152098de6c360c7d52575971e1edae428f7f059cb58acd65ebb16e43b9bc534
+          ALLOW_DESIGN_ROUTE=1
           EOF
 
       - run: npm run db:migrate:test

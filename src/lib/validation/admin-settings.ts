@@ -24,6 +24,7 @@ export const themeSchema = z.object({
   font: z.enum(["poppins", "system"]),
   showTopBar: z.boolean(),
   showChat: z.boolean(),
+  presetId: z.enum(["bazaar", "luxe", "fresh", "tech"]),
 });
 
 export const checkoutSchema = z.object({

@@ -4,6 +4,45 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Phase 4 — Design system and motion system (2026-10-22)
+
+### Added
+
+- **Theme tokens, 4 presets, live admin switching**: `src/lib/theme/`
+  defines Bazaar/Luxe/Fresh/Tech as CSS-custom-property token sets;
+  `src/app/[locale]/layout.tsx` injects the active one as a per-request
+  `<style>` tag, so switching presets in Admin → Settings → Theme is live
+  on the next page load with no rebuild. Admin keeps a static fallback
+  (Bazaar) and never re-skins with these presets.
+- **`src/components/ui/`**: Button, IconButton, Input, Textarea, Select,
+  Checkbox, RadioGroup/Radio, Badge, Tooltip, Dialog, AlertDialog, Sheet,
+  Tabs, Spinner, and a new ToastStack (alongside the existing Toaster) —
+  token-driven, accessible (ARIA, full keyboard nav, focus-visible
+  states), built on a shared native-`<dialog>` modal engine.
+- **`src/components/motion/`**: Reveal, Stagger, PressScale, flyToCart,
+  CountUp, Marquee, Shimmer, ShakeOnError, PageTransition — the master
+  plan §4.4 micro-interaction list, gated by `prefers-reduced-motion`
+  throughout, built on the `motion` library against shared duration/
+  easing/spring tokens.
+- **`/_design`**: a dev-only route showing every primitive above, in
+  every theme preset, in both locales — blocked in real production
+  (`ALLOW_DESIGN_ROUTE` is the test-only exception), with its own axe
+  pass and visual snapshot.
+- ADRs 0014 (the token architecture) and 0015 (Phase 4's scope boundaries
+  — preset selection vs. per-token editing, no density axis yet).
+
+### Fixed
+
+- Re-enabled axe's `color-contrast` rule (disabled since before Phase 2,
+  explicitly pending this phase) and fixed every real violation it found
+  on the live storefront: the brand-orange tokens themselves, three
+  courier footer badges using their own brand hue as text color, the top
+  announcement bar's unfixed default color (and the knock-on fix to
+  `LanguageToggle`'s inactive-tab opacity), the homepage's "Offers" tile,
+  and the hue-based placeholder backgrounds for hero slides/banners with
+  no uploaded image (lightness lowered from 42% to 24%, verified safe
+  across all 360 hue degrees, not just the ones currently seeded).
+
 ## Phase 3 — Commerce core (2026-10-22)
 
 Scope note: this phase deliberately covers the money/inventory/order

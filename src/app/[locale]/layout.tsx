@@ -7,7 +7,9 @@ import { fontVariables } from "@/app/fonts";
 import { buildRootMetadata } from "@/app/metadata";
 import { FooterScript, HeaderScript } from "@/components/layout/SiteScripts";
 import { routing } from "@/i18n/routing";
-import { loadSystem } from "@/server/settings/store";
+import { THEME_PRESETS } from "@/lib/theme/presets";
+import { themeStyleTag } from "@/lib/theme/styleTag";
+import { loadSystem, loadTheme } from "@/server/settings/store";
 import "@/styles/globals.css";
 
 export function generateStaticParams() {
@@ -30,10 +32,22 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   }
   setRequestLocale(locale);
 
-  const [messages, system] = await Promise.all([getMessages(), loadSystem()]);
+  const [messages, system, theme] = await Promise.all([
+    getMessages(),
+    loadSystem(),
+    loadTheme(),
+  ]);
+  const tokens = THEME_PRESETS[theme.presetId];
 
   return (
     <html lang={locale} className={`${fontVariables} h-full`}>
+      <head>
+        {/* Per-request, not build-time — this is the entire "switching a
+         * preset re-skins the storefront with no rebuild" mechanism (see
+         * src/lib/theme/styleTag.ts). Admin doesn't render this and keeps
+         * globals.css's static fallback instead. */}
+        <style dangerouslySetInnerHTML={{ __html: themeStyleTag(tokens) }} />
+      </head>
       <body className="min-h-full bg-page font-sans text-foreground antialiased">
         <HeaderScript script={system.headerScript} />
         <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>

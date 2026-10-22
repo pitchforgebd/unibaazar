@@ -37,7 +37,12 @@ export function LanguageToggle() {
             aria-pressed={locale === option.locale}
             onClick={() => void choose(option.locale)}
             className={`whitespace-nowrap hover:underline ${
-              locale === option.locale ? "font-semibold" : "text-white/80"
+              // Full opacity for both — text-white/80 on the inactive
+              // option dropped contrast below AA once the top bar's
+              // default color was darkened to fix the active option's
+              // own contrast (see themeDefaults.primary). font-semibold
+              // alone still distinguishes the active language.
+              locale === option.locale ? "font-semibold" : ""
             }`}
           >
             {option.label}

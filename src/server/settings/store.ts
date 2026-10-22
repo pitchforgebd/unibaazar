@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { siteConfig } from "@/config/site";
 import { prisma } from "@/lib/db";
 import { encryptSecret } from "@/server/settings/secret";
+import { THEME_PRESET_IDS, type ThemePresetId } from "@/lib/theme/presets";
 
 export type GeneralSettings = {
   name: string;
@@ -21,6 +22,10 @@ export type ThemeSettings = {
   font: "poppins" | "system";
   showTopBar: boolean;
   showChat: boolean;
+  /** Phase 4 design system — which of the 4 token presets
+   * (src/lib/theme/presets.ts) the storefront renders. Independent of
+   * `primary` above, which only colors the thin top announcement bar. */
+  presetId: ThemePresetId;
 };
 
 export type CheckoutSettings = {
@@ -87,10 +92,17 @@ export const generalDefaults: GeneralSettings = {
 };
 
 export const themeDefaults: ThemeSettings = {
-  primary: "#E64A00",
+  // Matches the Bazaar preset's AA-compliant primary (src/lib/theme/
+  // presets.ts) — the old default (#E64A00) only got 3.92:1 contrast with
+  // the white text TopBar.tsx renders on top of it, caught by re-enabling
+  // axe's color-contrast rule in e2e/a11y/key-pages.spec.ts for Phase 4.
+  // An admin who types in their own custom top-bar color can still pick
+  // something that fails contrast — this only fixes the shipped default.
+  primary: "#C94607",
   font: "poppins",
   showTopBar: true,
   showChat: true,
+  presetId: "bazaar",
 };
 
 export const checkoutDefaults: CheckoutSettings = {
@@ -217,11 +229,15 @@ export async function loadGeneral(): Promise<GeneralSettings> {
 export async function loadTheme(): Promise<ThemeSettings> {
   const row = await readRow("theme");
   const font = text(row, "font", themeDefaults.font);
+  const presetId = text(row, "presetId", themeDefaults.presetId);
   return {
     primary: text(row, "primary", themeDefaults.primary),
     font: font === "system" ? "system" : "poppins",
     showTopBar: flag(row, "showTopBar", themeDefaults.showTopBar),
     showChat: flag(row, "showChat", themeDefaults.showChat),
+    presetId: (THEME_PRESET_IDS as string[]).includes(presetId)
+      ? (presetId as ThemePresetId)
+      : themeDefaults.presetId,
   };
 }
 

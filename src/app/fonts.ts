@@ -1,4 +1,4 @@
-import { Noto_Sans_Bengali, Poppins } from "next/font/google";
+import { Noto_Sans_Bengali, Playfair_Display, Poppins } from "next/font/google";
 
 export const poppins = Poppins({
   subsets: ["latin"],
@@ -14,4 +14,13 @@ export const notoSansBengali = Noto_Sans_Bengali({
   display: "swap",
 });
 
-export const fontVariables = `${poppins.variable} ${notoSansBengali.variable}`;
+// Luxe preset's heading font (src/lib/theme/presets.ts) — an elegant
+// serif, used only via the `font-heading` utility, never for body copy.
+export const playfairDisplay = Playfair_Display({
+  subsets: ["latin"],
+  weight: ["600", "700"],
+  variable: "--font-playfair",
+  display: "swap",
+});
+
+export const fontVariables = `${poppins.variable} ${notoSansBengali.variable} ${playfairDisplay.variable}`;

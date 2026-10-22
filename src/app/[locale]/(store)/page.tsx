@@ -125,7 +125,10 @@ export default async function HomePage() {
                       backgroundSize: "cover",
                       backgroundPosition: "center",
                     }
-                  : { backgroundColor: `hsl(${banner.imageHue ?? 24} 70% 42%)` }
+                  : // 24%, not 42% — see HeroSlider.tsx's identical fix:
+                    // white text needs this low to clear 4.5:1 across
+                    // every possible hue (yellow is the worst case).
+                    { backgroundColor: `hsl(${banner.imageHue ?? 24} 70% 24%)` }
               }
             >
               {banner.imageUrl ? <span className="absolute inset-0 bg-black/30" /> : null}
@@ -180,7 +183,12 @@ export default async function HomePage() {
     offers: (
       <Container className="py-4">
         <Link href="/offers" className="block rounded-lg bg-ink px-6 py-8 text-white">
-          <p className="text-sm font-semibold text-primary">{t("offersLabel")}</p>
+          {/* text-primary doesn't reliably clear 4.5:1 against this
+           * card's black background across every preset (it's tuned for
+           * light backgrounds) — peach (primaryLight) is a light tint of
+           * the same brand hue, so it keeps the accent color story but
+           * reads clearly on dark bg-ink. */}
+          <p className="text-sm font-semibold text-peach">{t("offersLabel")}</p>
           <p className="mt-1 text-2xl font-bold">{t("offersTagline")}</p>
         </Link>
       </Container>
