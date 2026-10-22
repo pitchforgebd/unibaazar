@@ -7,10 +7,13 @@ export const cartLineSchema = z.object({
   qty: z.number().int().positive().max(99),
 });
 
+const reservationTokenField = z.string().trim().min(1).max(64).optional();
+
 export const quoteBodySchema = z.object({
   lines: z.array(cartLineSchema).min(1, "Your cart is empty"),
   couponCode: z.string().trim().optional(),
   area: z.enum(["inside-dhaka", "outside-dhaka"]),
+  reservationToken: reservationTokenField,
 });
 
 const utmField = z
@@ -24,6 +27,7 @@ export const placeOrderSchema = checkoutSchema.and(
   z.object({
     lines: z.array(cartLineSchema).min(1, "Your cart is empty"),
     couponCode: z.string().trim().optional(),
+    reservationToken: reservationTokenField,
     utmSource: utmField,
     utmMedium: utmField,
     utmCampaign: utmField,

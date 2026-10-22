@@ -1,5 +1,5 @@
-import { deliveryCharge, variantLabel, variantPrice } from "@/lib/catalog/pricing";
-import type { CartLine, DeliveryArea, Product, ProductVariant } from "@/types/catalog";
+import { variantLabel, variantPrice } from "@/lib/catalog/pricing";
+import type { CartLine, Product, ProductVariant } from "@/types/catalog";
 
 export type ResolvedCartLine = {
   line: CartLine;
@@ -34,12 +34,14 @@ export function resolveCartLines(
 /** `discount` is the server-validated coupon discount for the current lines
  * (see `useCartStore.applyCoupon`/`refreshCoupon`) — never recomputed from a
  * client-side coupon table, so the preview always matches what checkout will
- * actually charge. */
+ * actually charge. Delivery/total aren't computed here at all — they depend
+ * on admin-set settings and the checkout page gets them from the live
+ * /api/v1/cart/quote endpoint instead (see useCheckoutQuote) so they can
+ * never drift from what the server actually charges. */
 export function summarizeCart(
   lines: CartLine[],
   discount: number,
   catalog: Map<string, Product>,
-  area?: DeliveryArea,
 ) {
   const resolved = resolveCartLines(lines, catalog);
   const subtotal = resolved.reduce(
@@ -47,8 +49,6 @@ export function summarizeCart(
     0,
   );
   const merchandise = Math.max(subtotal - discount, 0);
-  const shipping = area ? deliveryCharge(area, merchandise) : null;
-  const total = merchandise + (shipping ?? 0);
 
-  return { resolved, subtotal, discount, merchandise, shipping, total };
+  return { resolved, subtotal, discount, merchandise };
 }

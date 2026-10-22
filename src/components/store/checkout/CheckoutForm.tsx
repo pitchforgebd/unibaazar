@@ -10,9 +10,10 @@ import { CaptchaField } from "@/components/store/auth/CaptchaField";
 import { buttonClass, fieldClass } from "@/components/ui/controls";
 import { summarizeCart } from "@/lib/catalog/cart-lines";
 import { useCartCatalog } from "@/lib/catalog/useCartCatalog";
+import { useCheckoutQuote } from "@/lib/catalog/useCheckoutQuote";
 import { track } from "@/lib/tracking/browser";
 import { readUtm } from "@/lib/tracking/utm";
-import { deliveryCharges, variantLabel } from "@/lib/catalog/pricing";
+import { variantLabel } from "@/lib/catalog/pricing";
 import { isStoredOrder, savePlacedOrder } from "@/lib/orders/session";
 import { formatTaka } from "@/lib/utils/currency";
 import {
@@ -37,7 +38,9 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
     { value: "card", label: t("paymentCard") },
   ];
   const lines = useCartStore((state) => state.lines);
+  const couponCode = useCartStore((state) => state.couponCode);
   const couponDiscount = useCartStore((state) => state.couponDiscount);
+  const reservationToken = useCartStore((state) => state.reservationToken);
   const clear = useCartStore((state) => state.clear);
   const [formError, setFormError] = useState<string | null>(null);
   const {
@@ -60,7 +63,14 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
 
   const area = watch("area");
   const { catalog } = useCartCatalog(lines);
-  const summary = summarizeCart(lines, couponDiscount, catalog, area);
+  // Line items (name/qty/unit price) come from the already-loaded product
+  // catalog — no round trip needed for those. Subtotal/discount/delivery/
+  // total come from the live quote below instead, the same endpoint that
+  // will actually be re-quoted at order placement, so this page can never
+  // show a total the server then charges something different for.
+  const summary = summarizeCart(lines, couponDiscount, catalog);
+  const quoteState = useCheckoutQuote(lines, couponCode, area, reservationToken);
+  const liveQuote = quoteState.byArea[area];
 
   if (summary.resolved.length === 0) {
     return (
@@ -90,6 +100,7 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
         phone,
         lines: state.lines,
         couponCode: state.couponCode || undefined,
+        reservationToken: state.reservationToken,
         ...readUtm(),
       }),
     });
@@ -181,14 +192,26 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
                 <input type="radio" value="inside-dhaka" {...register("area")} />{" "}
                 {t("areaInsideDhaka")}
               </span>
-              <span>{formatTaka(deliveryCharges["inside-dhaka"])}</span>
+              <span>
+                {quoteState.byArea["inside-dhaka"]
+                  ? quoteState.byArea["inside-dhaka"].deliveryCharge === 0
+                    ? t("deliveryFree")
+                    : formatTaka(quoteState.byArea["inside-dhaka"].deliveryCharge)
+                  : "…"}
+              </span>
             </label>
             <label className="flex items-center justify-between gap-3 rounded-md border border-black/10 px-3 py-2">
               <span>
                 <input type="radio" value="outside-dhaka" {...register("area")} />{" "}
                 {t("areaOutsideDhaka")}
               </span>
-              <span>{formatTaka(deliveryCharges["outside-dhaka"])}</span>
+              <span>
+                {quoteState.byArea["outside-dhaka"]
+                  ? quoteState.byArea["outside-dhaka"].deliveryCharge === 0
+                    ? t("deliveryFree")
+                    : formatTaka(quoteState.byArea["outside-dhaka"].deliveryCharge)
+                  : "…"}
+              </span>
             </label>
           </div>
         </fieldset>
@@ -231,29 +254,36 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
         <dl className="mt-4 space-y-2 border-t border-black/5 pt-3 text-sm">
           <div className="flex justify-between">
             <dt>{t("subtotal")}</dt>
-            <dd>{formatTaka(summary.subtotal)}</dd>
+            <dd>{formatTaka(liveQuote?.subtotal ?? summary.subtotal)}</dd>
           </div>
           <div className="flex justify-between">
             <dt>{t("discount")}</dt>
-            <dd>-{formatTaka(summary.discount)}</dd>
+            <dd>-{formatTaka(liveQuote?.discount ?? summary.discount)}</dd>
           </div>
           <div className="flex justify-between">
             <dt>{t("delivery")}</dt>
             <dd>
-              {summary.shipping === 0
-                ? t("deliveryFree")
-                : formatTaka(summary.shipping ?? 0)}
+              {liveQuote
+                ? liveQuote.deliveryCharge === 0
+                  ? t("deliveryFree")
+                  : formatTaka(liveQuote.deliveryCharge)
+                : "…"}
             </dd>
           </div>
           <div className="flex justify-between text-base font-semibold">
             <dt>{t("total")}</dt>
-            <dd>{formatTaka(summary.total)}</dd>
+            <dd>{liveQuote ? formatTaka(liveQuote.total) : "…"}</dd>
           </div>
         </dl>
+        {quoteState.error ? (
+          <p className="mt-2 text-sm text-red-700">{quoteState.error}</p>
+        ) : null}
         <button
           type="submit"
           className={`${buttonClass("primary")} mt-4 w-full`}
-          disabled={isSubmitting}
+          disabled={
+            isSubmitting || quoteState.loading || !liveQuote || !!quoteState.error
+          }
         >
           {t("submit")}
         </button>

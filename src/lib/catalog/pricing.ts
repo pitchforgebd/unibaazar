@@ -1,16 +1,4 @@
-import { siteConfig } from "@/config/site";
-import type {
-  Coupon,
-  DeliveryArea,
-  Product,
-  ProductImage,
-  ProductVariant,
-} from "@/types/catalog";
-
-export const deliveryCharges: Record<DeliveryArea, number> = {
-  "inside-dhaka": 70,
-  "outside-dhaka": 130,
-};
+import type { Product, ProductImage, ProductVariant } from "@/types/catalog";
 
 export function variantPrice(variant: ProductVariant): number {
   return variant.salePrice ?? variant.price;
@@ -44,23 +32,6 @@ export function displayPrice(product: Product): {
 
 export function totalStock(product: Product): number {
   return product.variants.reduce((sum, variant) => sum + variant.stock, 0);
-}
-
-export function couponDiscount(subtotal: number, coupon: Coupon | null): number {
-  if (!coupon || subtotal < coupon.minSubtotal) {
-    return 0;
-  }
-  if (coupon.type === "percent") {
-    return Math.round((subtotal * coupon.value) / 100);
-  }
-  return Math.min(coupon.value, subtotal);
-}
-
-export function deliveryCharge(area: DeliveryArea, merchandiseTotal: number): number {
-  if (merchandiseTotal <= 0 || merchandiseTotal >= siteConfig.freeShippingThreshold) {
-    return 0;
-  }
-  return deliveryCharges[area];
 }
 
 export function defaultVariant(product: Product): ProductVariant {

@@ -109,6 +109,34 @@ describe("order state machine", () => {
     });
   });
 
+  describe("forward jumps across the pre-shipment pipeline are legal (courier automation skips steps)", () => {
+    const skips: [OrderStatus, OrderStatus][] = [
+      ["PENDING", "PROCESSING"],
+      ["PENDING", "SHIPPED"],
+      ["CONFIRMED", "SENT_TO_COURIER"],
+      ["PROCESSING", "SHIPPED"],
+    ];
+    skips.forEach(([from, to]) => {
+      it(`${from} -> ${to} is legal`, () => {
+        expect(canTransition(from, to)).toBe(true);
+      });
+    });
+  });
+
+  describe("backward jumps across the pre-shipment pipeline stay illegal even after widening it for forward skips", () => {
+    const backwards: [OrderStatus, OrderStatus][] = [
+      ["SHIPPED", "PENDING"],
+      ["SHIPPED", "CONFIRMED"],
+      ["SENT_TO_COURIER", "PROCESSING"],
+      ["READY_TO_SHIP", "PENDING"],
+    ];
+    backwards.forEach(([from, to]) => {
+      it(`${from} -> ${to} is illegal`, () => {
+        expect(canTransition(from, to)).toBe(false);
+      });
+    });
+  });
+
   // src/modules/orders/server/transition.ts deliberately has no "re-hold"
   // code path — it relies on this invariant staying true. If this test
   // ever fails, transition.ts needs a matching re-hold branch added at the

@@ -10,6 +10,11 @@ type CartState = {
   lines: CartLine[];
   couponCode: string | null;
   couponDiscount: number;
+  /** Opaque id this cart quotes/places its order under, so checkout can
+   * hold stock between a quote and the final order placement (see
+   * src/modules/inventory). Regenerated on clear() so a fresh cart never
+   * reuses a token a previous order may have already consumed. */
+  reservationToken: string;
   hasHydrated: boolean;
   setHasHydrated: (value: boolean) => void;
   addLine: (line: CartLine) => Promise<AddResult>;
@@ -20,6 +25,12 @@ type CartState = {
   clear: () => void;
   refreshCoupon: () => Promise<void>;
 };
+
+function newReservationToken(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `rt-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 function lineKey(line: Pick<CartLine, "slug" | "variantId">): string {
   return `${line.slug}:${line.variantId}`;
@@ -85,6 +96,7 @@ export const useCartStore = create<CartState>()(
       lines: [],
       couponCode: null,
       couponDiscount: 0,
+      reservationToken: newReservationToken(),
       hasHydrated: false,
       setHasHydrated: (value) => set({ hasHydrated: value }),
       addLine: async (line) => {
@@ -140,7 +152,13 @@ export const useCartStore = create<CartState>()(
         return null;
       },
       clearCoupon: () => set({ couponCode: null, couponDiscount: 0 }),
-      clear: () => set({ lines: [], couponCode: null, couponDiscount: 0 }),
+      clear: () =>
+        set({
+          lines: [],
+          couponCode: null,
+          couponDiscount: 0,
+          reservationToken: newReservationToken(),
+        }),
       refreshCoupon: async () => {
         const { lines, couponCode } = get();
         if (!couponCode) {
@@ -166,6 +184,7 @@ export const useCartStore = create<CartState>()(
         lines: state.lines,
         couponCode: state.couponCode,
         couponDiscount: state.couponDiscount,
+        reservationToken: state.reservationToken,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);

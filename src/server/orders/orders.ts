@@ -6,14 +6,13 @@ import { recordAudit } from "@/server/security/audit";
 import { assertCheckoutAllowed, noteDeviceOrder } from "@/server/security/fraud";
 import { ApiError } from "@/server/http";
 import { readSession } from "@/server/auth/session";
-import {
-  areaToDb,
-  paymentToDb,
-  quoteCart,
-  type PriceQuote,
-} from "@/server/checkout/quote";
+import { areaToDb, paymentToDb, quoteCart } from "@/server/checkout/quote";
 import { loadCheckout } from "@/server/settings/store";
 import { signalPurchase } from "@/server/tracking/signals";
+import { commitStock } from "@/modules/inventory";
+import { incrementFlashSold } from "@/modules/inventory/server/flash";
+import { StockUnavailableError, FlashLimitReachedError } from "@/modules/inventory/types";
+import { canTransition, transitionOrder } from "@/modules/orders";
 
 const statusLabel: Record<DbStatus, OrderStatus> = {
   PENDING: "Pending",
@@ -140,6 +139,10 @@ export async function placeOrder(
     utmCampaign?: string;
     utmTerm?: string;
     utmContent?: string;
+    /** Same opaque id the client used for its cart quote(s) — lets
+     * placeOrder consume the stock already held under that reservation
+     * instead of decrementing again. Optional for backward compatibility. */
+    reservationToken?: string;
   },
   context: { ip: string; device: string } = { ip: "unknown", device: "unknown" },
 ): Promise<Order> {
@@ -152,6 +155,7 @@ export async function placeOrder(
     couponCode: input.couponCode,
     area: input.area,
     phone,
+    reservationToken: input.reservationToken,
   });
   const checkout = await loadCheckout();
   const session = await readSession();
@@ -176,7 +180,16 @@ export async function placeOrder(
     const ids = orderNumber(checkout.orderPrefix);
     try {
       const created = await prisma.$transaction(async (tx) => {
-        await takeStock(tx, quote);
+        await commitStock(
+          tx,
+          quote.reservationToken,
+          quote.lines.map((line) => ({ variantId: line.variantId, qty: line.qty })),
+        );
+        for (const line of quote.lines) {
+          if (line.flashSaleItemId) {
+            await incrementFlashSold(tx, line.flashSaleItemId, line.qty);
+          }
+        }
         const order = await tx.order.create({
           data: {
             number: ids.number,
@@ -265,6 +278,16 @@ export async function placeOrder(
       if (error instanceof ApiError) {
         throw error;
       }
+      if (error instanceof StockUnavailableError) {
+        const first = error.failures[0];
+        throw new ApiError(
+          409,
+          `Only ${first?.available ?? 0} left for ${first?.sku ?? "an item"}`,
+        );
+      }
+      if (error instanceof FlashLimitReachedError) {
+        throw new ApiError(409, `The flash quantity for ${error.sku} is used up`);
+      }
       const code =
         typeof error === "object" && error && "code" in error ? error.code : "";
       if (code === "P2002") {
@@ -274,31 +297,6 @@ export async function placeOrder(
     }
   }
   throw new ApiError(500, "Could not place the order. Try again.");
-}
-
-async function takeStock(tx: Prisma.TransactionClient, quote: PriceQuote): Promise<void> {
-  for (const line of quote.lines) {
-    const current = await tx.productVariant.findUnique({ where: { id: line.variantId } });
-    if (!current || current.stock < line.qty) {
-      throw new ApiError(409, `Only ${current?.stock ?? 0} left for ${line.sku}`);
-    }
-    const updated = await tx.productVariant.updateMany({
-      where: { id: line.variantId, stock: { gte: line.qty } },
-      data: { stock: { decrement: line.qty } },
-    });
-    if (updated.count !== 1) {
-      throw new ApiError(409, `Only ${current.stock} left for ${line.sku}`);
-    }
-    await tx.inventoryLog.create({
-      data: {
-        variantId: line.variantId,
-        delta: -line.qty,
-        quantityAfter: current.stock - line.qty,
-        reason: "SALE",
-        note: line.sku,
-      },
-    });
-  }
 }
 
 export async function trackOrder(orderId: string, phoneInput: string): Promise<Order> {
@@ -333,38 +331,15 @@ async function orderForCustomer(number: string, phoneInput: string) {
 
 export async function cancelOrder(number: string, phoneInput: string): Promise<Order> {
   const order = await orderForCustomer(number, phoneInput);
-  if (order.status !== "PENDING" && order.status !== "CONFIRMED") {
+  if (!canTransition(order.status, "CANCELLED")) {
     throw new ApiError(409, "This order can no longer be cancelled");
   }
-  const updated = await prisma.$transaction(async (tx) => {
-    for (const item of order.items) {
-      if (!item.variantId) {
-        continue;
-      }
-      const variant = await tx.productVariant.update({
-        where: { id: item.variantId },
-        data: { stock: { increment: item.qty } },
-      });
-      await tx.inventoryLog.create({
-        data: {
-          variantId: item.variantId,
-          delta: item.qty,
-          quantityAfter: variant.stock,
-          reason: "RETURN",
-          note: `Cancel ${order.number}`,
-        },
-      });
-    }
-    return tx.order.update({
-      where: { id: order.id },
-      data: {
-        status: "CANCELLED",
-        statusHistory: {
-          create: { status: "CANCELLED", note: "Customer cancel request" },
-        },
-      },
-      include: { items: true, statusHistory: { orderBy: { createdAt: "asc" } } },
-    });
+  await prisma.$transaction((tx) =>
+    transitionOrder(tx, order, "CANCELLED", "Customer cancel request"),
+  );
+  const updated = await prisma.order.findUniqueOrThrow({
+    where: { id: order.id },
+    include: { items: true, statusHistory: { orderBy: { createdAt: "asc" } } },
   });
   return presentOrder(updated);
 }
@@ -375,21 +350,33 @@ export async function requestReturn(
   reason: string,
 ): Promise<Order> {
   const order = await orderForCustomer(number, phoneInput);
-  if (order.status !== "DELIVERED" && order.status !== "RETURN_REQUESTED") {
+  const alreadyRequested = order.status === "RETURN_REQUESTED";
+  if (!alreadyRequested && !canTransition(order.status, "RETURN_REQUESTED")) {
     throw new ApiError(409, "A return can be requested after delivery");
   }
-  const updated = await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     await tx.returnRequest.create({
       data: { orderId: order.id, reason, status: "REQUESTED" },
     });
-    return tx.order.update({
-      where: { id: order.id },
-      data: {
-        status: "RETURN_REQUESTED",
-        statusHistory: { create: { status: "RETURN_REQUESTED", note: reason } },
-      },
-      include: { items: true, statusHistory: { orderBy: { createdAt: "asc" } } },
-    });
+    if (alreadyRequested) {
+      // Not a status change (already there) — a second return request on
+      // the same order, e.g. a different item/reason while the first is
+      // still pending. Logged as a history note rather than silently
+      // dropped, without re-asserting a self-transition.
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: order.id,
+          status: "RETURN_REQUESTED",
+          note: `Additional request: ${reason}`,
+        },
+      });
+      return;
+    }
+    await transitionOrder(tx, order, "RETURN_REQUESTED", reason);
+  });
+  const updated = await prisma.order.findUniqueOrThrow({
+    where: { id: order.id },
+    include: { items: true, statusHistory: { orderBy: { createdAt: "asc" } } },
   });
   return presentOrder(updated);
 }
