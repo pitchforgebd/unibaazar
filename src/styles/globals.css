@@ -2,6 +2,27 @@
 @config "../../tailwind.config.ts";
 
 @layer base {
+  :root {
+    /* Static fallback = the Bazaar preset (src/lib/theme/presets.ts),
+     * used as-is by admin (which never re-skins with storefront theme
+     * presets — see ARCHITECTURE.md §4.5) and overridden per request on
+     * the storefront by the active preset's <style> tag rendered in
+     * src/app/[locale]/layout.tsx (see src/lib/theme/styleTag.ts). Keep
+     * these values in sync with THEME_PRESETS.bazaar by hand — there's no
+     * build step that generates this block from that file. */
+    --color-primary: 201 70 7;
+    --color-primary-dark: 163 56 5;
+    --color-primary-light: 255 240 232;
+    --color-accent: 209 18 59;
+    --color-ink: 0 0 0;
+    --color-page: 245 245 245;
+    --color-card: 255 255 255;
+    --color-foreground: 17 24 39;
+    --color-muted: 91 100 114;
+    --radius-theme: 10px;
+    --font-heading: var(--font-poppins);
+  }
+
   html {
     color-scheme: light;
     scroll-behavior: smooth;
