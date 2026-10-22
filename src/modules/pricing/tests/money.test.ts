@@ -7,6 +7,10 @@ import {
   compare,
   fromDecimalTaka,
   fromTakaNumber,
+  isNegative,
+  isZero,
+  max,
+  min,
   multiplyByQty,
   percentOf,
   poisha,
@@ -125,10 +129,28 @@ describe("money (poisha)", () => {
     );
   });
 
-  it("compare is consistent with numeric ordering", () => {
+  it("compare is consistent with numeric ordering, including equal values", () => {
     fc.assert(
       fc.property(poishaArb, poishaArb, (a, b) => {
         expect(compare(a, b)).toBe(Math.sign(a - b) as -1 | 0 | 1);
+      }),
+    );
+    expect(compare(poisha(500), poisha(500))).toBe(0);
+  });
+
+  it("isZero and isNegative match the sign of the value", () => {
+    expect(isZero(ZERO)).toBe(true);
+    expect(isZero(poisha(1))).toBe(false);
+    expect(isNegative(poisha(-5))).toBe(true);
+    expect(isNegative(poisha(5))).toBe(false);
+    expect(isNegative(ZERO)).toBe(false);
+  });
+
+  it("min and max pick the smaller/larger of two values", () => {
+    fc.assert(
+      fc.property(poishaArb, poishaArb, (a, b) => {
+        expect(min(a, b)).toBe(a < b ? a : b);
+        expect(max(a, b)).toBe(a > b ? a : b);
       }),
     );
   });
