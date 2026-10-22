@@ -12,16 +12,17 @@ reflects the real structure of this repository, not a planned or aspirational on
 | Database           | MySQL, via Prisma ORM 6                                                         |
 | Client state       | Zustand (cart, wishlist/compare, toasts, UI flags)                              |
 | Forms & validation | react-hook-form + zod                                                           |
-| i18n               | next-intl (English + Bengali, cookie-based, no URL locale prefix)               |
+| i18n               | next-intl (English + Bengali, URL-based locale prefix — see §11)                |
 | Auth               | Custom session-cookie auth (no NextAuth) — see §5                               |
 | Icons              | lucide-react                                                                    |
 | Rich text          | Tiptap v2                                                                       |
+| Animation          | `motion` (the current framer-motion successor) — see §4.2                       |
 | Email              | Nodemailer                                                                      |
 | Hosting            | cPanel (CloudLinux), Node.js Selector/Passenger, custom `server.js` entry point |
 
-There is no `middleware.ts`. Locale resolution happens inside `src/i18n/request.ts`
-(reads the `NEXT_LOCALE` cookie) and the root layout (`src/app/layout.tsx`), not via
-Next.js middleware.
+`src/middleware.ts` runs next-intl's locale middleware on every storefront route
+(matcher excludes `/admin`, `/api`, static files) — see §11 for the full story,
+including why this moved off cookie-based resolution in Phase 2.
 
 ## 2. Repository layout
 
@@ -202,6 +203,60 @@ own research found:
   actions). See `docs/decisions/0013-order-state-machine-transition-graph.md`
   for why the graph allows forward skips across the pre-shipment pipeline
   but never backward movement or an exit from a terminal status.
+
+### 4.2 Design system (`src/lib/theme`, `src/components/ui`, `src/components/motion` — Phase 4)
+
+- **Theme tokens**: `src/lib/theme/presets.ts` defines 4 presets (Bazaar —
+  default, orange; Luxe — dark, gold; Fresh — green; Tech — blue) as sets
+  of CSS custom properties, reusing the existing semantic Tailwind color
+  names (`primary`, `ink`, `page`, `card`, `foreground`, `muted`, plus one
+  new one, `accent`) rather than introducing an unused `brand-50…950`
+  scale. `tailwind.config.ts`'s colors all resolve through
+  `rgb(var(--color-x) / <alpha-value>)`, so opacity modifiers
+  (`bg-primary/10`) keep working. `src/lib/theme/styleTag.ts` renders the
+  active preset as a `:root{...}` `<style>` tag, injected per request in
+  `src/app/[locale]/layout.tsx` from the admin's saved `theme.presetId`
+  setting — switching presets in Admin → Settings → Theme (a live swatch
+  picker with its own scoped preview, `ThemePresetPicker`) takes effect on
+  the very next page load, no rebuild. Admin itself never re-skins with
+  these — `src/styles/globals.css`'s static `:root` fallback (hand-kept
+  in sync with the Bazaar preset, checked by a test) is what every admin
+  page renders with, unconditionally. Every preset's token pairings that
+  matter (ink/foreground vs. page/card, white text on primary/primaryDark)
+  are WCAG AA contrast-tested (`src/lib/theme/presets.test.ts`,
+  `src/components/ui/tokenPairs.test.ts`) — see
+  `docs/decisions/0014-theme-token-architecture.md` for the real bugs this
+  caught (the brand orange itself failed AA) and
+  `docs/decisions/0015-phase-4-scope-notes.md` for what "admin-editable
+  tokens" does and doesn't cover yet (preset selection, not independent
+  per-token overrides or a density axis).
+- **`src/components/ui`**: Button, IconButton, Input, Textarea, Select,
+  Checkbox, RadioGroup/Radio, Badge, Tooltip, Dialog, AlertDialog, Sheet,
+  Tabs, Spinner, and `toast/ToastStack` (a successor to the existing
+  `Toaster` — both read the same `src/store/toast.ts` queue; only one
+  should be mounted on a given screen). Dialog/AlertDialog/Sheet share one
+  native-`<dialog>`-based engine (`ModalRoot`/`useModalDialog`) with
+  ref-counted scroll lock and focus return. Purely additive so far —
+  nothing under `src/app/` or `src/components/store|admin` has been
+  migrated to use these yet; that's Phase 5 (storefront) and Phase 6
+  (admin) work.
+- **`src/components/motion`**: `Reveal`, `Stagger`/`StaggerItem`,
+  `PressScale`, `flyToCart`/`useFlyToCart`, `CountUp`, `Marquee`,
+  `Shimmer`, `ShakeOnError`, `PageTransition` — built on the `motion`
+  library (the current framer-motion successor) against shared
+  duration/easing/spring tokens (`tokens.ts`). Every primitive degrades
+  under `prefers-reduced-motion` (checked via `usePrefersReducedMotion()`,
+  or handled in plain CSS for `Marquee`/`Shimmer` so it's correct before
+  any JavaScript runs).
+- **`/_design`** (`src/app/[locale]/%5Fdesign/page.tsx` — the `%5F`
+  escapes Next.js's "folders starting with `_` are excluded from
+  routing" convention, since the literal URL needs to start with `_`):
+  shows every primitive above, in every preset, in both locales. Blocked
+  in real production (`process.env.NODE_ENV === "production"`, force-
+  dynamic so the check can't get baked in at build time) except when
+  `ALLOW_DESIGN_ROUTE=1` — set only in `.env.test`/CI, never in a real
+  deploy, so Playwright's a11y and visual-snapshot suites can still cover
+  the route.
 
 ## 5. Authentication & authorization
 
