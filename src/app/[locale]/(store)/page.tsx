@@ -12,7 +12,7 @@ import { ProductMedia } from "@/components/store/product/ProductMedia";
 import { prisma } from "@/lib/db";
 import { InstagramFeed } from "@/components/store/social/InstagramFeed";
 import { YouTubeEmbed } from "@/components/store/social/YouTubeEmbed";
-import { absoluteUrl } from "@/lib/seo/urls";
+import { absoluteUrl, localeAlternates } from "@/lib/seo/urls";
 import { instagramPostUrls } from "@/lib/seo/youtube";
 import {
   listHomeSections,
@@ -29,11 +29,10 @@ import { loadSocial } from "@/server/settings/store";
 export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
-  // No hreflang: locale is a cookie preference, not a separate URL — see
-  // src/lib/seo/metadata.ts for the same decision on other pages.
   return {
     alternates: {
       canonical: absoluteUrl("/"),
+      languages: localeAlternates("/"),
     },
   };
 }

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { absoluteUrl } from "@/lib/seo/urls";
+import { absoluteUrl, localeAlternates } from "@/lib/seo/urls";
 
 export type PublicSeo = {
   metaTitle: string;
@@ -32,12 +32,9 @@ export function buildMetadata(input: {
     title,
     description,
     keywords: input.focusKeyword ? [input.focusKeyword] : undefined,
-    // No hreflang alternates: locale is a cookie-based preference
-    // (src/i18n/request.ts), not a separate URL per language, so there is
-    // no distinct BN/EN page to point hreflang at — emitting one here would
-    // just be three tags pointing at the same URL, which is misleading.
     alternates: {
       canonical,
+      languages: localeAlternates(input.path),
     },
     robots: input.noIndex
       ? { index: false, follow: true }

@@ -5,10 +5,11 @@ import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
 import { ProductMedia } from "@/components/store/product/ProductMedia";
 import { prisma } from "@/lib/db";
+import { buildMetadata } from "@/lib/seo/metadata";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("blog");
-  return { title: t("metaTitle") };
+  return buildMetadata({ title: t("metaTitle"), path: "/blog" });
 }
 
 // If Next can statically render this list, this caps staleness at 5
