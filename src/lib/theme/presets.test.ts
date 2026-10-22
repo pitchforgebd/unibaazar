@@ -70,5 +70,40 @@ describe("theme presets — WCAG AA contrast (master plan §4.1)", () => {
         WCAG_AA_NORMAL_TEXT,
       );
     });
+
+    // primary used AS text color (links, "text-primary" styled copy) on
+    // the page/card background — a different pairing from "white text on
+    // a primary-colored button" above, and the one that actually caught a
+    // real bug: Bazaar's primary only got 4.41:1 on page (just under 4.5),
+    // found by e2e/a11y/key-pages.spec.ts on the real login page's
+    // "Forgot password" link, not by this test suite — added here so the
+    // next preset change can't reintroduce it silently.
+    //
+    // Luxe is a deliberate, proven exception, not a gap: it's the only
+    // dark-background preset, and "white text reads on primary" (button
+    // labels — the more load-bearing of the two roles, used everywhere)
+    // and "primary reads as text on a near-black page" pull a single
+    // color's lightness in opposite directions. The math doesn't leave a
+    // value that clears 4.5:1 on both: white-on-X needs X's luminance
+    // <=0.183, but X-on-Luxe's-~0.005-luminance page needs X's luminance
+    // >=0.196 — disjoint ranges, for any hue. Until Luxe gets its own
+    // dedicated link/accent token (separate from the button-background
+    // `primary`), inline brand-colored text on Luxe should use `ink`
+    // (already AA-guaranteed) instead of `text-primary` at the call site.
+    if (id === "luxe") {
+      return;
+    }
+
+    it(`${id}: primary as text color on page meets AA`, () => {
+      expect(contrastRatio(tokens.primary, tokens.page)).toBeGreaterThanOrEqual(
+        WCAG_AA_NORMAL_TEXT,
+      );
+    });
+
+    it(`${id}: primary as text color on card meets AA`, () => {
+      expect(contrastRatio(tokens.primary, tokens.card)).toBeGreaterThanOrEqual(
+        WCAG_AA_NORMAL_TEXT,
+      );
+    });
   });
 });

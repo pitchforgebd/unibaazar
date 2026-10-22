@@ -32,7 +32,7 @@ export const THEME_PRESET_IDS: ThemePresetId[] = ["bazaar", "luxe", "fresh", "te
 export const THEME_PRESETS: Record<ThemePresetId, ThemeTokens> = {
   // Default. Warm orange, light theme — the brand's existing identity.
   bazaar: {
-    primary: "#C94607",
+    primary: "#AA3B06",
     primaryDark: "#A33805",
     primaryLight: "#FFF0E8",
     accent: "#D1123B",

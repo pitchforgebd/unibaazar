@@ -5,7 +5,7 @@ import { themeStyleTag } from "@/lib/theme/styleTag";
 describe("themeStyleTag", () => {
   it("converts hex colors to space-separated rgb channels", () => {
     const css = themeStyleTag(THEME_PRESETS.bazaar);
-    expect(css).toContain("--color-primary: 201 70 7;"); // #C94607
+    expect(css).toContain("--color-primary: 170 59 6;"); // #AA3B06
   });
 
   it("includes every token the Tailwind config expects", () => {

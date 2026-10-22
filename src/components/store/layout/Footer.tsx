@@ -69,7 +69,12 @@ function BrandRow({ title, items }: { title: string; items: string[] }) {
               style={{ borderLeftColor: color }}
               className="flex h-9 items-center rounded-md border border-black/10 border-l-[3px] bg-white px-3 text-xs font-bold shadow-soft"
             >
-              <span style={{ color }}>{item}</span>
+              {/* The border carries the brand color (decorative, so WCAG's
+               * 3:1 non-text minimum applies and every brand clears it);
+               * the label itself stays a fixed dark gray — several brand
+               * colors here (Pathao, RedX, iEX) fail the 4.5:1 text
+               * minimum against this box's white background. */}
+              <span style={{ color: "#1F2937" }}>{item}</span>
             </li>
           );
         })}

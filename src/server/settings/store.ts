@@ -92,7 +92,13 @@ export const generalDefaults: GeneralSettings = {
 };
 
 export const themeDefaults: ThemeSettings = {
-  primary: "#E64A00",
+  // Matches the Bazaar preset's AA-compliant primary (src/lib/theme/
+  // presets.ts) — the old default (#E64A00) only got 3.92:1 contrast with
+  // the white text TopBar.tsx renders on top of it, caught by re-enabling
+  // axe's color-contrast rule in e2e/a11y/key-pages.spec.ts for Phase 4.
+  // An admin who types in their own custom top-bar color can still pick
+  // something that fails contrast — this only fixes the shipped default.
+  primary: "#C94607",
   font: "poppins",
   showTopBar: true,
   showChat: true,

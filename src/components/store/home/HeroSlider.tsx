@@ -44,7 +44,11 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
               backgroundSize: "cover",
               backgroundPosition: "center",
             }
-          : { backgroundColor: `hsl(${hue} 72% 42%)` }
+          : // 24% lightness, not the more vivid 42% this used to be: at
+            // 72% saturation, white text on *any* hue needs lightness
+            // this low to clear 4.5:1 — hue 60 (yellow) is the worst
+            // case, and still only reaches ~5.8:1 at 24%.
+            { backgroundColor: `hsl(${hue} 72% 24%)` }
       }
     >
       {slide.imageUrl ? <div className="absolute inset-0 bg-black/35" /> : null}
