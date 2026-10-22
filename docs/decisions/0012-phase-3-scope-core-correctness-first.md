@@ -49,6 +49,37 @@ This phase explicitly **defers** (tracked here, not silently dropped):
 - Digital product type (§5.2) — `simple`/`variable`/`bundle` are in scope;
   `digital` was already marked optional in the spec.
 
+## Addendum (during implementation)
+
+Two more scope calls made while building `src/modules/pricing`, recorded
+here rather than silently decided:
+
+- **Money stays `Decimal(12,2)` in the database; only the arithmetic
+  becomes integer-poisha.** The master plan's real concern is floating-point
+  rounding error in calculations, not the storage type specifically —
+  `Decimal(12,2)` already has no binary floating-point representation error
+  (unlike a `Float`/`double` column would). `src/modules/pricing/money.ts`
+  does every computation in integer poisha and converts at the Decimal
+  boundary using Decimal's own exact arithmetic (`.times(100)`, never a
+  float round-trip), which closes the actual bug class. Changing the 10
+  models/18 fields' column types to `Int` as well would touch every admin
+  form, PDF, report, and CSV-adjacent path that reads/writes those columns
+  for comparatively little additional correctness value inside an already
+  large phase — deferred as a mechanical follow-up, not a correctness gap.
+- **COD charge and VAT-on-total are modeled but left at zero.** `Quote`
+  (the `modules/pricing` output type) has `codCharge` and `vat` fields
+  matching the master plan's §5.1 shape, so later phases don't need to
+  change the interface — but neither is wired to a live admin toggle yet.
+  VAT in particular already exists today as a deliberate **reporting-only**
+  figure (`InvoiceSettings.vatPercent`, documented in
+  `src/server/admin/reports.ts`: "VAT is calculated from merchandise after
+  the coupon. It is not added on top of the order total.") — flipping that
+  to actually change what customers are charged is a real pricing-behavior
+  change on a live site, not a bug fix, and isn't something to decide
+  silently while refactoring the engine underneath it. Both stay inert
+  (always `0`) until a deliberate, separately-reviewed decision to enable
+  them.
+
 ## Consequences
 
 - The three correctness-critical modules get real engineering effort and
