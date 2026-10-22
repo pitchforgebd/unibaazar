@@ -25,7 +25,7 @@ describe("components/ui token pairings — WCAG AA in every preset", () => {
       );
     });
 
-    it(`${id}: inverted surfaces — Toast/Tooltip (page text on ink)`, () => {
+    it(`${id}: inverted surfaces — Toast/Tooltip/Toaster (page text on ink)`, () => {
       expect(contrastRatio(tokens.page, tokens.ink)).toBeGreaterThanOrEqual(
         WCAG_AA_NORMAL_TEXT,
       );

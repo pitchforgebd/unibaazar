@@ -20,7 +20,7 @@ export function Toaster() {
           key={toast.id}
           type="button"
           onClick={() => dismiss(toast.id)}
-          className="pointer-events-auto animate-toast-in rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-white shadow-soft"
+          className="pointer-events-auto animate-toast-in rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-page shadow-soft"
         >
           {toast.message}
         </button>
