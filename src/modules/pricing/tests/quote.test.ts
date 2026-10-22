@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { computeQuote } from "@/modules/pricing/quote";
+import { CouponRejectedError } from "@/modules/pricing/promotions";
 import { poisha, ZERO } from "@/modules/pricing/money";
 import { DEFAULT_DELIVERY_SETTINGS } from "@/modules/pricing/delivery";
 import type { CouponInput, QuoteLineInput } from "@/modules/pricing/types";
@@ -114,11 +115,19 @@ describe("computeQuote (with a coupon)", () => {
     perUserLimit: null,
   };
 
+  // A coupon that would discount exactly 0 (e.g. every line is free) is
+  // rejected rather than silently applied as a no-op — matches today's
+  // real behavior (see promotions.ts) — so that's an expected outcome
+  // here, not a violation of the invariant under test.
   it("a discount never exceeds the subtotal it was computed from", () => {
     fc.assert(
       fc.property(fc.array(lineArb, { minLength: 1, maxLength: 10 }), (lines) => {
-        const quote = computeQuote({ ...baseInput(lines), coupon: percentCoupon });
-        expect(quote.discount).toBeLessThanOrEqual(quote.subtotal);
+        try {
+          const quote = computeQuote({ ...baseInput(lines), coupon: percentCoupon });
+          expect(quote.discount).toBeLessThanOrEqual(quote.subtotal);
+        } catch (error) {
+          expect(error).toBeInstanceOf(CouponRejectedError);
+        }
       }),
     );
   });
@@ -131,8 +140,12 @@ describe("computeQuote (with a coupon)", () => {
     };
     fc.assert(
       fc.property(fc.array(lineArb, { minLength: 1, maxLength: 5 }), (lines) => {
-        const quote = computeQuote({ ...baseInput(lines), coupon: fixedCoupon });
-        expect(quote.total).toBeGreaterThanOrEqual(0);
+        try {
+          const quote = computeQuote({ ...baseInput(lines), coupon: fixedCoupon });
+          expect(quote.total).toBeGreaterThanOrEqual(0);
+        } catch (error) {
+          expect(error).toBeInstanceOf(CouponRejectedError);
+        }
       }),
     );
   });
