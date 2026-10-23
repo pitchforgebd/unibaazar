@@ -178,6 +178,9 @@ cPanel → **Cron Jobs**. Replace `YOUR_CRON_SECRET` with the real
 # Catch any variant that drifted below its low-stock threshold — every 30 min
 */30 * * * * curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://unibaazar.com/api/v1/cron/low-stock-sweep"
 
+# Sweep every payment for an amount/refund mismatch and alert if any are found — daily at 3am
+0 3 * * * curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://unibaazar.com/api/v1/cron/payment-reconciliation"
+
 # Daily database backup at 2am (also runs automatically before every deploy)
 0 2 * * * cd ~/unibaazar/current && BACKUP_DIR=~/unibaazar/shared/backups node scripts/deploy/backup-db.mjs
 ```

@@ -182,6 +182,21 @@ export async function alertLowStock(input: {
   await deliverExternal(settings, title, body);
 }
 
+/** Daily payment-reconciliation mismatches — reuses the general in-app/
+ * external-channel toggles rather than a dedicated settings category,
+ * since this runs once a day (no dedup window needed, unlike low-stock
+ * which can re-trigger on every order) and a payment discrepancy is
+ * already as urgent as anything else these channels carry. */
+export async function alertPaymentMismatch(count: number): Promise<void> {
+  const settings = await loadAlertSettings();
+  const title = `Payment reconciliation: ${count} mismatch(es)`;
+  const body = `The daily payment reconciliation job found ${count} payment(s) that need a look. See Admin → Maintenance → Reconcile payments for details.`;
+  if (settings.inApp) {
+    await createInApp({ title, body, href: "/admin/maintenance" });
+  }
+  await deliverExternal(settings, title, body);
+}
+
 export async function checkVariantsLowStock(variantIds: string[]): Promise<void> {
   if (variantIds.length === 0) {
     return;

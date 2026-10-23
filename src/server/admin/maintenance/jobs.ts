@@ -3,9 +3,11 @@ import {
   bootstrapAdminInputSchema,
   mediaBackfillInputSchema,
 } from "@/lib/validation/admin-maintenance";
+import { alertPaymentMismatch } from "@/server/admin/alerts";
 import { bootstrapAdminAccount } from "@/server/admin/maintenance/bootstrap-admin";
 import { clearAllCaches } from "@/server/admin/maintenance/cache";
 import { runMediaBackfill } from "@/server/admin/maintenance/media-backfill";
+import { reconcilePayments } from "@/server/admin/maintenance/reconcile-payments";
 import { reindexSearch } from "@/server/admin/maintenance/reindex";
 import { seedDemoCatalog } from "@/server/admin/maintenance/seed-catalog";
 import { rebuildSitemap } from "@/server/admin/maintenance/sitemap";
@@ -93,6 +95,29 @@ export const maintenanceJobs: MaintenanceJob[] = [
       return {
         summary: `Seeded ${result.categories} categories, ${result.brands} brands, ${result.products} products.`,
         details: result,
+      };
+    },
+  },
+  {
+    id: "payment-reconciliation",
+    label: "Reconcile payments",
+    description:
+      "Sweeps every Payment row for an amount mismatch against its order, a refund total " +
+      "exceeding what was paid, or more than one PAID payment on the same order. Checks " +
+      "what's already in the database — not a live call to any gateway's own transaction " +
+      "API (see ADR 0018). Intended to run daily.",
+    form: "none",
+    run: async () => {
+      const { checked, mismatches } = await reconcilePayments();
+      if (mismatches.length > 0) {
+        await alertPaymentMismatch(mismatches.length);
+      }
+      return {
+        summary:
+          mismatches.length === 0
+            ? `Checked ${checked} payments. No mismatches found.`
+            : `Checked ${checked} payments. Found ${mismatches.length} mismatch(es) — see details.`,
+        details: { checked, mismatches },
       };
     },
   },
