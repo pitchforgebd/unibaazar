@@ -884,6 +884,13 @@ export async function syncCourier(actorId: string, orderId: string): Promise<str
       where: { orderId },
       data: { status: mapped },
     });
+    await recordAudit({
+      actorId,
+      action: "order.courier-sync",
+      entityType: "Order",
+      entityId: orderId,
+      metadata: { mapped, remote },
+    });
   }
   if (
     mapped === "DELIVERED" &&
