@@ -4,7 +4,6 @@ import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { buttonStyles } from "@/components/ui/buttonStyles";
 import { Badge } from "@/components/ui/Badge";
-import { Reveal } from "@/components/motion";
 import { formatTaka } from "@/lib/utils/currency";
 import type { CustomerListQuery, CustomerRow } from "@/server/admin/customers";
 
@@ -79,7 +78,7 @@ export function CustomerList({
         </div>
       </form>
 
-      <Reveal className="overflow-x-auto rounded-theme bg-card shadow-soft">
+      <div className="overflow-x-auto rounded-theme bg-card shadow-soft">
         <table className="min-w-[760px] w-full text-left text-sm">
           <thead className="border-b border-ink/10 text-muted">
             <tr>
@@ -126,7 +125,7 @@ export function CustomerList({
             )}
           </tbody>
         </table>
-      </Reveal>
+      </div>
 
       <div className="flex items-center justify-between gap-3 text-sm">
         <p className="text-muted">

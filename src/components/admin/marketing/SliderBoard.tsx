@@ -7,7 +7,6 @@ import { DeleteButton } from "@/components/admin/common/DeleteButton";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
-import { Reveal } from "@/components/motion";
 import { useToastStore } from "@/store/toast";
 import { uploadMarketingImage } from "./imageUpload";
 
@@ -56,7 +55,7 @@ export function SliderBoard({ sliders }: { sliders: SliderRow[] }) {
         <h1 className="font-heading text-2xl font-bold text-ink">Home sliders</h1>
         <p className="text-sm text-muted">The homepage hero slideshow, in sort order.</p>
       </div>
-      <Reveal className="overflow-x-auto rounded-theme bg-card shadow-soft">
+      <div className="overflow-x-auto rounded-theme bg-card shadow-soft">
         <table className="min-w-[480px] w-full text-left text-sm">
           <thead className="border-b border-ink/10 text-muted">
             <tr>
@@ -102,7 +101,7 @@ export function SliderBoard({ sliders }: { sliders: SliderRow[] }) {
             ))}
           </tbody>
         </table>
-      </Reveal>
+      </div>
       <form
         className="grid gap-3 rounded-theme bg-card p-4 shadow-soft sm:grid-cols-2"
         onSubmit={(event) => {

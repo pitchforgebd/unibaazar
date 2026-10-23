@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Select } from "@/components/ui/Select";
 import { buttonStyles } from "@/components/ui/buttonStyles";
-import { Reveal } from "@/components/motion";
 import { useToastStore } from "@/store/toast";
 import { orderStatuses } from "@/lib/validation/admin-orders";
 import { formatTaka } from "@/lib/utils/currency";
@@ -163,7 +162,7 @@ export function OrderList({
         </Button>
       </div>
 
-      <Reveal className="overflow-x-auto rounded-theme bg-card shadow-soft">
+      <div className="overflow-x-auto rounded-theme bg-card shadow-soft">
         <table className="min-w-[760px] w-full text-left text-sm">
           <thead className="border-b border-ink/10 text-muted">
             <tr>
@@ -236,7 +235,7 @@ export function OrderList({
             )}
           </tbody>
         </table>
-      </Reveal>
+      </div>
 
       <div className="flex items-center justify-between gap-3 text-sm">
         <p className="text-muted">

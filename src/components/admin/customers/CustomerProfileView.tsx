@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
-import { Reveal } from "@/components/motion";
 import { useToastStore } from "@/store/toast";
 import { formatTaka } from "@/lib/utils/currency";
 import type { CustomerProfile } from "@/server/admin/customers";
@@ -52,7 +51,7 @@ export function CustomerProfileView({ customer }: { customer: CustomerProfile })
   }
 
   return (
-    <Reveal className="space-y-4">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-bold text-ink">{customer.name}</h1>
@@ -164,6 +163,6 @@ export function CustomerProfileView({ customer }: { customer: CustomerProfile })
         loadingLabel="Blocking…"
         onConfirm={() => void toggleBlock()}
       />
-    </Reveal>
+    </div>
   );
 }

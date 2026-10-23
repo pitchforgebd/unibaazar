@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/Button";
 import { buttonStyles } from "@/components/ui/buttonStyles";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Reveal } from "@/components/motion";
 
 function queryString(query: ReportQuery, extra?: Record<string, string>): string {
   const params = new URLSearchParams({ report: query.report, preset: query.preset });
@@ -67,83 +66,79 @@ export function ReportView({
           Show
         </Button>
       </form>
-      <Reveal>
-        <section className="rounded-theme bg-card p-4 shadow-soft">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-heading text-lg font-semibold text-ink">
-                {table.title}
-              </h2>
-              <p className="text-sm text-muted">{table.rangeLabel}</p>
-              <p className="mt-1 text-sm text-muted">{table.note}</p>
-            </div>
-            <div className="flex flex-wrap gap-2 print:hidden">
-              <Link
-                className={buttonStyles({ variant: "outline", size: "sm" })}
-                href={`/admin/reports/export?${queryString(query, { format: "csv" })}`}
-              >
-                CSV
-              </Link>
-              <Link
-                className={buttonStyles({ variant: "outline", size: "sm" })}
-                href={`/admin/reports/export?${queryString(query, { format: "xls" })}`}
-              >
-                Excel
-              </Link>
-              <Link
-                className={buttonStyles({ variant: "outline", size: "sm" })}
-                href={`/admin/reports/export?${queryString(query, { format: "pdf" })}`}
-              >
-                PDF
-              </Link>
-            </div>
+      <section className="rounded-theme bg-card p-4 shadow-soft">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-heading text-lg font-semibold text-ink">{table.title}</h2>
+            <p className="text-sm text-muted">{table.rangeLabel}</p>
+            <p className="mt-1 text-sm text-muted">{table.note}</p>
           </div>
-          {table.rows.length === 0 ? (
-            <p className="mt-4 text-sm text-muted">No rows in this range.</p>
-          ) : (
-            <>
-              <div className="mt-4 print:hidden">
-                <ReportChart table={table} />
-              </div>
-              <div className="mt-4 overflow-x-auto">
-                <table className="min-w-[520px] w-full text-left text-sm">
-                  <thead className="border-b border-black/5 text-muted">
-                    <tr>
-                      {table.columns.map((column) => (
-                        <th key={column} className="px-3 py-3 font-semibold">
-                          {column}
-                        </th>
+          <div className="flex flex-wrap gap-2 print:hidden">
+            <Link
+              className={buttonStyles({ variant: "outline", size: "sm" })}
+              href={`/admin/reports/export?${queryString(query, { format: "csv" })}`}
+            >
+              CSV
+            </Link>
+            <Link
+              className={buttonStyles({ variant: "outline", size: "sm" })}
+              href={`/admin/reports/export?${queryString(query, { format: "xls" })}`}
+            >
+              Excel
+            </Link>
+            <Link
+              className={buttonStyles({ variant: "outline", size: "sm" })}
+              href={`/admin/reports/export?${queryString(query, { format: "pdf" })}`}
+            >
+              PDF
+            </Link>
+          </div>
+        </div>
+        {table.rows.length === 0 ? (
+          <p className="mt-4 text-sm text-muted">No rows in this range.</p>
+        ) : (
+          <>
+            <div className="mt-4 print:hidden">
+              <ReportChart table={table} />
+            </div>
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-[520px] w-full text-left text-sm">
+                <thead className="border-b border-black/5 text-muted">
+                  <tr>
+                    {table.columns.map((column) => (
+                      <th key={column} className="px-3 py-3 font-semibold">
+                        {column}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {table.rows.map((row, index) => (
+                    <tr
+                      key={`${row.join("-")}-${index}`}
+                      className="border-b border-black/5 last:border-0"
+                    >
+                      {row.map((cell, cellIndex) => (
+                        <td
+                          key={`${table.columns[cellIndex] ?? "cell"}-${cell}`}
+                          className="px-3 py-3"
+                        >
+                          {cell}
+                        </td>
                       ))}
                     </tr>
-                  </thead>
-                  <tbody>
-                    {table.rows.map((row, index) => (
-                      <tr
-                        key={`${row.join("-")}-${index}`}
-                        className="border-b border-black/5 last:border-0"
-                      >
-                        {row.map((cell, cellIndex) => (
-                          <td
-                            key={`${table.columns[cellIndex] ?? "cell"}-${cell}`}
-                            className="px-3 py-3"
-                          >
-                            {cell}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-          {print ? (
-            <p className="mt-4 text-sm text-muted print:hidden">
-              Use the browser print dialog and choose Save as PDF.
-            </p>
-          ) : null}
-        </section>
-      </Reveal>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+        {print ? (
+          <p className="mt-4 text-sm text-muted print:hidden">
+            Use the browser print dialog and choose Save as PDF.
+          </p>
+        ) : null}
+      </section>
     </div>
   );
 }

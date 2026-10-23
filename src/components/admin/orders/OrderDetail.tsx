@@ -2,7 +2,6 @@ import Link from "next/link";
 import { areaLabel, orderStatusVariant, prettyStatus } from "./labels";
 import { Badge } from "@/components/ui/Badge";
 import { buttonStyles } from "@/components/ui/buttonStyles";
-import { Reveal } from "@/components/motion";
 import { formatTaka } from "@/lib/utils/currency";
 import type { AdminOrderDetail } from "@/server/admin/orders-admin";
 import { OrderItemsPanel } from "./OrderItemsPanel";
@@ -12,7 +11,7 @@ import { OrderStatusPanel } from "./OrderStatusPanel";
 
 export function OrderDetail({ order }: { order: AdminOrderDetail }) {
   return (
-    <Reveal className="space-y-4">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-bold text-ink">{order.number}</h1>
@@ -120,6 +119,6 @@ export function OrderDetail({ order }: { order: AdminOrderDetail }) {
           </ul>
         )}
       </section>
-    </Reveal>
+    </div>
   );
 }

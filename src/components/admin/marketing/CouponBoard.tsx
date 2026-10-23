@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Reveal } from "@/components/motion";
 import { useToastStore } from "@/store/toast";
 import { toDatetimeLocal } from "@/lib/utils/datetime";
 
@@ -92,7 +91,7 @@ export function CouponBoard({ rows }: { rows: CouponRow[] }) {
   return (
     <div className="space-y-4">
       <h1 className="font-heading text-2xl font-bold text-ink">Coupons</h1>
-      <Reveal className="overflow-x-auto rounded-theme bg-card shadow-soft">
+      <div className="overflow-x-auto rounded-theme bg-card shadow-soft">
         <table className="min-w-[760px] w-full text-left text-sm">
           <thead className="border-b border-ink/10 text-muted">
             <tr>
@@ -168,7 +167,7 @@ export function CouponBoard({ rows }: { rows: CouponRow[] }) {
             ))}
           </tbody>
         </table>
-      </Reveal>
+      </div>
       <form
         className="grid gap-3 rounded-theme bg-card p-4 shadow-soft sm:grid-cols-2"
         onSubmit={(event) => {

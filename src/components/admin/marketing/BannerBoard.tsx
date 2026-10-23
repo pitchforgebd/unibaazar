@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Reveal } from "@/components/motion";
 import { useToastStore } from "@/store/toast";
 import { uploadMarketingImage } from "./imageUpload";
 
@@ -63,7 +62,7 @@ export function BannerBoard({ banners }: { banners: BannerRow[] }) {
           inside their dates are returned by the public banners API.
         </p>
       </div>
-      <Reveal className="overflow-x-auto rounded-theme bg-card shadow-soft">
+      <div className="overflow-x-auto rounded-theme bg-card shadow-soft">
         <table className="min-w-[640px] w-full text-left text-sm">
           <thead className="border-b border-ink/10 text-muted">
             <tr>
@@ -111,7 +110,7 @@ export function BannerBoard({ banners }: { banners: BannerRow[] }) {
             ))}
           </tbody>
         </table>
-      </Reveal>
+      </div>
       <form
         className="grid gap-3 rounded-theme bg-card p-4 shadow-soft sm:grid-cols-2"
         onSubmit={(event) => {
