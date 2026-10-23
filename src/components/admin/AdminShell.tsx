@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import { LogoutButton } from "@/components/admin/LogoutButton";
 import { NotificationBell } from "@/components/admin/NotificationBell";
+import { focusRing } from "@/components/ui/buttonStyles";
+import { cn } from "@/lib/utils/cn";
 
 type NavLink = { href: string; label: string; icon: ComponentType<LucideProps> };
 type NavGroup = { label: string; links: NavLink[] };
@@ -166,7 +168,12 @@ export function AdminShell({
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm ${active ? "bg-white/15" : "hover:bg-white/10"}`}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm transition-colors duration-fast ease-standard",
+                      active ? "bg-white/15" : "hover:bg-white/10",
+                      focusRing,
+                    )}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
                     {link.label}
