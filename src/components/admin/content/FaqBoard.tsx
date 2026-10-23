@@ -4,7 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { deleteFaqAction, faqAction } from "@/app/(admin)/admin/content-actions";
 import { DeleteButton } from "@/components/admin/common/DeleteButton";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Textarea } from "@/components/ui/Textarea";
+import { Stagger, StaggerItem } from "@/components/motion";
 
 type FaqRow = { id: string; question: string; answer: string; isActive: boolean };
 
@@ -29,29 +32,29 @@ export function FaqBoard({ rows }: { rows: FaqRow[] }) {
           No questions yet. The public FAQ page keeps its sample list until one is saved.
         </p>
       ) : null}
-      {rows.map((row) => (
-        <article key={row.id} className="rounded-lg bg-card p-4 shadow-soft">
-          <div className="flex items-start justify-between gap-3">
-            <h2 className="font-semibold text-ink">{row.question}</h2>
-            <div className="flex shrink-0 items-center gap-3">
-              <button
-                type="button"
-                className="text-xs font-semibold text-primary"
-                onClick={() => edit(row)}
-              >
-                Edit
-              </button>
-              <DeleteButton
-                action={() => deleteFaqAction({ id: row.id })}
-                confirmText="Delete this FAQ?"
-              />
-            </div>
-          </div>
-          <p className="mt-1 text-sm text-muted">{row.answer}</p>
-        </article>
-      ))}
+      <Stagger as="ul" className="space-y-3">
+        {rows.map((row) => (
+          <StaggerItem as="li" key={row.id}>
+            <article className="rounded-theme bg-card p-4 shadow-soft">
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="font-semibold text-ink">{row.question}</h2>
+                <div className="flex shrink-0 items-center gap-3">
+                  <Button variant="ghost" size="sm" onClick={() => edit(row)}>
+                    Edit
+                  </Button>
+                  <DeleteButton
+                    action={() => deleteFaqAction({ id: row.id })}
+                    confirmText="Delete this FAQ?"
+                  />
+                </div>
+              </div>
+              <p className="mt-1 text-sm text-muted">{row.answer}</p>
+            </article>
+          </StaggerItem>
+        ))}
+      </Stagger>
       <form
-        className="space-y-3 rounded-lg bg-card p-4 shadow-soft"
+        className="space-y-3 rounded-theme bg-card p-4 shadow-soft"
         onSubmit={(event) => {
           event.preventDefault();
           setPending(true);
@@ -68,38 +71,37 @@ export function FaqBoard({ rows }: { rows: FaqRow[] }) {
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-ink">{form.id ? "Edit FAQ" : "New FAQ"}</h2>
           {form.id ? (
-            <button
+            <Button
               type="button"
-              className="text-xs font-semibold text-muted hover:text-primary"
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setForm(blankForm);
                 setMessage("");
               }}
             >
               Cancel edit
-            </button>
+            </Button>
           ) : null}
         </div>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Question</span>
-          <input
-            value={form.question}
-            onChange={(event) => setForm({ ...form, question: event.target.value })}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Answer</span>
-          <textarea
-            value={form.answer}
-            onChange={(event) => setForm({ ...form, answer: event.target.value })}
-            className={`${fieldClass} h-24 py-2`}
-          />
-        </label>
-        <button type="submit" className={buttonClass()} disabled={pending}>
+        <Input
+          label="Question"
+          value={form.question}
+          onChange={(event) => setForm({ ...form, question: event.target.value })}
+        />
+        <Textarea
+          label="Answer"
+          value={form.answer}
+          onChange={(event) => setForm({ ...form, answer: event.target.value })}
+        />
+        <Button type="submit" isLoading={pending} loadingLabel="Saving…">
           {form.id ? "Save changes" : "Save FAQ"}
-        </button>
-        {message ? <p className="text-sm text-ink">{message}</p> : null}
+        </Button>
+        {message ? (
+          <p role="status" className="text-sm text-foreground">
+            {message}
+          </p>
+        ) : null}
       </form>
     </div>
   );

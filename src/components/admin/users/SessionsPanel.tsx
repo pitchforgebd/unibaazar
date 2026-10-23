@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { buttonClass } from "@/components/ui/controls";
+import { Button } from "@/components/ui/Button";
 import { revokeSessionAction } from "@/app/(admin)/admin/user-actions";
 
 export function SessionsPanel({
@@ -28,10 +28,14 @@ export function SessionsPanel({
           Revoke a device session to force sign-in again.
         </p>
       </div>
-      {message ? <p className="text-sm text-ink">{message}</p> : null}
-      <div className="overflow-x-auto rounded-lg bg-card shadow-soft">
+      {message ? (
+        <p role="status" className="text-sm text-foreground">
+          {message}
+        </p>
+      ) : null}
+      <div className="overflow-x-auto rounded-theme bg-card shadow-soft">
         <table className="min-w-full text-left text-sm">
-          <thead className="border-b border-black/5 text-muted">
+          <thead className="border-b border-ink/5 text-muted">
             <tr>
               <th className="px-3 py-2 font-semibold">User</th>
               <th className="px-3 py-2 font-semibold">IP</th>
@@ -42,7 +46,7 @@ export function SessionsPanel({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className="border-b border-black/5">
+              <tr key={row.id} className="border-b border-ink/5">
                 <td className="px-3 py-2">
                   <p className="font-semibold text-ink">{row.user}</p>
                   <p className="text-xs text-muted">{row.role}</p>
@@ -60,10 +64,12 @@ export function SessionsPanel({
                   {row.userAgent ?? "—"}
                 </td>
                 <td className="px-3 py-2 text-right">
-                  <button
+                  <Button
                     type="button"
-                    className={buttonClass("outline")}
-                    disabled={pending}
+                    variant="outline"
+                    size="sm"
+                    isLoading={pending}
+                    loadingLabel="Revoking…"
                     onClick={() =>
                       start(() => {
                         void revokeSessionAction({ sessionId: row.id }).then((result) =>
@@ -73,7 +79,7 @@ export function SessionsPanel({
                     }
                   >
                     Revoke
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}

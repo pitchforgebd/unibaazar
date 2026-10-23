@@ -6,7 +6,9 @@ import {
   courierWebhookAction,
   resetCourierWebhookAction,
 } from "@/app/(admin)/admin/settings-actions";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { Badge, type BadgeVariant } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import type { WebhookHealth } from "@/server/courier/webhook";
 
 function randomToken(): string {
@@ -22,10 +24,10 @@ const healthLabel: Record<WebhookHealth["status"], string> = {
   failing: "Failing",
 };
 
-const healthClass: Record<WebhookHealth["status"], string> = {
-  unconfigured: "bg-black/5 text-muted",
-  healthy: "bg-success/10 text-success",
-  failing: "bg-red-100 text-red-700",
+const healthVariant: Record<WebhookHealth["status"], BadgeVariant> = {
+  unconfigured: "default",
+  healthy: "success",
+  failing: "outline",
 };
 
 export function CourierWebhookPanel({
@@ -47,7 +49,7 @@ export function CourierWebhookPanel({
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
       <form
-        className="space-y-3 rounded-lg bg-card p-4 shadow-soft"
+        className="space-y-3 rounded-theme bg-card p-4 shadow-soft"
         onSubmit={(event) => {
           event.preventDefault();
           setPending(true);
@@ -66,59 +68,55 @@ export function CourierWebhookPanel({
           in sync automatically, instead of relying on manual &quot;Sync courier&quot;
           checks.
         </p>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Callback URL</span>
-          <input
-            readOnly
-            value={webhookUrl}
-            onFocus={(event) => event.currentTarget.select()}
-            className={`${fieldClass} bg-black/5`}
-          />
-          <span className="mt-1 block text-xs text-muted">
-            Paste this into your Steadfast merchant panel&apos;s webhook settings.
-          </span>
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Auth token</span>
-          <div className="flex gap-2">
-            <input
+        <Input
+          label="Callback URL"
+          readOnly
+          value={webhookUrl}
+          onFocus={(event) => event.currentTarget.select()}
+          hint="Paste this into your Steadfast merchant panel's webhook settings."
+          className="bg-ink/5"
+        />
+        <div className="space-y-1.5">
+          <div className="flex items-end gap-2">
+            <Input
+              label="Auth token"
+              containerClassName="flex-1"
               type={showToken ? "text" : "password"}
               value={token}
               onChange={(event) => setToken(event.target.value)}
-              className={fieldClass}
             />
-            <button
+            <Button
               type="button"
-              className={buttonClass("outline")}
+              variant="outline"
               onClick={() => setShowToken((value) => !value)}
             >
               {showToken ? "Hide" : "Show"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className={buttonClass("outline")}
+              variant="outline"
               onClick={() => setToken(randomToken())}
             >
               Generate
-            </button>
+            </Button>
           </div>
-          <span className="mt-1 block text-xs text-muted">
+          <span className="block text-xs text-muted">
             Sent as <code>Authorization: Bearer &lt;token&gt;</code>. Give Steadfast this
             same token so only their calls are accepted. Letters, digits and - _ . = only.
           </span>
-        </label>
-        <button type="submit" className={buttonClass()} disabled={pending}>
+        </div>
+        <Button type="submit" isLoading={pending} loadingLabel="Saving…">
           Save webhook
-        </button>
-        {message ? <p className="text-sm text-ink">{message}</p> : null}
+        </Button>
+        {message ? (
+          <p role="status" className="text-sm text-foreground">
+            {message}
+          </p>
+        ) : null}
       </form>
-      <div className="space-y-3 rounded-lg bg-card p-4 shadow-soft">
+      <div className="space-y-3 rounded-theme bg-card p-4 shadow-soft">
         <h2 className="font-semibold text-ink">Delivery health</h2>
-        <span
-          className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${healthClass[health.status]}`}
-        >
-          {healthLabel[health.status]}
-        </span>
+        <Badge variant={healthVariant[health.status]}>{healthLabel[health.status]}</Badge>
         {health.status === "failing" ? (
           <p className="text-sm text-muted">
             {health.consecutiveFailures} failed deliveries in a row. Last answer:{" "}
@@ -138,10 +136,11 @@ export function CourierWebhookPanel({
             Save an auth token to start accepting webhooks.
           </p>
         )}
-        <button
+        <Button
           type="button"
-          className={buttonClass("outline")}
-          disabled={resetting}
+          variant="outline"
+          isLoading={resetting}
+          loadingLabel="Resetting…"
           onClick={() => {
             setResetting(true);
             void resetCourierWebhookAction().then((result) => {
@@ -152,7 +151,7 @@ export function CourierWebhookPanel({
           }}
         >
           Reset and resume
-        </button>
+        </Button>
         <p className="text-xs text-muted">
           Fixed your endpoint? This clears the failure count. Nothing is resent; the next
           parcel update is sent as usual.

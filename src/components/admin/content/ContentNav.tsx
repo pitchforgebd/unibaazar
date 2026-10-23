@@ -26,8 +26,8 @@ export function ContentNav() {
           <Link
             key={link.href}
             href={link.href}
-            className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold ${
-              active ? "bg-ink text-white" : "bg-card text-ink shadow-soft"
+            className={`whitespace-nowrap rounded-theme px-3 py-2 text-sm font-semibold transition-colors duration-fast ease-standard focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+              active ? "bg-ink text-white" : "bg-card text-ink shadow-soft hover:bg-ink/5"
             }`}
           >
             {link.label}

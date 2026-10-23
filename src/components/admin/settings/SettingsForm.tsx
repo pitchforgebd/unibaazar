@@ -2,7 +2,13 @@
 
 import { useState, type ReactNode } from "react";
 import { uploadCatalogImageAction } from "@/app/(admin)/admin/catalog-actions";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { controlBase } from "@/components/ui/Field";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
+import { cn } from "@/lib/utils/cn";
 import type { ActionResult } from "@/server/admin/result";
 
 export type SettingsField = {
@@ -59,7 +65,7 @@ export function SettingsForm({
         <p className="text-sm text-muted">{intro}</p>
       </div>
       <form
-        className="space-y-3 rounded-lg bg-card p-4 shadow-soft"
+        className="space-y-4 rounded-theme bg-card p-4 shadow-soft"
         onSubmit={(event) => {
           event.preventDefault();
           setPending(true);
@@ -72,97 +78,102 @@ export function SettingsForm({
         {fields.map((field, index) => {
           const previousSection = index > 0 ? fields[index - 1].section : undefined;
           const showSectionHeader = field.section && field.section !== previousSection;
-          const body =
-            field.kind === "checkbox" ? (
-              <label
-                key={field.name}
-                className="flex items-center gap-2 text-sm font-semibold text-ink"
-              >
-                <input
-                  type="checkbox"
-                  checked={values[field.name] === true}
-                  onChange={(event) => update(field.name, event.target.checked)}
-                />
-                {field.label}
-              </label>
-            ) : (
-              (() => {
-                const current = values[field.name];
-                const text = typeof current === "string" ? current : "";
-                return (
-                  <label key={field.name} className="block text-sm">
-                    <span className="mb-1 block font-semibold text-ink">
-                      {field.label}
-                    </span>
-                    {field.kind === "image" ? (
-                      <div className="space-y-2">
-                        {text ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={text}
-                            alt=""
-                            className="h-16 w-16 rounded border border-black/10 bg-white object-contain"
-                          />
-                        ) : null}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          disabled={uploading === field.name}
-                          onChange={(event) => {
-                            const file = event.target.files?.[0];
-                            if (file) {
-                              void uploadField(field.name, file);
-                            }
-                          }}
-                          className={fieldClass}
-                        />
-                        {uploading === field.name ? (
-                          <span className="block text-xs text-muted">Uploading…</span>
-                        ) : null}
-                      </div>
-                    ) : field.kind === "textarea" ? (
-                      <textarea
-                        value={text}
-                        onChange={(event) => update(field.name, event.target.value)}
-                        className={`${fieldClass} h-24 py-2`}
-                      />
-                    ) : field.kind === "select" ? (
-                      <select
-                        value={text}
-                        onChange={(event) => update(field.name, event.target.value)}
-                        className={fieldClass}
-                      >
-                        {field.options?.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type={
-                          field.kind === "password"
-                            ? "password"
-                            : field.kind === "number"
-                              ? "number"
-                              : "text"
-                        }
-                        value={text}
-                        onChange={(event) => update(field.name, event.target.value)}
-                        className={fieldClass}
-                      />
-                    )}
-                    {field.hint ? (
-                      <span className="mt-1 block text-xs text-muted">{field.hint}</span>
-                    ) : null}
-                  </label>
-                );
-              })()
+          const current = values[field.name];
+          const text = typeof current === "string" ? current : "";
+
+          let body: ReactNode;
+          if (field.kind === "checkbox") {
+            body = (
+              <Checkbox
+                label={field.label}
+                checked={current === true}
+                onChange={(event) => update(field.name, event.target.checked)}
+              />
             );
+          } else if (field.kind === "image") {
+            body = (
+              <div className="space-y-2">
+                <span className="block text-sm font-medium text-foreground">
+                  {field.label}
+                </span>
+                {text ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={text}
+                    alt=""
+                    className="h-16 w-16 rounded-theme border border-muted bg-white object-contain"
+                  />
+                ) : null}
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={uploading === field.name}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      void uploadField(field.name, file);
+                    }
+                  }}
+                  className={cn(
+                    controlBase,
+                    "h-11 cursor-pointer px-3 py-2 file:mr-3 file:rounded-theme file:border-0",
+                    "file:bg-ink/5 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink",
+                    "disabled:cursor-not-allowed disabled:opacity-50",
+                  )}
+                />
+                {uploading === field.name ? (
+                  <span className="block text-xs text-muted">Uploading…</span>
+                ) : field.hint ? (
+                  <span className="block text-xs text-muted">{field.hint}</span>
+                ) : null}
+              </div>
+            );
+          } else if (field.kind === "textarea") {
+            body = (
+              <Textarea
+                label={field.label}
+                hint={field.hint}
+                value={text}
+                onChange={(event) => update(field.name, event.target.value)}
+              />
+            );
+          } else if (field.kind === "select") {
+            body = (
+              <Select
+                label={field.label}
+                hint={field.hint}
+                value={text}
+                onChange={(event) => update(field.name, event.target.value)}
+              >
+                {field.options?.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            );
+          } else {
+            body = (
+              <Input
+                label={field.label}
+                hint={field.hint}
+                type={
+                  field.kind === "password"
+                    ? "password"
+                    : field.kind === "number"
+                      ? "number"
+                      : "text"
+                }
+                value={text}
+                onChange={(event) => update(field.name, event.target.value)}
+              />
+            );
+          }
+
           return (
             <div key={field.name}>
               {showSectionHeader ? (
-                <div className="mb-3 border-t border-black/5 pt-4 first:mt-0 first:border-0 first:pt-0">
+                <div className="mb-3 border-t border-ink/5 pt-4 first:mt-0 first:border-0 first:pt-0">
                   <h2 className="text-sm font-bold uppercase tracking-wide text-primary">
                     {field.section}
                   </h2>
@@ -175,10 +186,14 @@ export function SettingsForm({
             </div>
           );
         })}
-        <button type="submit" className={buttonClass()} disabled={pending}>
+        <Button type="submit" isLoading={pending} loadingLabel="Saving…">
           Save
-        </button>
-        {message ? <p className="text-sm text-ink">{message}</p> : null}
+        </Button>
+        {message ? (
+          <p role="status" className="text-sm text-foreground">
+            {message}
+          </p>
+        ) : null}
       </form>
       {extra}
     </div>

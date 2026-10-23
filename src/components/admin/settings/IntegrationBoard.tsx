@@ -9,7 +9,7 @@ import {
   smsTestAction,
 } from "@/app/(admin)/admin/settings-actions";
 import { SettingsForm } from "@/components/admin/settings/SettingsForm";
-import { buttonClass } from "@/components/ui/controls";
+import { Button } from "@/components/ui/Button";
 import type { IntegrationSettings } from "@/server/settings/store";
 
 export function IntegrationBoard({ values }: { values: IntegrationSettings }) {
@@ -136,39 +136,35 @@ export function IntegrationBoard({ values }: { values: IntegrationSettings }) {
       ]}
       extra={
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className={buttonClass("outline")}
-            disabled={pending}
-            onClick={() => run(smsTestAction)}
-          >
+          <Button variant="outline" disabled={pending} onClick={() => run(smsTestAction)}>
             Test SMS
-          </button>
-          <button
-            type="button"
-            className={buttonClass("outline")}
+          </Button>
+          <Button
+            variant="outline"
             disabled={pending}
             onClick={() => run(emailTestAction)}
           >
             Test email
-          </button>
-          <button
-            type="button"
-            className={buttonClass("outline")}
+          </Button>
+          <Button
+            variant="outline"
             disabled={pending}
             onClick={() => run(paymentTestAction)}
           >
             Test payment
-          </button>
-          <button
-            type="button"
-            className={buttonClass("outline")}
+          </Button>
+          <Button
+            variant="outline"
             disabled={pending}
             onClick={() => run(courierTestAction)}
           >
             Test Steadfast courier
-          </button>
-          {message ? <p className="w-full text-sm text-ink">{message}</p> : null}
+          </Button>
+          {message ? (
+            <p role="status" className="w-full text-sm text-foreground">
+              {message}
+            </p>
+          ) : null}
         </div>
       }
     />

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { Button } from "@/components/ui/Button";
+import { Textarea } from "@/components/ui/Textarea";
 import { saveIpAllowlistAction } from "@/app/(admin)/admin/user-actions";
 
 export function IpAllowlistPanel({ value }: { value: string }) {
@@ -18,7 +19,7 @@ export function IpAllowlistPanel({ value }: { value: string }) {
         </p>
       </div>
       <form
-        className="max-w-xl space-y-3 rounded-lg bg-card p-4 shadow-soft"
+        className="max-w-xl space-y-3 rounded-theme bg-card p-4 shadow-soft"
         onSubmit={(event) => {
           event.preventDefault();
           const form = new FormData(event.currentTarget);
@@ -29,21 +30,23 @@ export function IpAllowlistPanel({ value }: { value: string }) {
           });
         }}
       >
-        <label className="block text-sm">
-          Allowed IPs
-          <textarea
-            name="value"
-            rows={8}
-            defaultValue={value}
-            className={`${fieldClass} mt-1 font-mono text-xs`}
-            placeholder={"127.0.0.1\n203.0.113.10"}
-          />
-        </label>
-        <button type="submit" className={buttonClass("primary")} disabled={pending}>
+        <Textarea
+          name="value"
+          label="Allowed IPs"
+          rows={8}
+          defaultValue={value}
+          className="font-mono text-xs"
+          placeholder={"127.0.0.1\n203.0.113.10"}
+        />
+        <Button type="submit" isLoading={pending} loadingLabel="Saving…">
           Save
-        </button>
+        </Button>
       </form>
-      {message ? <p className="text-sm text-ink">{message}</p> : null}
+      {message ? (
+        <p role="status" className="text-sm text-foreground">
+          {message}
+        </p>
+      ) : null}
     </div>
   );
 }

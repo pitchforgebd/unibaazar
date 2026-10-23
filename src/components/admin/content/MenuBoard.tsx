@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { menuItemAction } from "@/app/(admin)/admin/content-actions";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 
 type MenuRow = {
   location: string;
@@ -28,7 +30,7 @@ export function MenuBoard({ menus }: { menus: MenuRow[] }) {
         </p>
       </div>
       {menus.map((menu) => (
-        <section key={menu.location} className="rounded-lg bg-card p-4 shadow-soft">
+        <section key={menu.location} className="rounded-theme bg-card p-4 shadow-soft">
           <h2 className="font-semibold text-ink">
             {menu.name} · {menu.location}
           </h2>
@@ -42,7 +44,7 @@ export function MenuBoard({ menus }: { menus: MenuRow[] }) {
         </section>
       ))}
       <form
-        className="grid gap-3 rounded-lg bg-card p-4 shadow-soft sm:grid-cols-2"
+        className="grid gap-3 rounded-theme bg-card p-4 shadow-soft sm:grid-cols-2"
         onSubmit={(event) => {
           event.preventDefault();
           setPending(true);
@@ -55,41 +57,38 @@ export function MenuBoard({ menus }: { menus: MenuRow[] }) {
           });
         }}
       >
-        <label className="block text-sm sm:col-span-2">
-          <span className="mb-1 block font-semibold text-ink">Menu</span>
-          <select
+        <div className="sm:col-span-2">
+          <Select
+            label="Menu"
             value={location}
             onChange={(event) => setLocation(event.target.value)}
-            className={fieldClass}
           >
             <option value="header">Header</option>
             <option value="footer">Footer</option>
             <option value="mobile">Mobile</option>
             <option value="footer-service">Footer service</option>
-          </select>
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Label</span>
-          <input
-            value={label}
-            onChange={(event) => setLabel(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Link</span>
-          <input
-            value={href}
-            onChange={(event) => setHref(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
-        <div className="sm:col-span-2">
-          <button type="submit" className={buttonClass()} disabled={pending}>
-            Save link
-          </button>
+          </Select>
         </div>
-        {message ? <p className="text-sm text-ink sm:col-span-2">{message}</p> : null}
+        <Input
+          label="Label"
+          value={label}
+          onChange={(event) => setLabel(event.target.value)}
+        />
+        <Input
+          label="Link"
+          value={href}
+          onChange={(event) => setHref(event.target.value)}
+        />
+        <div className="sm:col-span-2">
+          <Button type="submit" isLoading={pending} loadingLabel="Saving…">
+            Save link
+          </Button>
+        </div>
+        {message ? (
+          <p role="status" className="text-sm text-foreground sm:col-span-2">
+            {message}
+          </p>
+        ) : null}
       </form>
     </div>
   );
