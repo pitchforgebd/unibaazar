@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { CatalogDenied } from "@/components/admin/catalog/CatalogDenied";
-import { UnitManager } from "@/components/admin/catalog/CatalogRecords";
+import { UnitManager } from "@/components/admin/catalog/UnitManager";
 import type { UnitFormValues } from "@/lib/validation/admin-catalog";
 import { catalogAccess } from "@/server/admin/access";
 import { listUnits, loadUnit } from "@/server/admin/taxonomy";

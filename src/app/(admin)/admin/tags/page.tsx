@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { CatalogDenied } from "@/components/admin/catalog/CatalogDenied";
-import { TagManager } from "@/components/admin/catalog/CatalogRecords";
+import { TagManager } from "@/components/admin/catalog/TagManager";
 import { catalogAccess } from "@/server/admin/access";
 import { listTags } from "@/server/admin/taxonomy";
 

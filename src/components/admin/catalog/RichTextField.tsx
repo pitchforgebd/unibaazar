@@ -29,6 +29,10 @@ import {
   Undo2,
 } from "lucide-react";
 import { uploadCatalogImageAction } from "@/app/(admin)/admin/catalog-actions";
+import { Button } from "@/components/ui/Button";
+import { Dialog } from "@/components/ui/Dialog";
+import { Input } from "@/components/ui/Input";
+import { useToastStore } from "@/store/toast";
 import type { ActionResult } from "@/server/admin/result";
 
 function ToolButton({
@@ -80,9 +84,12 @@ export function RichTextField({
   minHeight?: string;
   uploadAction?: (formData: FormData) => Promise<ActionResult>;
 }) {
+  const push = useToastStore((state) => state.push);
   const [sourceMode, setSourceMode] = useState(false);
   const [sourceDraft, setSourceDraft] = useState(value);
   const [uploading, setUploading] = useState(false);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
@@ -115,20 +122,31 @@ export function RichTextField({
     setSourceMode(false);
   }
 
-  function setLink() {
+  function openLinkDialog() {
     if (!editor) {
       return;
     }
     const previous = editor.getAttributes("link").href as string | undefined;
-    const url = window.prompt("Link URL", previous ?? "https://");
-    if (url === null) {
+    setLinkUrl(previous ?? "https://");
+    setLinkDialogOpen(true);
+  }
+
+  function applyLink() {
+    if (!editor) {
       return;
     }
-    if (!url.trim()) {
+    if (!linkUrl.trim()) {
       editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      setLinkDialogOpen(false);
       return;
     }
-    editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
+    editor
+      .chain()
+      .focus()
+      .extendMarkRange("link")
+      .setLink({ href: linkUrl.trim() })
+      .run();
+    setLinkDialogOpen(false);
   }
 
   async function insertImage(files: FileList | null) {
@@ -142,7 +160,7 @@ export function RichTextField({
     const result = await uploadAction(body);
     setUploading(false);
     if (!result.ok || !result.url) {
-      window.alert(result.message);
+      push({ message: result.message, type: "error" });
       return;
     }
     editor.chain().focus().setImage({ src: result.url, alt: file.name }).run();
@@ -257,7 +275,11 @@ export function RichTextField({
               <AlignRight size={15} />
             </ToolButton>
             <ToolDivider />
-            <ToolButton title="Link" active={editor.isActive("link")} onClick={setLink}>
+            <ToolButton
+              title="Link"
+              active={editor.isActive("link")}
+              onClick={openLinkDialog}
+            >
               <Link2 size={15} />
             </ToolButton>
             <ToolButton
@@ -304,6 +326,30 @@ export function RichTextField({
           <EditorContent editor={editor} />
         )}
       </div>
+      <Dialog
+        open={linkDialogOpen}
+        onOpenChange={setLinkDialogOpen}
+        title="Link URL"
+        closeLabel="Close"
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setLinkDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={applyLink}>Apply</Button>
+          </>
+        }
+      >
+        <Input
+          label="URL"
+          hideLabel
+          autoFocus
+          value={linkUrl}
+          placeholder="https://"
+          onChange={(event) => setLinkUrl(event.target.value)}
+        />
+      </Dialog>
     </div>
   );
 }

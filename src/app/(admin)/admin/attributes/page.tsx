@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { CatalogDenied } from "@/components/admin/catalog/CatalogDenied";
-import { AttributeManager } from "@/components/admin/catalog/CatalogRecords";
+import { AttributeManager } from "@/components/admin/catalog/AttributeManager";
 import type { AttributeFormValues } from "@/lib/validation/admin-catalog";
 import { catalogAccess } from "@/server/admin/access";
 import { listAttributes, loadAttribute } from "@/server/admin/taxonomy";

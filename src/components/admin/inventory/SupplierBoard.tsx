@@ -3,22 +3,24 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supplierAction } from "@/app/(admin)/admin/inventory-actions";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { useToastStore } from "@/store/toast";
 import type { SupplierRow } from "@/server/admin/inventory";
 
 export function SupplierBoard({ rows }: { rows: SupplierRow[] }) {
   const router = useRouter();
+  const push = useToastStore((state) => state.push);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
-  const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-ink">Suppliers</h1>
-      <div className="overflow-x-auto rounded-lg bg-card shadow-soft">
+      <div className="overflow-x-auto rounded-theme bg-card shadow-soft">
         <table className="min-w-[640px] w-full text-left text-sm">
           <thead className="border-b border-black/5 text-muted">
             <tr>
@@ -50,13 +52,13 @@ export function SupplierBoard({ rows }: { rows: SupplierRow[] }) {
         </table>
       </div>
       <form
-        className="grid gap-3 rounded-lg bg-card p-4 shadow-soft sm:grid-cols-2"
+        className="grid gap-3 rounded-theme bg-card p-4 shadow-soft sm:grid-cols-2"
         onSubmit={(event) => {
           event.preventDefault();
           setPending(true);
           void supplierAction({ name, phone, email, address }).then((result) => {
-            setMessage(result.message);
             setPending(false);
+            push({ message: result.message, type: result.ok ? "success" : "error" });
             if (result.ok) {
               setName("");
               setPhone("");
@@ -67,45 +69,34 @@ export function SupplierBoard({ rows }: { rows: SupplierRow[] }) {
           });
         }}
       >
-        <h2 className="font-semibold text-ink sm:col-span-2">Add supplier</h2>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Name</span>
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Phone</span>
-          <input
-            value={phone}
-            onChange={(event) => setPhone(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Email</span>
-          <input
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Address</span>
-          <input
-            value={address}
-            onChange={(event) => setAddress(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
+        <h2 className="font-heading font-semibold text-ink sm:col-span-2">
+          Add supplier
+        </h2>
+        <Input
+          label="Name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+        <Input
+          label="Phone"
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+        />
+        <Input
+          label="Email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
+        <Input
+          label="Address"
+          value={address}
+          onChange={(event) => setAddress(event.target.value)}
+        />
         <div className="sm:col-span-2">
-          <button type="submit" className={buttonClass()} disabled={pending}>
+          <Button type="submit" isLoading={pending}>
             Save supplier
-          </button>
+          </Button>
         </div>
-        {message ? <p className="text-sm text-ink sm:col-span-2">{message}</p> : null}
       </form>
     </div>
   );

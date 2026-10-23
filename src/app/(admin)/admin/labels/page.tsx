@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { CatalogDenied } from "@/components/admin/catalog/CatalogDenied";
-import { LabelManager } from "@/components/admin/catalog/CatalogRecords";
+import { LabelManager } from "@/components/admin/catalog/LabelManager";
 import type { LabelFormValues } from "@/lib/validation/admin-catalog";
 import { catalogAccess } from "@/server/admin/access";
 import { listLabels, loadLabel } from "@/server/admin/taxonomy";

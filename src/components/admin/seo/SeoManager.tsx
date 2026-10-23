@@ -8,7 +8,12 @@ import {
   redirectAction,
   robotsAction,
 } from "@/app/(admin)/admin/seo-actions";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { AlertDialog } from "@/components/ui/AlertDialog";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
+import { useToastStore } from "@/store/toast";
 
 type RedirectRow = {
   id: string;
@@ -32,12 +37,15 @@ export function SeoManager({
   origin: string;
 }) {
   const router = useRouter();
+  const push = useToastStore((state) => state.push);
   const [robotsText, setRobotsText] = useState(robots);
   const [fromPath, setFromPath] = useState("");
   const [toPath, setToPath] = useState("");
   const [statusCode, setStatusCode] = useState<301 | 302>(301);
-  const [message, setMessage] = useState("");
-  const [pending, setPending] = useState(false);
+  const [robotsPending, setRobotsPending] = useState(false);
+  const [redirectPending, setRedirectPending] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<RedirectRow | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -49,8 +57,8 @@ export function SeoManager({
           at the clean path.
         </p>
       </div>
-      <section className="rounded-lg bg-card p-4 shadow-soft">
-        <h2 className="font-semibold text-ink">Sitemaps</h2>
+      <section className="rounded-theme bg-card p-4 shadow-soft">
+        <h2 className="font-heading font-semibold text-ink">Sitemaps</h2>
         <ul className="mt-2 space-y-1 text-sm">
           <li>
             <Link className="text-primary" href="/sitemap.xml">
@@ -70,35 +78,36 @@ export function SeoManager({
         </ul>
       </section>
       <form
-        className="space-y-3 rounded-lg bg-card p-4 shadow-soft"
+        className="space-y-3 rounded-theme bg-card p-4 shadow-soft"
         onSubmit={(event) => {
           event.preventDefault();
-          setPending(true);
+          setRobotsPending(true);
           void robotsAction({ robots: robotsText }).then((result) => {
-            setMessage(result.message);
-            setPending(false);
+            setRobotsPending(false);
+            push({ message: result.message, type: result.ok ? "success" : "error" });
           });
         }}
       >
-        <h2 className="font-semibold text-ink">robots.txt</h2>
-        <textarea
+        <h2 className="font-heading font-semibold text-ink">robots.txt</h2>
+        <Textarea
+          label="robots.txt"
+          hideLabel
           value={robotsText}
           onChange={(event) => setRobotsText(event.target.value)}
-          className="min-h-40 w-full rounded-md border border-black/10 bg-card px-3 py-2 font-mono text-sm outline-none focus:border-primary"
-          aria-label="robots.txt"
+          className="min-h-40 font-mono text-sm"
         />
-        <button type="submit" className={buttonClass()} disabled={pending}>
+        <Button type="submit" isLoading={robotsPending}>
           Save robots.txt
-        </button>
+        </Button>
       </form>
       <form
-        className="space-y-3 rounded-lg bg-card p-4 shadow-soft"
+        className="space-y-3 rounded-theme bg-card p-4 shadow-soft"
         onSubmit={(event) => {
           event.preventDefault();
-          setPending(true);
+          setRedirectPending(true);
           void redirectAction({ fromPath, toPath, statusCode }).then((result) => {
-            setMessage(result.message);
-            setPending(false);
+            setRedirectPending(false);
+            push({ message: result.message, type: result.ok ? "success" : "error" });
             if (result.ok) {
               setFromPath("");
               setToPath("");
@@ -107,45 +116,34 @@ export function SeoManager({
           });
         }}
       >
-        <h2 className="font-semibold text-ink">Redirects</h2>
+        <h2 className="font-heading font-semibold text-ink">Redirects</h2>
         <div className="grid gap-3 md:grid-cols-3">
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-ink">From</span>
-            <input
-              value={fromPath}
-              onChange={(event) => setFromPath(event.target.value)}
-              className={fieldClass}
-              placeholder="/old-page"
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-ink">To</span>
-            <input
-              value={toPath}
-              onChange={(event) => setToPath(event.target.value)}
-              className={fieldClass}
-              placeholder="/shop"
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-ink">Status</span>
-            <select
-              value={statusCode}
-              onChange={(event) =>
-                setStatusCode(event.target.value === "302" ? 302 : 301)
-              }
-              className={fieldClass}
-            >
-              <option value={301}>301</option>
-              <option value={302}>302</option>
-            </select>
-          </label>
+          <Input
+            label="From"
+            value={fromPath}
+            onChange={(event) => setFromPath(event.target.value)}
+            placeholder="/old-page"
+          />
+          <Input
+            label="To"
+            value={toPath}
+            onChange={(event) => setToPath(event.target.value)}
+            placeholder="/shop"
+          />
+          <Select
+            label="Status"
+            value={statusCode}
+            onChange={(event) => setStatusCode(event.target.value === "302" ? 302 : 301)}
+          >
+            <option value={301}>301</option>
+            <option value={302}>302</option>
+          </Select>
         </div>
-        <button type="submit" className={buttonClass()} disabled={pending}>
+        <Button type="submit" isLoading={redirectPending}>
           Save redirect
-        </button>
+        </Button>
       </form>
-      <section className="overflow-x-auto rounded-lg bg-card shadow-soft">
+      <section className="overflow-x-auto rounded-theme bg-card shadow-soft">
         <table className="min-w-[520px] w-full text-left text-sm">
           <thead className="border-b border-black/5 text-muted">
             <tr>
@@ -169,31 +167,21 @@ export function SeoManager({
                 <td className="px-3 py-3">{row.toPath}</td>
                 <td className="px-3 py-3">{row.statusCode}</td>
                 <td className="px-3 py-3 text-right">
-                  <button
-                    type="button"
-                    className={buttonClass("outline")}
-                    onClick={() => {
-                      if (!window.confirm("Remove this redirect?")) {
-                        return;
-                      }
-                      void deleteRedirectAction({ id: row.id }).then((result) => {
-                        setMessage(result.message);
-                        if (result.ok) {
-                          router.refresh();
-                        }
-                      });
-                    }}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRemoveTarget(row)}
                   >
                     Remove
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </section>
-      <section className="overflow-x-auto rounded-lg bg-card shadow-soft">
-        <h2 className="px-3 py-3 font-semibold text-ink">404 log</h2>
+      <section className="overflow-x-auto rounded-theme bg-card shadow-soft">
+        <h2 className="px-3 py-3 font-heading font-semibold text-ink">404 log</h2>
         <table className="min-w-[520px] w-full text-left text-sm">
           <thead className="border-b border-black/5 text-muted">
             <tr>
@@ -220,7 +208,34 @@ export function SeoManager({
           </tbody>
         </table>
       </section>
-      {message ? <p className="text-sm text-ink">{message}</p> : null}
+      <AlertDialog
+        open={removeTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setRemoveTarget(null);
+        }}
+        title="Remove redirect"
+        description={
+          removeTarget
+            ? `Remove the redirect from "${removeTarget.fromPath}" to "${removeTarget.toPath}"?`
+            : ""
+        }
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        isLoading={removing}
+        loadingLabel="Removing…"
+        onConfirm={() => {
+          if (!removeTarget) return;
+          setRemoving(true);
+          void deleteRedirectAction({ id: removeTarget.id }).then((result) => {
+            setRemoving(false);
+            push({ message: result.message, type: result.ok ? "success" : "error" });
+            if (result.ok) {
+              setRemoveTarget(null);
+              router.refresh();
+            }
+          });
+        }}
+      />
     </div>
   );
 }
