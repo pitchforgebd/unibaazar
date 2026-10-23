@@ -4,6 +4,44 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Phase 5 — Storefront rebuild (2026-10-23)
+
+### Added
+
+- **`components/ui`/`components/motion` adopted across the real customer
+  journey**: homepage, shop/category/brand listing, product detail, cart,
+  checkout, order success, account, wishlist/compare — going from
+  zero-adopted outside `/_design` (Phase 4) to the primary toolkit on the
+  highest-traffic screens. Full breakdown in `docs/qa/phase-05-report.md`.
+- **Mobile filter bottom sheet** on listing pages (`shop/MobileFilters.tsx`,
+  `Sheet`-based) and a sticky desktop filter sidebar, replacing the plain
+  responsive-grid-only mobile treatment.
+- **Sticky mobile buy bar** on product detail, swipeable product gallery
+  with a full-screen zoom lightbox, fly-to-cart animation.
+- **Cart free-delivery progress bar**, cart drawer rebuilt on `Sheet`.
+- **`/videos` gallery**: a real storefront route (grid + lightbox over
+  every active `HomeVideo`) — previously only an admin content screen
+  existed for the homepage teaser.
+- **404/500 pages reskinned** with the design system's `buttonStyles`.
+- ADR 0016 (Phase 5 scope boundaries — real journey adoption vs. the
+  master plan's full exotic-section-type wishlist, explicitly deferred
+  items tracked there).
+
+### Fixed
+
+- **`Reveal`/`Stagger`'s hidden state was both axe-contrast-visible and
+  keyboard-tab-reachable**: the shared variants only set `opacity: 0`,
+  which leaves not-yet-revealed content in the accessibility tree.
+  Surfaced by turning scroll-reveal on for a long listing grid for the
+  first time (axe flagged a serious contrast violation on an off-screen
+  card). Fixed by adding `visibility: hidden`/`visible` alongside opacity
+  in `src/components/motion/variants.ts` — a latent bug since Phase 4,
+  now fixed at the shared primitive level.
+- **Lighthouse CI's performance/accessibility/best-practices budgets
+  flipped from `warn` to `error`**, per `lighthouserc.js`'s own comment
+  earmarking this moment. SEO stays `warn`: `/checkout`'s 0.63 score is
+  the correct, by-design result of it being `noindex`'d.
+
 ## Phase 4 — Design system and motion system (2026-10-22)
 
 ### Added

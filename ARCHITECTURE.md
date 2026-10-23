@@ -236,10 +236,11 @@ own research found:
   `Toaster` — both read the same `src/store/toast.ts` queue; only one
   should be mounted on a given screen). Dialog/AlertDialog/Sheet share one
   native-`<dialog>`-based engine (`ModalRoot`/`useModalDialog`) with
-  ref-counted scroll lock and focus return. Purely additive so far —
-  nothing under `src/app/` or `src/components/store|admin` has been
-  migrated to use these yet; that's Phase 5 (storefront) and Phase 6
-  (admin) work.
+  ref-counted scroll lock and focus return. Adopted across the storefront's
+  real customer journey in Phase 5 (homepage, listing, product, cart,
+  checkout, account, order success, wishlist/compare — see
+  `docs/decisions/0016-phase-5-scope-storefront-rebuild.md` and
+  `docs/qa/phase-05-report.md`); admin adoption is still Phase 6 work.
 - **`src/components/motion`**: `Reveal`, `Stagger`/`StaggerItem`,
   `PressScale`, `flyToCart`/`useFlyToCart`, `CountUp`, `Marquee`,
   `Shimmer`, `ShakeOnError`, `PageTransition` — built on the `motion`
@@ -247,7 +248,10 @@ own research found:
   duration/easing/spring tokens (`tokens.ts`). Every primitive degrades
   under `prefers-reduced-motion` (checked via `usePrefersReducedMotion()`,
   or handled in plain CSS for `Marquee`/`Shimmer` so it's correct before
-  any JavaScript runs).
+  any JavaScript runs). `Reveal`/`Stagger`'s shared hidden/visible variants
+  set `visibility` alongside `opacity` (Phase 5 fix) so not-yet-revealed
+  content is excluded from the accessibility tree and tab order, not just
+  invisible — the same convention `StickyBuyBar` uses via `inert`.
 - **`/_design`** (`src/app/[locale]/%5Fdesign/page.tsx` — the `%5F`
   escapes Next.js's "folders starting with `_` are excluded from
   routing" convention, since the literal URL needs to start with `_`):
