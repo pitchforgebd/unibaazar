@@ -1,19 +1,23 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { MapPin, Truck } from "lucide-react";
 import { CaptchaField } from "@/components/store/auth/CaptchaField";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { Button } from "@/components/ui/Button";
+import { buttonStyles } from "@/components/ui/buttonStyles";
+import { FieldError } from "@/components/ui/Field";
+import { Input } from "@/components/ui/Input";
+import { Textarea } from "@/components/ui/Textarea";
 import { summarizeCart } from "@/lib/catalog/cart-lines";
 import { useCartCatalog } from "@/lib/catalog/useCartCatalog";
-import { useCheckoutQuote } from "@/lib/catalog/useCheckoutQuote";
+import { useCheckoutQuote, type CheckoutQuote } from "@/lib/catalog/useCheckoutQuote";
 import { track } from "@/lib/tracking/browser";
 import { readUtm } from "@/lib/tracking/utm";
-import { variantLabel } from "@/lib/catalog/pricing";
 import { isStoredOrder, savePlacedOrder } from "@/lib/orders/session";
 import { formatTaka } from "@/lib/utils/currency";
 import {
@@ -23,20 +27,18 @@ import {
 } from "@/lib/validation/customer";
 import { translatedError } from "@/lib/validation/messages";
 import { useCartStore } from "@/store/cart";
-import type { PaymentMethod } from "@/types/catalog";
+import { CheckoutSummary } from "./CheckoutSummary";
+import { ChoiceCard, choiceRadioClass } from "./ChoiceCard";
+import { usePaymentChoices } from "./usePaymentChoices";
+
+const iconClass = "size-5";
 
 export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
   const router = useRouter();
   const t = useTranslations("checkout");
   const shop = useTranslations("shop");
   const v = useTranslations("validation");
-  const payments: { value: PaymentMethod; label: string }[] = [
-    { value: "cod", label: t("paymentCod") },
-    { value: "bkash", label: t("paymentBkash") },
-    { value: "nagad", label: t("paymentNagad") },
-    { value: "rocket", label: t("paymentRocket") },
-    { value: "card", label: t("paymentCard") },
-  ];
+  const payments = usePaymentChoices();
   const lines = useCartStore((state) => state.lines);
   const couponCode = useCartStore((state) => state.couponCode);
   const couponDiscount = useCartStore((state) => state.couponDiscount);
@@ -72,11 +74,18 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
   const quoteState = useCheckoutQuote(lines, couponCode, area, reservationToken);
   const liveQuote = quoteState.byArea[area];
 
+  const chargeLabel = (quote: CheckoutQuote | undefined) =>
+    quote
+      ? quote.deliveryCharge === 0
+        ? t("deliveryFree")
+        : formatTaka(quote.deliveryCharge)
+      : "…";
+
   if (summary.resolved.length === 0) {
     return (
-      <div className="rounded-lg bg-card p-8 text-center shadow-soft">
-        <p className="font-semibold">{t("emptyCart")}</p>
-        <Link href="/shop" className={`${buttonClass("primary")} mt-4`}>
+      <div className="rounded-theme bg-card p-8 text-center shadow-soft">
+        <p className="font-heading font-semibold text-ink">{t("emptyCart")}</p>
+        <Link href="/shop" className={buttonStyles({ className: "mt-4" })}>
           {shop("browseProducts")}
         </Link>
       </div>
@@ -151,161 +160,135 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
 
   return (
     <form
-      className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]"
+      className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]"
       onSubmit={handleSubmit(placeOrder)}
       noValidate
     >
-      <div className="space-y-4 rounded-lg bg-card p-4 shadow-soft sm:p-6">
-        <h2 className="font-semibold text-ink">{t("deliveryDetailsHeading")}</h2>
-        <Field label={t("fieldName")} error={translatedError(v, errors.name?.message)}>
-          <input className={fieldClass} {...register("name")} />
-        </Field>
-        <Field label={t("fieldPhone")} error={translatedError(v, errors.phone?.message)}>
-          <input
-            className={fieldClass}
-            inputMode="tel"
-            placeholder={t("phonePlaceholder")}
-            {...register("phone")}
+      <div className="space-y-6 rounded-theme bg-card p-4 shadow-soft sm:p-6">
+        <section className="space-y-4">
+          <h2 className="font-heading text-lg font-semibold text-ink">
+            {t("deliveryDetailsHeading")}
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label={t("fieldName")}
+              autoComplete="name"
+              required
+              error={translatedError(v, errors.name?.message)}
+              {...register("name")}
+            />
+            <Input
+              label={t("fieldPhone")}
+              inputMode="tel"
+              autoComplete="tel"
+              required
+              placeholder={t("phonePlaceholder")}
+              error={translatedError(v, errors.phone?.message)}
+              {...register("phone")}
+            />
+          </div>
+          <Input
+            label={t("fieldEmailOptional")}
+            type="email"
+            autoComplete="email"
+            error={translatedError(v, errors.email?.message)}
+            {...register("email")}
           />
-        </Field>
-        <Field
-          label={t("fieldEmailOptional")}
-          error={translatedError(v, errors.email?.message)}
-        >
-          <input className={fieldClass} type="email" {...register("email")} />
-        </Field>
-        <Field
-          label={t("fieldAddress")}
-          error={translatedError(v, errors.address?.message)}
-        >
-          <textarea
+          <Textarea
+            label={t("fieldAddress")}
+            autoComplete="street-address"
+            required
             rows={4}
-            className="w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-primary"
+            error={translatedError(v, errors.address?.message)}
             {...register("address")}
           />
-        </Field>
-        <fieldset>
-          <legend className="text-sm font-semibold">{t("deliveryAreaLegend")}</legend>
-          <div className="mt-2 space-y-2 text-sm">
-            <label className="flex items-center justify-between gap-3 rounded-md border border-black/10 px-3 py-2">
-              <span>
-                <input type="radio" value="inside-dhaka" {...register("area")} />{" "}
-                {t("areaInsideDhaka")}
-              </span>
-              <span>
-                {quoteState.byArea["inside-dhaka"]
-                  ? quoteState.byArea["inside-dhaka"].deliveryCharge === 0
-                    ? t("deliveryFree")
-                    : formatTaka(quoteState.byArea["inside-dhaka"].deliveryCharge)
-                  : "…"}
-              </span>
-            </label>
-            <label className="flex items-center justify-between gap-3 rounded-md border border-black/10 px-3 py-2">
-              <span>
-                <input type="radio" value="outside-dhaka" {...register("area")} />{" "}
-                {t("areaOutsideDhaka")}
-              </span>
-              <span>
-                {quoteState.byArea["outside-dhaka"]
-                  ? quoteState.byArea["outside-dhaka"].deliveryCharge === 0
-                    ? t("deliveryFree")
-                    : formatTaka(quoteState.byArea["outside-dhaka"].deliveryCharge)
-                  : "…"}
-              </span>
-            </label>
+        </section>
+        <fieldset className="space-y-2">
+          <legend className="font-heading text-lg font-semibold text-ink">
+            {t("deliveryAreaLegend")}
+          </legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <ChoiceCard
+              control={
+                <input
+                  type="radio"
+                  value="inside-dhaka"
+                  className={choiceRadioClass}
+                  {...register("area")}
+                />
+              }
+              icon={<MapPin className={iconClass} />}
+              title={t("areaInsideDhaka")}
+              trailing={chargeLabel(quoteState.byArea["inside-dhaka"])}
+            />
+            <ChoiceCard
+              control={
+                <input
+                  type="radio"
+                  value="outside-dhaka"
+                  className={choiceRadioClass}
+                  {...register("area")}
+                />
+              }
+              icon={<Truck className={iconClass} />}
+              title={t("areaOutsideDhaka")}
+              trailing={chargeLabel(quoteState.byArea["outside-dhaka"])}
+            />
           </div>
         </fieldset>
-        <fieldset>
-          <legend className="text-sm font-semibold">{t("paymentMethodLegend")}</legend>
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        <fieldset className="space-y-2">
+          <legend className="font-heading text-lg font-semibold text-ink">
+            {t("paymentMethodLegend")}
+          </legend>
+          <div className="grid gap-2 sm:grid-cols-2">
             {payments
               .filter((method) => codEnabled || method.value !== "cod")
               .map((method) => (
-                <label
+                <ChoiceCard
                   key={method.value}
-                  className="flex items-center gap-2 rounded-md border border-black/10 px-3 py-2 text-sm"
-                >
-                  <input
-                    type="radio"
-                    value={method.value}
-                    {...register("paymentMethod")}
-                  />
-                  {method.label}
-                </label>
+                  control={
+                    <input
+                      type="radio"
+                      value={method.value}
+                      className={choiceRadioClass}
+                      {...register("paymentMethod")}
+                    />
+                  }
+                  icon={method.icon}
+                  title={method.label}
+                  description={method.hint}
+                />
               ))}
           </div>
         </fieldset>
         <CaptchaField onToken={(token) => setValue("captchaToken", token)} />
-        {formError ? <p className="text-sm text-red-700">{formError}</p> : null}
-      </div>
-      <aside className="h-fit rounded-lg bg-card p-4 shadow-soft">
-        <h2 className="font-semibold text-ink">{t("orderSummaryHeading")}</h2>
-        <ul className="mt-3 space-y-2 text-sm">
-          {summary.resolved.map((item) => (
-            <li key={item.variant.id} className="flex justify-between gap-3">
-              <span>
-                {item.product.name}
-                {item.label ? ` (${variantLabel(item.variant)})` : ""} × {item.line.qty}
-              </span>
-              <span>{formatTaka(item.unitPrice * item.line.qty)}</span>
-            </li>
-          ))}
-        </ul>
-        <dl className="mt-4 space-y-2 border-t border-black/5 pt-3 text-sm">
-          <div className="flex justify-between">
-            <dt>{t("subtotal")}</dt>
-            <dd>{formatTaka(liveQuote?.subtotal ?? summary.subtotal)}</dd>
+        {formError ? (
+          <div role="alert">
+            <FieldError>{formError}</FieldError>
           </div>
-          <div className="flex justify-between">
-            <dt>{t("discount")}</dt>
-            <dd>-{formatTaka(liveQuote?.discount ?? summary.discount)}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt>{t("delivery")}</dt>
-            <dd>
-              {liveQuote
-                ? liveQuote.deliveryCharge === 0
-                  ? t("deliveryFree")
-                  : formatTaka(liveQuote.deliveryCharge)
-                : "…"}
-            </dd>
-          </div>
-          <div className="flex justify-between text-base font-semibold">
-            <dt>{t("total")}</dt>
-            <dd>{liveQuote ? formatTaka(liveQuote.total) : "…"}</dd>
-          </div>
-        </dl>
-        {quoteState.error ? (
-          <p className="mt-2 text-sm text-red-700">{quoteState.error}</p>
         ) : null}
-        <button
+      </div>
+      <CheckoutSummary
+        items={summary.resolved}
+        subtotal={formatTaka(liveQuote?.subtotal ?? summary.subtotal)}
+        discount={formatTaka(liveQuote?.discount ?? summary.discount)}
+        delivery={chargeLabel(liveQuote)}
+        total={liveQuote ? formatTaka(liveQuote.total) : "…"}
+        error={quoteState.error}
+      >
+        <Button
           type="submit"
-          className={`${buttonClass("primary")} mt-4 w-full`}
+          size="lg"
+          className="mt-4 w-full"
+          isLoading={isSubmitting}
+          loadingLabel={t("submitting")}
           disabled={
             isSubmitting || quoteState.loading || !liveQuote || !!quoteState.error
           }
         >
           {t("submit")}
-        </button>
-      </aside>
+        </Button>
+      </CheckoutSummary>
     </form>
-  );
-}
-
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: string;
-  error?: string;
-  children: ReactNode;
-}) {
-  return (
-    <label className="block text-sm">
-      <span className="mb-1 block font-medium">{label}</span>
-      {children}
-      {error ? <span className="mt-1 block text-xs text-red-700">{error}</span> : null}
-    </label>
   );
 }

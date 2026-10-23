@@ -149,11 +149,20 @@
     "browseProducts": "পণ্য দেখুন"
   },
   "wishlist": {
-    "empty": "আপনার উইশলিস্ট খালি।"
+    "empty": "আপনার উইশলিস্ট খালি।",
+    "pageTitle": "উইশলিস্ট",
+    "emptyHint": "যেকোনো পণ্যের হার্ট আইকনে চাপ দিয়ে পরে দেখার জন্য এখানে সংরক্ষণ করুন।",
+    "count": "{count}টি পণ্য সংরক্ষিত"
   },
   "compare": {
     "needMore": "তুলনা করতে অন্তত দুটি পণ্য যুক্ত করুন।",
-    "hint": "একটি পণ্য খুলে \"তুলনায় যুক্ত করুন\" বেছে নিন। সর্বোচ্চ তিনটি পণ্য।"
+    "hint": "একটি পণ্য খুলে \"তুলনায় যুক্ত করুন\" বেছে নিন। সর্বোচ্চ তিনটি পণ্য।",
+    "pageTitle": "তুলনা",
+    "tableLabel": "পণ্যের তুলনা",
+    "featureColumn": "বৈশিষ্ট্য",
+    "actionsRow": "অ্যাকশন",
+    "swipeHint": "সব পণ্য দেখতে পাশে স্ক্রল করুন",
+    "removeProduct": "{name} সরান"
   },
   "cart": {
     "title": "আপনার কার্ট",
@@ -302,7 +311,11 @@
     "delivery": "ডেলিভারি",
     "deliveryFree": "ফ্রি",
     "total": "মোট",
-    "submit": "অর্ডার করুন"
+    "submit": "অর্ডার করুন",
+    "paymentCodHint": "পণ্য হাতে পেয়ে নগদে পরিশোধ করুন",
+    "paymentWalletHint": "আপনার {name} অ্যাকাউন্ট থেকে পেমেন্ট করুন",
+    "paymentCardHint": "ডেবিট বা ক্রেডিট কার্ড",
+    "submitting": "অর্ডার করা হচ্ছে…"
   },
   "orders": {
     "metaTitle": "অর্ডার {id}",
@@ -334,7 +347,32 @@
     "detailLoading": "অর্ডার লোড হচ্ছে…",
     "notOnAccount": "এই অর্ডারটি আপনার অ্যাকাউন্টে নেই।",
     "trackingLabel": "ট্র্যাকিং",
-    "totalLabel": "মোট "
+    "totalLabel": "মোট ",
+    "successHeading": "ধন্যবাদ, {name}!",
+    "successIntro": "আমরা আপনার অর্ডার পেয়েছি। ট্র্যাক করার জন্য অর্ডার আইডিটি সংরক্ষণ করে রাখুন।",
+    "orderIdLabel": "অর্ডার আইডি",
+    "continueShopping": "কেনাকাটা চালিয়ে যান",
+    "timelineHeading": "অর্ডারের অগ্রগতি",
+    "itemsHeading": "পণ্যসমূহ",
+    "placedOn": "অর্ডারের তারিখ {date}",
+    "backToOrders": "অর্ডারে ফিরে যান",
+    "status": {
+      "pending": "অপেক্ষমাণ",
+      "confirmed": "নিশ্চিত",
+      "processing": "প্রস্তুত হচ্ছে",
+      "readyToShip": "পাঠানোর জন্য প্রস্তুত",
+      "sentToCourier": "কুরিয়ারে পাঠানো হয়েছে",
+      "shipped": "পথে আছে",
+      "delivered": "ডেলিভারি হয়েছে",
+      "completed": "সম্পন্ন",
+      "cancelled": "বাতিল",
+      "returnRequested": "রিটার্নের অনুরোধ",
+      "returned": "ফেরত এসেছে",
+      "failed": "ব্যর্থ",
+      "onHold": "স্থগিত",
+      "partialDelivered": "আংশিক ডেলিভারি",
+      "refunded": "রিফান্ড হয়েছে"
+    }
   },
   "auth": {
     "errorVerifyCode": "কোড যাচাই করা যায়নি",
@@ -436,7 +474,9 @@
     "fieldConfirmPassword": "পাসওয়ার্ড নিশ্চিত করুন",
     "updatingPassword": "আপডেট হচ্ছে…",
     "updatePassword": "পাসওয়ার্ড আপডেট করুন",
-    "passwordUpdated": "পাসওয়ার্ড আপডেট হয়েছে।"
+    "passwordUpdated": "পাসওয়ার্ড আপডেট হয়েছে।",
+    "viewAllOrders": "সব দেখুন",
+    "addAddressHeading": "নতুন ঠিকানা যোগ করুন"
   },
   "blog": {
     "metaTitle": "ব্লগ",

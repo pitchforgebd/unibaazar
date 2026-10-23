@@ -149,11 +149,20 @@
     "browseProducts": "Browse products"
   },
   "wishlist": {
-    "empty": "Your wishlist is empty."
+    "empty": "Your wishlist is empty.",
+    "pageTitle": "Wishlist",
+    "emptyHint": "Tap the heart on any product to save it here for later.",
+    "count": "{count, plural, one {# saved item} other {# saved items}}"
   },
   "compare": {
     "needMore": "Add at least two products to compare.",
-    "hint": "Open a product and choose Add to compare. Up to three items."
+    "hint": "Open a product and choose Add to compare. Up to three items.",
+    "pageTitle": "Compare",
+    "tableLabel": "Product comparison",
+    "featureColumn": "Feature",
+    "actionsRow": "Actions",
+    "swipeHint": "Swipe sideways to see every product",
+    "removeProduct": "Remove {name}"
   },
   "cart": {
     "title": "Your cart",
@@ -302,7 +311,11 @@
     "delivery": "Delivery",
     "deliveryFree": "Free",
     "total": "Total",
-    "submit": "Place order"
+    "submit": "Place order",
+    "paymentCodHint": "Pay in cash when your order arrives",
+    "paymentWalletHint": "Pay from your {name} account",
+    "paymentCardHint": "Debit or credit card",
+    "submitting": "Placing order…"
   },
   "orders": {
     "metaTitle": "Order {id}",
@@ -334,7 +347,32 @@
     "detailLoading": "Loading order…",
     "notOnAccount": "That order is not on this account.",
     "trackingLabel": "Tracking",
-    "totalLabel": "Total "
+    "totalLabel": "Total ",
+    "successHeading": "Thank you, {name}!",
+    "successIntro": "We've received your order. Keep your order ID handy to track it.",
+    "orderIdLabel": "Order ID",
+    "continueShopping": "Continue shopping",
+    "timelineHeading": "Order progress",
+    "itemsHeading": "Items",
+    "placedOn": "Placed {date}",
+    "backToOrders": "Back to orders",
+    "status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "processing": "Processing",
+      "readyToShip": "Ready to ship",
+      "sentToCourier": "Sent to courier",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "returnRequested": "Return requested",
+      "returned": "Returned",
+      "failed": "Failed",
+      "onHold": "On hold",
+      "partialDelivered": "Partially delivered",
+      "refunded": "Refunded"
+    }
   },
   "auth": {
     "errorVerifyCode": "Could not verify the code",
@@ -436,7 +474,9 @@
     "fieldConfirmPassword": "Confirm password",
     "updatingPassword": "Updating…",
     "updatePassword": "Update password",
-    "passwordUpdated": "Password updated."
+    "passwordUpdated": "Password updated.",
+    "viewAllOrders": "View all",
+    "addAddressHeading": "Add an address"
   },
   "blog": {
     "metaTitle": "Blog",
