@@ -2,9 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils/cn";
 
 type FlashCountdownProps = {
   endsAt: string;
+  /** `onDark` for the homepage's dark flash-deal band (an inverted surface). */
+  tone?: "solid" | "onDark";
+};
+
+// page-on-ink is the tested inverted-surface pairing (tokenPairs.test.ts);
+// white-on-ink isn't — Luxe's ink is a light cream.
+const tones = {
+  solid: "bg-ink text-page",
+  onDark: "bg-page/10 text-page ring-1 ring-page/20",
 };
 
 function parts(
@@ -23,7 +33,7 @@ function parts(
   ];
 }
 
-export function FlashCountdown({ endsAt }: FlashCountdownProps) {
+export function FlashCountdown({ endsAt, tone = "solid" }: FlashCountdownProps) {
   const t = useTranslations("home");
   const [now, setNow] = useState<number | null>(null);
 
@@ -40,13 +50,16 @@ export function FlashCountdown({ endsAt }: FlashCountdownProps) {
   );
 
   return (
-    <div className="flex gap-2" aria-label={t("flashSaleTimeLeft")}>
+    <div className="flex gap-2" role="timer" aria-label={t("flashSaleTimeLeft")}>
       {boxes.map((box) => (
         <div
           key={box.label}
-          className="grid h-14 w-14 place-items-center rounded-md bg-ink text-white"
+          className={cn(
+            "grid h-14 w-14 place-items-center rounded-theme py-1",
+            tones[tone],
+          )}
         >
-          <span className="text-base font-semibold leading-none">
+          <span className="font-heading text-lg leading-none font-bold tabular-nums">
             {now === null ? "--" : box.value}
           </span>
           <span className="text-[10px] tracking-wide uppercase">{box.label}</span>

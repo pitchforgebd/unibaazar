@@ -16,7 +16,7 @@ function Stars({ rating }: { rating: number }) {
         <Star
           key={value}
           size={14}
-          className={value <= rating ? "fill-primary" : "fill-transparent text-black/15"}
+          className={value <= rating ? "fill-primary" : "fill-transparent text-ink/20"}
         />
       ))}
     </div>
@@ -34,7 +34,7 @@ export function TestimonialCarousel({ items }: { items: Testimonial[] }) {
         item.imageUrl ? (
           <figure
             key={item.id}
-            className="w-64 shrink-0 snap-start overflow-hidden rounded-lg bg-card shadow-soft"
+            className="w-64 shrink-0 snap-start overflow-hidden rounded-theme bg-card shadow-soft"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -49,12 +49,12 @@ export function TestimonialCarousel({ items }: { items: Testimonial[] }) {
         ) : (
           <article
             key={item.id}
-            className="flex w-72 shrink-0 snap-start flex-col rounded-lg bg-card p-5 shadow-soft"
+            className="flex w-72 shrink-0 snap-start flex-col rounded-theme bg-card p-5 shadow-soft"
           >
-            <Quote className="h-6 w-6 text-primary/40" />
+            <Quote aria-hidden="true" className="size-7 text-primary/50" />
             <p className="mt-2 flex-1 text-sm leading-6 text-ink">{item.quote}</p>
             <div className="mt-4 flex items-center gap-3">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-peach text-sm font-bold text-primary">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-peach font-heading text-sm font-bold text-ink">
                 {item.name.slice(0, 1).toUpperCase()}
               </span>
               <div>

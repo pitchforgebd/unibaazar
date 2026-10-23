@@ -1,15 +1,22 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
+import { PressScale, Reveal } from "@/components/motion";
+import { focusRing } from "@/components/ui/buttonStyles";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/store/common/SectionHeading";
+import { BlogTeaser } from "@/components/store/home/BlogTeaser";
+import { CategoryRibbon } from "@/components/store/home/CategoryRibbon";
 import { FlashCountdown } from "@/components/store/home/FlashCountdown";
 import { HeroSlider } from "@/components/store/home/HeroSlider";
+import { SideBanners } from "@/components/store/home/SideBanners";
 import { TestimonialCarousel } from "@/components/store/home/TestimonialCarousel";
+import { TrustStrip } from "@/components/store/home/TrustStrip";
 import { ProductGrid } from "@/components/store/product/ProductCard";
-import { ProductMedia } from "@/components/store/product/ProductMedia";
 import { prisma } from "@/lib/db";
+import { cn } from "@/lib/utils/cn";
 import { InstagramFeed } from "@/components/store/social/InstagramFeed";
 import { YouTubeEmbed } from "@/components/store/social/YouTubeEmbed";
 import { absoluteUrl, localeAlternates } from "@/lib/seo/urls";
@@ -40,12 +47,6 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function HomePage() {
   const t = await getTranslations("home");
   const common = await getTranslations("common");
-  const trust = [
-    { title: t("trustFastDeliveryTitle"), text: t("trustFastDeliveryText") },
-    { title: t("trustAuthorizedTitle"), text: t("trustAuthorizedText") },
-    { title: t("trustSupportTitle"), text: t("trustSupportText") },
-    { title: t("trustPaymentsTitle"), text: t("trustPaymentsText") },
-  ];
   const [
     sections,
     quotes,
@@ -100,6 +101,8 @@ export default async function HomePage() {
     .slice(0, 4);
   const best = products.filter((product) => product.bestSeller);
   const blocks: Record<string, ReactNode> = {
+    // No Reveal here: the hero is the LCP element and must paint at full
+    // opacity straight from the server.
     hero: (
       <Container className="grid gap-3 py-4 lg:grid-cols-[minmax(0,1fr)_260px]">
         <HeroSlider
@@ -112,173 +115,150 @@ export default async function HomePage() {
             imageHue: slide.imageHue,
           }))}
         />
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
-          {sideBanners.map((banner) => (
-            <Link
-              key={banner.id}
-              href={banner.href}
-              className="relative grid min-h-28 place-items-center overflow-hidden rounded-lg p-4 text-center text-sm font-semibold text-white"
-              style={
-                banner.imageUrl
-                  ? {
-                      backgroundImage: `url(${banner.imageUrl})`,
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
-                    }
-                  : // 24%, not 42% — see HeroSlider.tsx's identical fix:
-                    // white text needs this low to clear 4.5:1 across
-                    // every possible hue (yellow is the worst case).
-                    { backgroundColor: `hsl(${banner.imageHue ?? 24} 70% 24%)` }
-              }
-            >
-              {banner.imageUrl ? <span className="absolute inset-0 bg-black/30" /> : null}
-              <span className="relative">{banner.title}</span>
-            </Link>
-          ))}
-        </div>
+        <SideBanners banners={sideBanners} />
       </Container>
     ),
     categories: (
       <Container className="py-6">
-        <SectionHeading
-          title={common("categories")}
-          href="/shop"
-          action={t("allProducts")}
-        />
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-          {categories.map((category) => (
-            <Link
-              key={category.slug}
-              href={`/category/${category.slug}`}
-              className="rounded-lg bg-card p-3 text-center shadow-soft"
-            >
-              <ProductMedia
-                hue={category.hue}
-                name={category.name}
-                className="mx-auto h-16 w-16 rounded-full text-lg"
-              />
-              <span className="mt-2 block text-sm font-medium">{category.name}</span>
-            </Link>
-          ))}
-        </div>
+        <Reveal>
+          <SectionHeading
+            title={common("categories")}
+            href="/shop"
+            action={t("allProducts")}
+          />
+          <CategoryRibbon categories={categories} />
+        </Reveal>
       </Container>
     ),
+    // A full-bleed dark band (§4.2's "flash deal arena"). page-on-ink is
+    // the inverted-surface pairing that passes AA in every preset.
     flash:
       flash.length > 0 && nextFlashSale ? (
-        <Container className="py-4">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold text-ink sm:text-2xl">
-                {t("flashSaleTitle")}
-              </h2>
-              <Link href="/flash-deals" className="text-sm font-semibold text-primary">
-                {t("viewAllDeals")}
-              </Link>
-            </div>
-            <FlashCountdown endsAt={nextFlashSale.endsAt.toISOString()} />
-          </div>
-          <ProductGrid products={flash} />
-        </Container>
+        <section className="my-4 bg-ink py-8 text-page">
+          <Container>
+            <Reveal className="mb-5 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h2 className="font-heading text-2xl font-bold sm:text-3xl">
+                  {t("flashSaleTitle")}
+                </h2>
+                <Link
+                  href="/flash-deals"
+                  className={cn(
+                    "mt-1 inline-flex items-center gap-1 text-sm font-semibold text-peach hover:underline",
+                    focusRing,
+                  )}
+                >
+                  {t("viewAllDeals")}
+                  <ArrowRight aria-hidden="true" className="size-4 rtl:rotate-180" />
+                </Link>
+              </div>
+              <FlashCountdown endsAt={nextFlashSale.endsAt.toISOString()} tone="onDark" />
+            </Reveal>
+            <ProductGrid products={flash} reveal />
+          </Container>
+        </section>
       ) : null,
     offers: (
       <Container className="py-4">
-        <Link href="/offers" className="block rounded-lg bg-ink px-6 py-8 text-white">
-          {/* text-primary doesn't reliably clear 4.5:1 against this
-           * card's black background across every preset (it's tuned for
-           * light backgrounds) — peach (primaryLight) is a light tint of
-           * the same brand hue, so it keeps the accent color story but
-           * reads clearly on dark bg-ink. */}
-          <p className="text-sm font-semibold text-peach">{t("offersLabel")}</p>
-          <p className="mt-1 text-2xl font-bold">{t("offersTagline")}</p>
-        </Link>
+        <Reveal>
+          <PressScale>
+            <Link
+              href="/offers"
+              className={cn(
+                "group flex items-center justify-between gap-4 rounded-theme bg-ink px-6 py-8 text-page shadow-soft sm:px-10",
+                focusRing,
+              )}
+            >
+              <span>
+                {/* text-primary doesn't reliably clear 4.5:1 against bg-ink
+                 * across every preset (it's tuned for light backgrounds) —
+                 * peach (primaryLight) keeps the brand hue but reads
+                 * clearly on ink. */}
+                <span className="block text-sm font-semibold text-peach">
+                  {t("offersLabel")}
+                </span>
+                <span className="mt-1 block font-heading text-2xl font-bold sm:text-3xl">
+                  {t("offersTagline")}
+                </span>
+              </span>
+              <span className="grid size-12 shrink-0 place-items-center rounded-full bg-page/10 transition-transform duration-base ease-standard group-hover:translate-x-1 motion-reduce:transition-none">
+                <ArrowRight aria-hidden="true" className="size-5 rtl:rotate-180" />
+              </span>
+            </Link>
+          </PressScale>
+        </Reveal>
       </Container>
     ),
     featured: (
-      <Container className="py-4">
+      <Container className="py-6">
         <SectionHeading title={t("featuredTitle")} href="/shop" action={t("shopAll")} />
-        <ProductGrid products={featured} />
+        <ProductGrid products={featured} reveal />
       </Container>
     ),
     recent: (
-      <Container className="py-4">
+      <Container className="py-6">
         <SectionHeading
           title={t("recentTitle")}
           href="/shop?sort=newest"
           action={t("newest")}
         />
-        <ProductGrid products={recent} />
+        <ProductGrid products={recent} reveal />
       </Container>
     ),
     bestsellers: (
-      <Container className="py-4">
+      <Container className="py-6">
         <SectionHeading title={t("bestSellersTitle")} />
-        <ProductGrid products={best} />
+        <ProductGrid products={best} reveal />
       </Container>
     ),
     trust: (
-      <Container className="py-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {trust.map((item) => (
-            <div key={item.title} className="rounded-lg bg-card p-4 shadow-soft">
-              <h3 className="font-semibold text-ink">{item.title}</h3>
-              <p className="mt-1 text-sm text-muted">{item.text}</p>
-            </div>
-          ))}
-        </div>
+      <Container className="py-6">
+        <TrustStrip />
       </Container>
     ),
     testimonials:
       quotes.length > 0 ? (
-        <Container className="py-4">
-          <SectionHeading title={t("testimonialsTitle")} />
-          <TestimonialCarousel items={quotes} />
+        <Container className="py-6">
+          <Reveal>
+            <SectionHeading title={t("testimonialsTitle")} />
+            <TestimonialCarousel items={quotes} />
+          </Reveal>
         </Container>
       ) : null,
     videos:
       homeVideos.length > 0 ? (
-        <Container className="py-4">
-          <SectionHeading title={t("watchAndShopTitle")} />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {homeVideos.map((video) => (
-              <div key={video.id}>
-                <YouTubeEmbed url={video.youtubeUrl} title={video.title} />
-                <p className="mt-2 text-sm font-medium text-ink">{video.title}</p>
-              </div>
-            ))}
-          </div>
+        <Container className="py-6">
+          <Reveal>
+            <SectionHeading title={t("watchAndShopTitle")} />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {homeVideos.map((video) => (
+                <div key={video.id}>
+                  <YouTubeEmbed url={video.youtubeUrl} title={video.title} />
+                  <p className="mt-2 text-sm font-medium text-ink">{video.title}</p>
+                </div>
+              ))}
+            </div>
+          </Reveal>
         </Container>
       ) : null,
     instagram:
       instagramUrls.length > 0 ? (
         <Container className="py-6">
-          <SectionHeading
-            title={t("instagramTitle")}
-            href={social.instagram || undefined}
-            action={social.instagram ? t("openProfile") : undefined}
-          />
-          <InstagramFeed urls={instagramUrls} />
+          <Reveal>
+            <SectionHeading
+              title={t("instagramTitle")}
+              href={social.instagram || undefined}
+              action={social.instagram ? t("openProfile") : undefined}
+            />
+            <InstagramFeed urls={instagramUrls} />
+          </Reveal>
         </Container>
       ) : null,
     blog:
       homePosts.length > 0 ? (
         <Container className="py-6">
           <SectionHeading title={t("blogTitle")} href="/blog" action={t("allPosts")} />
-          <div className="grid gap-3 md:grid-cols-3">
-            {homePosts.map((post) => (
-              <Link
-                key={post.slug}
-                href={`/blog/${post.slug}`}
-                className="overflow-hidden rounded-lg bg-card shadow-soft"
-              >
-                <ProductMedia hue={post.hue} name={post.title} className="h-36" />
-                <div className="p-4">
-                  <p className="text-xs text-muted">{post.date}</p>
-                  <h3 className="mt-1 font-semibold text-ink">{post.title}</h3>
-                  <p className="mt-2 text-sm text-muted">{post.excerpt}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <BlogTeaser posts={homePosts} />
         </Container>
       ) : null,
   };

@@ -51,13 +51,14 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
     notFound();
   }
   const query = parseShopQuery(await searchParams);
+  const common = await getTranslations("common");
   return (
     <ProductListing
       title={brand.name}
       subtitle={brand.description}
       crumbs={[
-        { href: "/", label: "Home" },
-        { href: "/shop", label: "Shop" },
+        { href: "/", label: common("home") },
+        { href: "/shop", label: common("shop") },
         { label: brand.name },
       ]}
       basePath={`/brand/${brand.slug}`}

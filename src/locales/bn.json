@@ -132,7 +132,6 @@
     "sortPriceDesc": "দাম: বেশি থেকে কম",
     "sortTopRated": "টপ রেটেড",
     "sortName": "নাম",
-    "sortLabel": "সাজান",
     "sortProductsAria": "পণ্য সাজান",
     "categoryFallback": "ক্যাটাগরি",
     "brandFallback": "ব্র্যান্ড",
@@ -146,7 +145,10 @@
     "flashDealsTitle": "ফ্ল্যাশ ডিল",
     "flashDealsSubtitle": "কাউন্টডাউন শেষ হলে এই ডিলের দাম ও স্টক পরিবর্তন হতে পারে।",
     "noFlashDeals": "এখন কোনো ফ্ল্যাশ ডিল চলছে না।",
-    "browseProducts": "পণ্য দেখুন"
+    "browseProducts": "পণ্য দেখুন",
+    "filtersTitle": "ফিল্টার",
+    "filtersClose": "ফিল্টার বন্ধ করুন",
+    "filtersOpenAria": "{count, plural, =0 {ফিল্টার খুলুন} other {ফিল্টার খুলুন, #টি চালু}}"
   },
   "wishlist": {
     "empty": "আপনার উইশলিস্ট খালি।",
@@ -269,6 +271,7 @@
       "returnsLabel": "রিটার্ন: ",
       "whatsappMessage": "হ্যালো ইউনিবাজার, আমি {name} (এসকেইউ: {sku}) অর্ডার করতে চাই।"
     },
+    "badgeNew": "নতুন",
     "gallery": {
       "label": "পণ্যের ছবি",
       "previous": "আগের ছবি",

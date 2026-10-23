@@ -132,7 +132,6 @@
     "sortPriceDesc": "Price: high to low",
     "sortTopRated": "Top rated",
     "sortName": "Name",
-    "sortLabel": "Sort",
     "sortProductsAria": "Sort products",
     "categoryFallback": "Category",
     "brandFallback": "Brand",
@@ -146,7 +145,10 @@
     "flashDealsTitle": "Flash deals",
     "flashDealsSubtitle": "Prices and stock on these deals can change when the countdown ends.",
     "noFlashDeals": "No flash deals are running right now.",
-    "browseProducts": "Browse products"
+    "browseProducts": "Browse products",
+    "filtersTitle": "Filters",
+    "filtersClose": "Close filters",
+    "filtersOpenAria": "{count, plural, =0 {Open filters} other {Open filters, # active}}"
   },
   "wishlist": {
     "empty": "Your wishlist is empty.",
@@ -269,6 +271,7 @@
       "returnsLabel": "Returns: ",
       "whatsappMessage": "Hello UniBaazar, I want to order {name} (SKU: {sku})."
     },
+    "badgeNew": "New",
     "gallery": {
       "label": "Product images",
       "previous": "Previous image",
