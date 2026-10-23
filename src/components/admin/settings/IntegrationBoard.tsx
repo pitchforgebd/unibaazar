@@ -32,6 +32,7 @@ export function IntegrationBoard({ values }: { values: IntegrationSettings }) {
         ...values,
         bkashSecret: "",
         nagadSecret: "",
+        sslcommerzStorePass: "",
         smsSecret: "",
         emailSecret: "",
         courierSecret: "",
@@ -70,6 +71,30 @@ export function IntegrationBoard({ values }: { values: IntegrationSettings }) {
           label: "Nagad API secret",
           kind: "password",
           hint: "Private/secret key from the Nagad Merchant Portal.",
+        },
+        {
+          name: "sslcommerzEnabled",
+          label: "SSLCommerz enabled",
+          kind: "checkbox",
+          hint: "Aggregator checkout covering bKash/Nagad/Rocket/card — bKash/Nagad above are merchant-info-only today and route through this.",
+        },
+        {
+          name: "sslcommerzStoreId",
+          label: "SSLCommerz store ID",
+          kind: "text",
+          hint: "The Store ID from your SSLCommerz merchant panel.",
+        },
+        {
+          name: "sslcommerzStorePass",
+          label: "SSLCommerz store password",
+          kind: "password",
+          hint: "The Store Password (API credential) from your SSLCommerz merchant panel.",
+        },
+        {
+          name: "sslcommerzSandbox",
+          label: "Sandbox mode",
+          kind: "checkbox",
+          hint: "On: sandbox.sslcommerz.com (test payments only). Off: the live gateway — only turn off with real, verified store credentials.",
         },
         {
           name: "smsSender",

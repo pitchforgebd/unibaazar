@@ -43,6 +43,9 @@ export type IntegrationSettings = {
   bkashMerchant: string;
   nagadEnabled: boolean;
   nagadMerchant: string;
+  sslcommerzEnabled: boolean;
+  sslcommerzStoreId: string;
+  sslcommerzSandbox: boolean;
   smsSender: string;
   emailHost: string;
   emailPort: string;
@@ -120,6 +123,9 @@ export const integrationDefaults: IntegrationSettings = {
   bkashMerchant: "",
   nagadEnabled: false,
   nagadMerchant: "",
+  sslcommerzEnabled: false,
+  sslcommerzStoreId: "",
+  sslcommerzSandbox: true,
   smsSender: "",
   emailHost: "",
   emailPort: "587",
@@ -271,6 +277,21 @@ export async function loadIntegrations(): Promise<IntegrationSettings> {
     bkashMerchant: text(row, "bkashMerchant", integrationDefaults.bkashMerchant),
     nagadEnabled: flag(row, "nagadEnabled", integrationDefaults.nagadEnabled),
     nagadMerchant: text(row, "nagadMerchant", integrationDefaults.nagadMerchant),
+    sslcommerzEnabled: flag(
+      row,
+      "sslcommerzEnabled",
+      integrationDefaults.sslcommerzEnabled,
+    ),
+    sslcommerzStoreId: text(
+      row,
+      "sslcommerzStoreId",
+      integrationDefaults.sslcommerzStoreId,
+    ),
+    sslcommerzSandbox: flag(
+      row,
+      "sslcommerzSandbox",
+      integrationDefaults.sslcommerzSandbox,
+    ),
     smsSender: text(row, "smsSender", integrationDefaults.smsSender),
     emailHost: text(row, "emailHost", integrationDefaults.emailHost),
     emailPort: text(row, "emailPort", integrationDefaults.emailPort),
