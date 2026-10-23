@@ -18,6 +18,7 @@ import { adjustStock } from "@/modules/inventory";
 import { canTransition, holdsStock, transitionOrder } from "@/modules/orders";
 import {
   canTransition as canTransitionPayment,
+  refundPayment,
   transitionPayment,
 } from "@/modules/payments";
 
@@ -81,6 +82,8 @@ export type AdminOrderDetail = {
   items: { id: string; name: string; sku: string; qty: number; unitPrice: number }[];
   history: { id: string; status: string; note: string; at: string }[];
   paymentStatus: PaymentStatus;
+  paymentAmount: number;
+  paymentRefundedAmount: number;
   shipment: { courier: string; consignmentId: string; status: string } | null;
   invoiceNumber: string;
   returns: { id: string; status: string; reason: string; refundAmount: number | null }[];
@@ -409,6 +412,8 @@ export async function getAdminOrder(id: string): Promise<AdminOrderDetail | null
       at: stamp(row.createdAt),
     })),
     paymentStatus: order.payments[0]?.status ?? "PENDING",
+    paymentAmount: order.payments[0]?.amount.toNumber() ?? 0,
+    paymentRefundedAmount: order.payments[0]?.refundedAmount.toNumber() ?? 0,
     shipment: order.shipment
       ? {
           courier: order.shipment.courier,
@@ -695,6 +700,47 @@ export async function setPaymentStatus(
     return setOrderStatus(actorId, orderId, "REFUNDED", "Payment marked refunded");
   }
   return "Payment status saved.";
+}
+
+/** Refunds (fully or partially) the order's current payment, through
+ * modules/payments' refundedAmount-tracked path — see refundPayment()'s
+ * own docs for why a second partial refund is a plain amount update, not
+ * a status transition. Only a full refund (the running total reaching
+ * the payment's amount) moves the order itself to REFUNDED, matching
+ * setPaymentStatus's existing behavior for a manual full-refund override. */
+export async function refundOrderPayment(
+  actorId: string,
+  orderId: string,
+  amount: number,
+  note: string | null,
+): Promise<string> {
+  const payment = await prisma.payment.findFirst({
+    where: { orderId },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!payment) {
+    throw new Error("This order has no payment");
+  }
+  const updated = await prisma.$transaction((tx) =>
+    refundPayment(tx, payment, amount, note),
+  );
+  await recordAudit({
+    actorId,
+    action: "order.payment.refund",
+    entityType: "Order",
+    entityId: orderId,
+    metadata: {
+      amount,
+      status: updated.status,
+      refundedAmount: updated.refundedAmount.toNumber(),
+    },
+  });
+  if (updated.status === "REFUNDED") {
+    await setOrderStatus(actorId, orderId, "REFUNDED", `Refunded ${amount} in full`);
+  }
+  return updated.status === "REFUNDED"
+    ? `Refunded ${amount} — payment fully refunded.`
+    : `Refunded ${amount} — ${updated.refundedAmount.toNumber()} of ${updated.amount.toNumber()} refunded so far.`;
 }
 
 export async function createManualOrder(

@@ -6,6 +6,7 @@ import {
   bookCourier,
   createManualOrder,
   decideReturn,
+  refundOrderPayment,
   saveOrderNotes,
   setOrderStatus,
   setPaymentStatus,
@@ -21,6 +22,7 @@ import {
   manualOrderSchema,
   notesSchema,
   paymentSchema,
+  refundSchema,
   returnSchema,
   statusSchema,
   templateSchema,
@@ -126,6 +128,27 @@ export async function paymentAction(input: {
   try {
     const parsed = paymentSchema.parse(input);
     const message = await setPaymentStatus(session.userId, parsed.orderId, parsed.status);
+    refreshOrders(parsed.orderId);
+    return { ok: true, message };
+  } catch (error) {
+    return { ok: false, message: actionError(error) };
+  }
+}
+
+export async function refundAction(input: {
+  orderId: string;
+  amount: number;
+  note?: string;
+}): Promise<ActionResult> {
+  const session = await requireOrders();
+  try {
+    const parsed = refundSchema.parse(input);
+    const message = await refundOrderPayment(
+      session.userId,
+      parsed.orderId,
+      parsed.amount,
+      parsed.note?.trim() || null,
+    );
     refreshOrders(parsed.orderId);
     return { ok: true, message };
   } catch (error) {
