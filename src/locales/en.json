@@ -429,6 +429,13 @@
     "empty": "No posts yet. Check back soon.",
     "backToList": "Back to blog"
   },
+  "videos": {
+    "metaTitle": "Videos",
+    "pageTitle": "Videos",
+    "empty": "No videos yet. Check back soon.",
+    "playLabel": "Play video: {title}",
+    "closeLabel": "Close video"
+  },
   "cms": {
     "contact": {
       "successMessage": "Thanks for reaching out. We will reply soon.",

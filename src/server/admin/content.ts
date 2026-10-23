@@ -398,6 +398,17 @@ export async function publishedHomeVideos() {
   return rows;
 }
 
+/** The storefront `/videos` gallery (Phase 5) — every active video, not
+ * just the homepage teaser's first 4. Same query shape, no `take`. */
+export async function allPublishedHomeVideos() {
+  const rows = await prisma.homeVideo.findMany({
+    where: { isActive: true },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, title: true, youtubeUrl: true },
+  });
+  return rows;
+}
+
 export async function listHomeSections(): Promise<HomeSectionRow[]> {
   const rows = await prisma.homeSection.findMany({ orderBy: { sortOrder: "asc" } });
   if (rows.length === 0) {

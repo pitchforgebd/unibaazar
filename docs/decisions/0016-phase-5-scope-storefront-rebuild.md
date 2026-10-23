@@ -57,10 +57,14 @@ cosmetically) and closing the genuine functional gaps found:
   animation on order success — not full redesigns.
 - **`/videos` gallery**: genuinely doesn't exist today as a storefront
   route (only an admin content-management screen for the homepage's video
-  block). Built as a real, working page — category tabs, a grid, a
-  lightbox player — but the "shoppable" product-tag bottom sheet from
-  §4.2's hero-stage spec is simplified to a product link under each video
-  rather than a full tagged-product bottom sheet overlay.
+  block). Built as a real, working page: every active `HomeVideo` in a
+  responsive grid, each opening a lightbox player (`components/ui`'s
+  `Dialog` + the existing `YouTubeEmbed`). The `HomeVideo` model has no
+  category or product-link field, so this simplifies two things §4.2's
+  spec assumes: no category tabs (nothing to tab by — a single grid), and
+  no per-video "shoppable" product-tag bottom sheet (no product relation
+  to tag with) — both would require schema changes outside this visual
+  phase's scope.
 
 ## Explicitly deferred (tracked here, not silently dropped)
 
