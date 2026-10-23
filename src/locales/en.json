@@ -535,12 +535,6 @@
       "referencePrefix": "Reference ",
       "retry": "Try again",
       "homeButton": "Home"
-    },
-    "boundaryAdmin": {
-      "title": "This panel hit an error",
-      "body": "Something broke while rendering this admin screen. You can try again, or come back later.",
-      "referencePrefix": "Reference ",
-      "retry": "Try again"
     }
   },
   "validation": {
