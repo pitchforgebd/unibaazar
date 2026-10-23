@@ -8,7 +8,14 @@ import {
   toggleCouponAction,
 } from "@/app/(admin)/admin/marketing-actions";
 import { DeleteButton } from "@/components/admin/common/DeleteButton";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { AlertDialog } from "@/components/ui/AlertDialog";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Reveal } from "@/components/motion";
+import { useToastStore } from "@/store/toast";
 import { toDatetimeLocal } from "@/lib/utils/datetime";
 
 type CouponRow = {
@@ -48,9 +55,10 @@ const blankForm = {
 
 export function CouponBoard({ rows }: { rows: CouponRow[] }) {
   const router = useRouter();
+  const push = useToastStore((state) => state.push);
   const [form, setForm] = useState(blankForm);
-  const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
+  const [deactivateTarget, setDeactivateTarget] = useState<CouponRow | null>(null);
 
   function edit(row: CouponRow) {
     setForm({
@@ -67,16 +75,26 @@ export function CouponBoard({ rows }: { rows: CouponRow[] }) {
       productSlug: row.productSlug,
       isActive: row.isActive,
     });
-    setMessage("");
     window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  }
+
+  async function toggleActive(row: CouponRow, isActive: boolean): Promise<void> {
+    setPending(true);
+    const result = await toggleCouponAction({ id: row.id, isActive });
+    push({ message: result.message, type: result.ok ? "success" : "error" });
+    setPending(false);
+    setDeactivateTarget(null);
+    if (result.ok) {
+      router.refresh();
+    }
   }
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-ink">Coupons</h1>
-      <div className="overflow-x-auto rounded-lg bg-card shadow-soft">
+      <h1 className="font-heading text-2xl font-bold text-ink">Coupons</h1>
+      <Reveal className="overflow-x-auto rounded-theme bg-card shadow-soft">
         <table className="min-w-[760px] w-full text-left text-sm">
-          <thead className="border-b border-black/5 text-muted">
+          <thead className="border-b border-ink/10 text-muted">
             <tr>
               <th className="px-3 py-3 font-semibold">Code</th>
               <th className="px-3 py-3 font-semibold">Offer</th>
@@ -87,10 +105,14 @@ export function CouponBoard({ rows }: { rows: CouponRow[] }) {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className="border-b border-black/5 last:border-0">
+              <tr key={row.id} className="border-b border-ink/10 last:border-0">
                 <td className="px-3 py-3">
                   <p className="font-semibold text-ink">{row.code}</p>
-                  <p className="text-xs text-muted">{row.isActive ? "Active" : "Off"}</p>
+                  <p className="mt-1">
+                    <Badge variant={row.isActive ? "success" : "outline"}>
+                      {row.isActive ? "Active" : "Off"}
+                    </Badge>
+                  </p>
                 </td>
                 <td className="px-3 py-3">
                   {row.type === "FREE_SHIPPING"
@@ -127,14 +149,12 @@ export function CouponBoard({ rows }: { rows: CouponRow[] }) {
                     <button
                       type="button"
                       className="text-left text-xs font-semibold text-primary"
-                      onClick={() => {
-                        void toggleCouponAction({
-                          id: row.id,
-                          isActive: !row.isActive,
-                        }).then(() => {
-                          router.refresh();
-                        });
-                      }}
+                      disabled={pending}
+                      onClick={() =>
+                        row.isActive
+                          ? setDeactivateTarget(row)
+                          : void toggleActive(row, true)
+                      }
                     >
                       {row.isActive ? "Deactivate" : "Activate"}
                     </button>
@@ -148,14 +168,14 @@ export function CouponBoard({ rows }: { rows: CouponRow[] }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </Reveal>
       <form
-        className="grid gap-3 rounded-lg bg-card p-4 shadow-soft sm:grid-cols-2"
+        className="grid gap-3 rounded-theme bg-card p-4 shadow-soft sm:grid-cols-2"
         onSubmit={(event) => {
           event.preventDefault();
           setPending(true);
           void couponAction(form).then((result) => {
-            setMessage(result.message);
+            push({ message: result.message, type: result.ok ? "success" : "error" });
             setPending(false);
             if (result.ok) {
               setForm(blankForm);
@@ -165,127 +185,106 @@ export function CouponBoard({ rows }: { rows: CouponRow[] }) {
         }}
       >
         <div className="flex items-center justify-between sm:col-span-2">
-          <h2 className="font-semibold text-ink">
+          <h2 className="font-heading font-semibold text-ink">
             {form.id ? "Edit coupon" : "New coupon"}
           </h2>
           {form.id ? (
             <button
               type="button"
               className="text-xs font-semibold text-muted hover:text-primary"
-              onClick={() => {
-                setForm(blankForm);
-                setMessage("");
-              }}
+              onClick={() => setForm(blankForm)}
             >
               Cancel edit
             </button>
           ) : null}
         </div>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Code</span>
-          <input
-            value={form.code}
-            onChange={(event) => setForm({ ...form, code: event.target.value })}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Type</span>
-          <select
-            value={form.type}
-            onChange={(event) => setForm({ ...form, type: event.target.value })}
-            className={fieldClass}
-          >
-            <option value="PERCENT">Percent</option>
-            <option value="FIXED">Fixed amount</option>
-            <option value="FREE_SHIPPING">Free shipping</option>
-          </select>
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Value</span>
-          <input
-            value={form.value}
-            onChange={(event) => setForm({ ...form, value: event.target.value })}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Minimum cart</span>
-          <input
-            value={form.minSubtotal}
-            onChange={(event) => setForm({ ...form, minSubtotal: event.target.value })}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Usage limit</span>
-          <input
-            value={form.usageLimit}
-            onChange={(event) => setForm({ ...form, usageLimit: event.target.value })}
-            placeholder="Blank for unlimited"
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Per customer</span>
-          <input
-            value={form.perUserLimit}
-            onChange={(event) => setForm({ ...form, perUserLimit: event.target.value })}
-            placeholder="Blank for unlimited"
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Starts</span>
-          <input
-            type="datetime-local"
-            value={form.startsAt}
-            onChange={(event) => setForm({ ...form, startsAt: event.target.value })}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Ends</span>
-          <input
-            type="datetime-local"
-            value={form.endsAt}
-            onChange={(event) => setForm({ ...form, endsAt: event.target.value })}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Category slug</span>
-          <input
-            value={form.categorySlug}
-            onChange={(event) => setForm({ ...form, categorySlug: event.target.value })}
-            placeholder="Optional"
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Product slug</span>
-          <input
-            value={form.productSlug}
-            onChange={(event) => setForm({ ...form, productSlug: event.target.value })}
-            placeholder="Optional"
-            className={fieldClass}
-          />
-        </label>
-        <label className="flex items-center gap-2 text-sm font-semibold text-ink sm:col-span-2">
-          <input
-            type="checkbox"
-            checked={form.isActive}
-            onChange={(event) => setForm({ ...form, isActive: event.target.checked })}
-          />
-          Active
-        </label>
+        <Input
+          label="Code"
+          value={form.code}
+          onChange={(event) => setForm({ ...form, code: event.target.value })}
+        />
+        <Select
+          label="Type"
+          value={form.type}
+          onChange={(event) => setForm({ ...form, type: event.target.value })}
+        >
+          <option value="PERCENT">Percent</option>
+          <option value="FIXED">Fixed amount</option>
+          <option value="FREE_SHIPPING">Free shipping</option>
+        </Select>
+        <Input
+          label="Value"
+          value={form.value}
+          onChange={(event) => setForm({ ...form, value: event.target.value })}
+        />
+        <Input
+          label="Minimum cart"
+          value={form.minSubtotal}
+          onChange={(event) => setForm({ ...form, minSubtotal: event.target.value })}
+        />
+        <Input
+          label="Usage limit"
+          value={form.usageLimit}
+          onChange={(event) => setForm({ ...form, usageLimit: event.target.value })}
+          placeholder="Blank for unlimited"
+        />
+        <Input
+          label="Per customer"
+          value={form.perUserLimit}
+          onChange={(event) => setForm({ ...form, perUserLimit: event.target.value })}
+          placeholder="Blank for unlimited"
+        />
+        <Input
+          type="datetime-local"
+          label="Starts"
+          value={form.startsAt}
+          onChange={(event) => setForm({ ...form, startsAt: event.target.value })}
+        />
+        <Input
+          type="datetime-local"
+          label="Ends"
+          value={form.endsAt}
+          onChange={(event) => setForm({ ...form, endsAt: event.target.value })}
+        />
+        <Input
+          label="Category slug"
+          value={form.categorySlug}
+          onChange={(event) => setForm({ ...form, categorySlug: event.target.value })}
+          placeholder="Optional"
+        />
+        <Input
+          label="Product slug"
+          value={form.productSlug}
+          onChange={(event) => setForm({ ...form, productSlug: event.target.value })}
+          placeholder="Optional"
+        />
+        <Checkbox
+          label="Active"
+          className="sm:col-span-2"
+          checked={form.isActive}
+          onChange={(event) => setForm({ ...form, isActive: event.target.checked })}
+        />
         <div className="sm:col-span-2">
-          <button type="submit" className={buttonClass()} disabled={pending}>
+          <Button type="submit" isLoading={pending}>
             {form.id ? "Save changes" : "Save coupon"}
-          </button>
+          </Button>
         </div>
-        {message ? <p className="text-sm text-ink sm:col-span-2">{message}</p> : null}
       </form>
+      <AlertDialog
+        open={deactivateTarget !== null}
+        onOpenChange={(open) => !open && setDeactivateTarget(null)}
+        title="Deactivate coupon"
+        description={
+          deactivateTarget
+            ? `Deactivate coupon ${deactivateTarget.code}? Customers won't be able to apply it until it's reactivated.`
+            : ""
+        }
+        confirmLabel="Deactivate"
+        cancelLabel="Cancel"
+        isLoading={pending}
+        loadingLabel="Deactivating…"
+        onConfirm={() => deactivateTarget && void toggleActive(deactivateTarget, false)}
+      />
     </div>
   );
 }

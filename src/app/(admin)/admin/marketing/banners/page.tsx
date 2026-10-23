@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { BannerBoard } from "@/components/admin/marketing/BannerBoard";
 import { MarketingDenied } from "@/components/admin/marketing/MarketingDenied";
 import { MarketingNav } from "@/components/admin/marketing/MarketingNav";
+import { SliderBoard } from "@/components/admin/marketing/SliderBoard";
 import { catalogAccess } from "@/server/admin/access";
 import { listBanners, listSliders } from "@/server/admin/marketing";
 
@@ -16,7 +17,8 @@ export default async function BannersPage() {
   return (
     <div className="space-y-4">
       <MarketingNav />
-      <BannerBoard banners={banners} sliders={sliders} />
+      <BannerBoard banners={banners} />
+      <SliderBoard sliders={sliders} />
     </div>
   );
 }

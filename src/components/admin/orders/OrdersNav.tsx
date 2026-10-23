@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { buttonStyles } from "@/components/ui/buttonStyles";
+import { cn } from "@/lib/utils/cn";
 
 const links = [
   { href: "/admin/orders", label: "All orders" },
@@ -14,7 +16,7 @@ const links = [
 export function OrdersNav() {
   const pathname = usePathname();
   return (
-    <nav className="flex gap-2 overflow-x-auto pb-1">
+    <nav aria-label="Orders sections" className="flex gap-2 overflow-x-auto pb-1">
       {links.map((link) => {
         const active =
           link.href === "/admin/orders"
@@ -24,9 +26,11 @@ export function OrdersNav() {
           <Link
             key={link.href}
             href={link.href}
-            className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold ${
-              active ? "bg-ink text-white" : "bg-card text-ink shadow-soft"
-            }`}
+            aria-current={active ? "page" : undefined}
+            className={cn(
+              buttonStyles({ variant: active ? "primary" : "outline", size: "sm" }),
+              "whitespace-nowrap",
+            )}
           >
             {link.label}
           </Link>
