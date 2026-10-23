@@ -5,7 +5,10 @@ import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { fieldClass } from "@/components/ui/controls";
+import { Tabs, type TabItem } from "@/components/ui/Tabs";
 import { StarRating } from "@/components/store/product/StarRating";
 import {
   questionSchema,
@@ -22,8 +25,6 @@ type ProductTabsProps = {
   reviews: Review[];
   questions: ProductQuestion[];
 };
-
-const tabs = ["Description", "Reviews", "Q&A"] as const;
 
 function useSignedIn(): boolean | null {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
@@ -80,7 +81,7 @@ function ReviewForm({ productSlug }: { productSlug: string }) {
 
   return (
     <form
-      className="mt-4 max-w-md space-y-3 border-t border-black/5 pt-4"
+      className="mt-4 max-w-md space-y-3 border-t border-ink/5 pt-4"
       noValidate
       onSubmit={handleSubmit(onSubmit)}
     >
@@ -101,7 +102,7 @@ function ReviewForm({ productSlug }: { productSlug: string }) {
         {t("reviews.form.commentLabel")}
         <textarea
           rows={3}
-          className="mt-1 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-primary"
+          className="mt-1 w-full rounded-md border border-ink/15 px-3 py-2 text-sm outline-none focus:border-primary"
           {...register("comment")}
         />
         {errors.comment ? (
@@ -111,9 +112,13 @@ function ReviewForm({ productSlug }: { productSlug: string }) {
         ) : null}
       </label>
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
-      <button type="submit" className={buttonClass("primary")} disabled={isSubmitting}>
-        {isSubmitting ? t("reviews.form.submitting") : t("reviews.form.submit")}
-      </button>
+      <Button
+        type="submit"
+        isLoading={isSubmitting}
+        loadingLabel={t("reviews.form.submitting")}
+      >
+        {t("reviews.form.submit")}
+      </Button>
     </form>
   );
 }
@@ -149,7 +154,7 @@ function QuestionForm({ productSlug }: { productSlug: string }) {
 
   return (
     <form
-      className="mt-4 max-w-md space-y-3 border-t border-black/5 pt-4"
+      className="mt-4 max-w-md space-y-3 border-t border-ink/5 pt-4"
       noValidate
       onSubmit={handleSubmit(onSubmit)}
     >
@@ -157,7 +162,7 @@ function QuestionForm({ productSlug }: { productSlug: string }) {
         {t("qa.form.questionLabel")}
         <textarea
           rows={3}
-          className="mt-1 w-full rounded-md border border-black/10 px-3 py-2 text-sm outline-none focus:border-primary"
+          className="mt-1 w-full rounded-md border border-ink/15 px-3 py-2 text-sm outline-none focus:border-primary"
           {...register("question")}
         />
         {errors.question ? (
@@ -167,9 +172,13 @@ function QuestionForm({ productSlug }: { productSlug: string }) {
         ) : null}
       </label>
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
-      <button type="submit" className={buttonClass("primary")} disabled={isSubmitting}>
-        {isSubmitting ? t("qa.form.submitting") : t("qa.form.submit")}
-      </button>
+      <Button
+        type="submit"
+        isLoading={isSubmitting}
+        loadingLabel={t("qa.form.submitting")}
+      >
+        {t("qa.form.submit")}
+      </Button>
     </form>
   );
 }
@@ -197,82 +206,84 @@ export function ProductTabs({
   questions,
 }: ProductTabsProps) {
   const t = useTranslations("product");
-  const [tab, setTab] = useState<(typeof tabs)[number]>("Description");
   const signedIn = useSignedIn();
-  const tabLabels: Record<(typeof tabs)[number], string> = {
-    Description: t("tabs.description"),
-    Reviews: t("tabs.reviews"),
-    "Q&A": t("tabs.qa"),
-  };
+
+  const items: TabItem[] = [
+    {
+      value: "description",
+      label: t("tabs.description"),
+      content: <p className="text-sm leading-7 text-foreground">{description}</p>,
+    },
+    {
+      value: "reviews",
+      label: <TabLabel text={t("tabs.reviews")} count={reviews.length} />,
+      content: (
+        <>
+          {reviews.length === 0 ? (
+            <p className="text-sm text-muted">{t("reviews.empty")}</p>
+          ) : (
+            <ul className="space-y-4">
+              {reviews.map((review) => (
+                <li key={review.id} className="border-b border-ink/5 pb-4 last:border-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold">{review.author}</p>
+                    <StarRating rating={review.rating} />
+                  </div>
+                  <p className="mt-2 text-sm text-muted">{review.comment}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          {signedIn ? <ReviewForm productSlug={productSlug} /> : null}
+          {signedIn === false ? (
+            <SignInPrompt action={t("reviews.signInAction")} />
+          ) : null}
+        </>
+      ),
+    },
+    {
+      value: "qa",
+      label: <TabLabel text={t("tabs.qa")} count={questions.length} />,
+      content: (
+        <>
+          {questions.length === 0 ? (
+            <p className="text-sm text-muted">{t("qa.empty")}</p>
+          ) : (
+            <ul className="space-y-4">
+              {questions.map((question) => (
+                <li key={question.id}>
+                  <p className="text-sm font-semibold text-ink">
+                    {question.author}: {question.question}
+                  </p>
+                  <p className="mt-1 text-sm text-muted">{question.answer}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          {signedIn ? <QuestionForm productSlug={productSlug} /> : null}
+          {signedIn === false ? <SignInPrompt action={t("qa.signInAction")} /> : null}
+        </>
+      ),
+    },
+  ];
 
   return (
-    <section className="mt-8 rounded-lg bg-card shadow-soft">
-      <div className="flex overflow-x-auto border-b border-black/5">
-        {tabs.map((item) => (
-          <button
-            key={item}
-            type="button"
-            aria-pressed={tab === item}
-            onClick={() => setTab(item)}
-            className={`h-12 px-4 text-sm font-semibold ${
-              tab === item ? "border-b-2 border-primary text-primary" : "text-muted"
-            }`}
-          >
-            {tabLabels[item]}
-          </button>
-        ))}
-      </div>
-      <div className="p-4 sm:p-6">
-        {tab === "Description" ? (
-          <p className="text-sm leading-7 text-foreground">{description}</p>
-        ) : null}
-        {tab === "Reviews" ? (
-          <>
-            {reviews.length === 0 ? (
-              <p className="text-sm text-muted">{t("reviews.empty")}</p>
-            ) : (
-              <ul className="space-y-4">
-                {reviews.map((review) => (
-                  <li
-                    key={review.id}
-                    className="border-b border-black/5 pb-4 last:border-0"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold">{review.author}</p>
-                      <StarRating rating={review.rating} />
-                    </div>
-                    <p className="mt-2 text-sm text-muted">{review.comment}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {signedIn ? <ReviewForm productSlug={productSlug} /> : null}
-            {signedIn === false ? (
-              <SignInPrompt action={t("reviews.signInAction")} />
-            ) : null}
-          </>
-        ) : null}
-        {tab === "Q&A" ? (
-          <>
-            {questions.length === 0 ? (
-              <p className="text-sm text-muted">{t("qa.empty")}</p>
-            ) : (
-              <ul className="space-y-4">
-                {questions.map((question) => (
-                  <li key={question.id}>
-                    <p className="text-sm font-semibold text-ink">
-                      {question.author}: {question.question}
-                    </p>
-                    <p className="mt-1 text-sm text-muted">{question.answer}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {signedIn ? <QuestionForm productSlug={productSlug} /> : null}
-            {signedIn === false ? <SignInPrompt action={t("qa.signInAction")} /> : null}
-          </>
-        ) : null}
-      </div>
+    <section className="mt-8 rounded-theme bg-card shadow-soft">
+      <Tabs
+        items={items}
+        label={t("tabs.label")}
+        listClassName="px-2 sm:px-4"
+        panelClassName="px-4 pb-4 sm:px-6 sm:pb-6"
+      />
     </section>
+  );
+}
+
+function TabLabel({ text, count }: { text: string; count: number }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {text}
+      {count > 0 ? <Badge>{count}</Badge> : null}
+    </span>
   );
 }

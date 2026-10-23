@@ -175,7 +175,13 @@
     "pageTitle": "কার্ট",
     "crumb": "কার্ট",
     "delivery": "ডেলিভারি",
-    "deliveryAtCheckout": "চেকআউটে দেখানো হবে"
+    "deliveryAtCheckout": "চেকআউটে দেখানো হবে",
+    "itemCount": "{count}টি পণ্য",
+    "freeDelivery": {
+      "label": "ফ্রি ডেলিভারির অগ্রগতি",
+      "remaining": "ফ্রি ডেলিভারির জন্য আরও <strong>{amount}</strong> কেনাকাটা করুন",
+      "unlocked": "আপনি ফ্রি ডেলিভারি পাচ্ছেন!"
+    }
   },
   "toast": {
     "added": "কার্টে যোগ হয়েছে",
@@ -216,7 +222,8 @@
     "tabs": {
       "description": "বিবরণ",
       "reviews": "রিভিউ",
-      "qa": "প্রশ্নোত্তর"
+      "qa": "প্রশ্নোত্তর",
+      "label": "পণ্যের তথ্য"
     },
     "reviews": {
       "empty": "এখনো কোনো রিভিউ নেই।",
@@ -252,6 +259,14 @@
       "warrantyLabel": "ওয়ারেন্টি: ",
       "returnsLabel": "রিটার্ন: ",
       "whatsappMessage": "হ্যালো ইউনিবাজার, আমি {name} (এসকেইউ: {sku}) অর্ডার করতে চাই।"
+    },
+    "gallery": {
+      "label": "পণ্যের ছবি",
+      "previous": "আগের ছবি",
+      "next": "পরের ছবি",
+      "position": "{current} / {total}",
+      "zoomIn": "বড় করুন",
+      "zoomOut": "ছোট করুন"
     }
   },
   "chat": {

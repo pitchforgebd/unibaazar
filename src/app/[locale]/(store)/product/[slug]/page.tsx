@@ -5,8 +5,9 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
 import { SectionHeading } from "@/components/store/common/SectionHeading";
-import { ProductGrid } from "@/components/store/product/ProductCard";
+import { Reveal } from "@/components/motion";
 import { ProductPurchase } from "@/components/store/product/ProductPurchase";
+import { StaggeredProductGrid } from "@/components/store/product/StaggeredProductGrid";
 import { TrackOnce } from "@/components/store/tracking/TrackOnce";
 import { ProductTabs } from "@/components/store/product/ProductTabs";
 import { RecentlyViewed } from "@/components/store/product/RecentlyViewed";
@@ -124,8 +125,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
         />
         {related.length > 0 ? (
           <section className="mt-10">
-            <SectionHeading title={t("relatedHeading")} />
-            <ProductGrid products={related} />
+            <Reveal>
+              <SectionHeading title={t("relatedHeading")} />
+            </Reveal>
+            <StaggeredProductGrid products={related} />
           </section>
         ) : null}
         <RecentlyViewed currentSlug={product.slug} />

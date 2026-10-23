@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { SectionHeading } from "@/components/store/common/SectionHeading";
-import { ProductGrid } from "@/components/store/product/ProductCard";
+import { Reveal } from "@/components/motion";
+import { StaggeredProductGrid } from "@/components/store/product/StaggeredProductGrid";
 import { useResolvedProducts } from "@/lib/catalog/useResolvedProducts";
 
 const storageKey = "unibaazar:recent";
@@ -53,8 +54,10 @@ export function RecentlyViewed({ currentSlug }: RecentlyViewedProps) {
 
   return (
     <section className="mt-10">
-      <SectionHeading title={t("recentlyViewed")} />
-      <ProductGrid products={products} />
+      <Reveal>
+        <SectionHeading title={t("recentlyViewed")} />
+      </Reveal>
+      <StaggeredProductGrid products={products} />
     </section>
   );
 }

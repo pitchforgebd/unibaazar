@@ -1,12 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { buttonClass } from "@/components/ui/controls";
-import { ProductMedia } from "@/components/store/product/ProductMedia";
-import { PriceBlock } from "@/components/store/product/PriceBlock";
+import { CountUp, useFlyToCart } from "@/components/motion";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { buttonStyles } from "@/components/ui/buttonStyles";
+import { ProductGallery } from "@/components/store/product/ProductGallery";
 import { ShareButtons } from "@/components/store/product/ShareButtons";
+import { StickyBuyBar } from "@/components/store/product/StickyBuyBar";
 import { YouTubeEmbed } from "@/components/store/social/YouTubeEmbed";
 import { WhatsAppIcon } from "@/components/store/layout/icons";
 import { StarRating } from "@/components/store/product/StarRating";
@@ -14,9 +17,11 @@ import { VariantSelector } from "@/components/store/product/VariantSelector";
 import { discountPercent, productImage, variantPrice } from "@/lib/catalog/pricing";
 import { resolveVariant } from "@/lib/catalog/variants";
 import { siteConfig } from "@/config/site";
+import { formatTaka } from "@/lib/utils/currency";
 import { useAddToCart } from "@/hooks/useAddToCart";
+import { useUiStore } from "@/store/ui";
 import { useCompareStore, useWishlistStore } from "@/store/lists";
-import type { Product, ProductVariant } from "@/types/catalog";
+import type { Product } from "@/types/catalog";
 
 type ProductPurchaseProps = {
   product: Product;
@@ -29,6 +34,15 @@ function initialSelection(product: Product): Record<string, string> {
   return { ...variant.attributes };
 }
 
+/** The storefront header's cart button (CartButton). Located by its existing
+ * accessible name, which always starts with the localized "Cart" label,
+ * rather than by adding a hook to a header file outside this component. */
+function headerCartButton(cartLabel: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(
+    `header button[aria-label^="${CSS.escape(cartLabel)}"]`,
+  );
+}
+
 export function ProductPurchase({
   product,
   whatsappHref = siteConfig.chat.whatsapp,
@@ -37,7 +51,10 @@ export function ProductPurchase({
   const clip = videoUrl || product.videoUrl || "";
   const router = useRouter();
   const addToCart = useAddToCart();
+  const fly = useFlyToCart();
+  const openCart = useUiStore((state) => state.openCart);
   const t = useTranslations("product");
+  const common = useTranslations("common");
   const wishlist = useWishlistStore((state) => state.slugs);
   const toggleWishlist = useWishlistStore((state) => state.toggle);
   const compared = useCompareStore((state) => state.slugs);
@@ -46,66 +63,95 @@ export function ProductPurchase({
     initialSelection(product),
   );
   const [qty, setQty] = useState(1);
-  const [zoom, setZoom] = useState(false);
+  const activeSlideRef = useRef<HTMLSpanElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
 
   const variant = useMemo(() => resolveVariant(product, selected), [product, selected]);
   const saved = wishlist.includes(product.slug);
   const inCompare = compared.includes(product.slug);
+  const canBuy = Boolean(variant && variant.stock > 0);
+  const price = variant ? variantPrice(variant) : null;
 
   function choose(name: string, label: string) {
     setSelected((current) => ({ ...current, [name]: label }));
     setQty(1);
   }
 
-  async function add(goToCheckout: boolean) {
-    if (!variant || variant.stock <= 0) {
+  async function buyNow() {
+    if (!variant || !canBuy) {
       return;
     }
     const added = await addToCart(
       { slug: product.slug, variantId: variant.id, qty },
-      { openDrawer: !goToCheckout },
+      { openDrawer: false },
     );
-    if (added && goToCheckout) {
+    if (added) {
       router.push("/checkout");
+    }
+  }
+
+  // The flight runs alongside the cart write (whose stock check takes about
+  // as long), so the add itself is never delayed behind the animation. The
+  // drawer opens once the thumbnail has landed, as before.
+  async function addAndFly(from: HTMLElement | null) {
+    if (!variant || !canBuy) {
+      return;
+    }
+    const target = headerCartButton(common("cart"));
+    const img = from?.querySelector("img");
+    const flight =
+      from && target && img ? fly(from, target, img.currentSrc || img.src) : null;
+    const added = await addToCart(
+      { slug: product.slug, variantId: variant.id, qty },
+      { openDrawer: false },
+    );
+    await flight;
+    if (added) {
+      openCart();
     }
   }
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <Gallery
+      <ProductGallery
         product={product}
         variant={variant}
-        zoom={zoom}
-        setZoom={setZoom}
         onPick={choose}
+        activeSlideRef={activeSlideRef}
       />
       <div>
         {product.brandName ? (
           <p className="text-sm text-muted">{product.brandName}</p>
         ) : null}
-        <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">{product.name}</h1>
+        <h1 className="mt-1 font-heading text-2xl font-bold text-ink sm:text-3xl">
+          {product.name}
+        </h1>
         <div className="mt-2">
           <StarRating rating={product.rating} />
         </div>
         <p className="mt-3 text-sm leading-6 text-muted">{product.shortDescription}</p>
         <div className="mt-4">
-          {variant ? (
-            <PriceBlock
-              current={variantPrice(variant)}
-              regular={
-                variant.salePrice !== null && variant.price > variantPrice(variant)
-                  ? variant.price
-                  : null
-              }
-            />
+          {variant && price !== null ? (
+            <p className="flex flex-wrap items-center gap-2">
+              <CountUp
+                value={price}
+                format={formatTaka}
+                className="text-2xl font-semibold text-primary"
+              />
+              {variant.salePrice !== null && variant.price > price ? (
+                <>
+                  <span className="text-sm text-muted line-through">
+                    {formatTaka(variant.price)}
+                  </span>
+                  <Badge variant="primary">
+                    -{discountPercent(variant.price, price)}%
+                  </Badge>
+                </>
+              ) : null}
+            </p>
           ) : (
             <p className="text-sm font-semibold text-primary">{t("unavailable")}</p>
           )}
-          {variant && variant.salePrice !== null ? (
-            <p className="mt-1 text-xs font-semibold text-primary">
-              -{discountPercent(variant.price, variantPrice(variant))}%
-            </p>
-          ) : null}
         </div>
         <dl className="mt-4 space-y-1 text-sm">
           <div className="flex gap-2">
@@ -132,7 +178,7 @@ export function ProductPurchase({
           />
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-3">
+        <div ref={actionsRef} className="mt-5 flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-sm font-medium">
             {t("qty")}
             <input
@@ -148,30 +194,26 @@ export function ProductPurchase({
                 const cap = variant?.stock ?? 1;
                 setQty(Math.min(Math.max(1, next), Math.max(cap, 1)));
               }}
-              className="h-11 w-20 rounded-md border border-black/10 px-2 text-center"
+              className="h-11 w-20 rounded-theme border border-ink/15 bg-card px-2 text-center"
             />
           </label>
-          <button
-            type="button"
-            className={buttonClass("ink")}
-            disabled={!variant || variant.stock <= 0}
-            onClick={() => void add(true)}
-          >
+          <Button variant="outline" disabled={!canBuy} onClick={() => void buyNow()}>
             {t("buy")}
-          </button>
-          <button
-            type="button"
-            className={buttonClass("primary")}
-            disabled={!variant || variant.stock <= 0}
-            onClick={() => void add(false)}
+          </Button>
+          <Button
+            disabled={!canBuy}
+            onClick={() => void addAndFly(activeSlideRef.current)}
           >
             {t("add")}
-          </button>
+          </Button>
         </div>
         <ShareButtons name={product.name} path={`/product/${product.slug}`} />
         {variant ? (
           <a
-            className={`${buttonClass("outline")} mt-3 gap-2 hover:border-whatsapp hover:text-whatsapp`}
+            className={buttonStyles({
+              variant: "outline",
+              className: "mt-3 hover:border-whatsapp hover:text-whatsapp",
+            })}
             href={`${whatsappHref}${whatsappHref.includes("?") ? "&" : "?"}text=${encodeURIComponent(
               t("purchase.whatsappMessage", { name: product.name, sku: variant.sku }),
             )}`}
@@ -188,23 +230,15 @@ export function ProductPurchase({
             <YouTubeEmbed url={clip} title={product.name} />
           </div>
         ) : null}
-        <div className="mt-4 flex flex-wrap gap-3 text-sm font-semibold">
-          <button
-            type="button"
-            className="text-primary"
-            onClick={() => toggleWishlist(product.slug)}
-          >
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button variant="ghost" size="sm" onClick={() => toggleWishlist(product.slug)}>
             {saved ? t("purchase.removeFromWishlist") : t("purchase.addToWishlist")}
-          </button>
-          <button
-            type="button"
-            className="text-ink"
-            onClick={() => toggleCompare(product.slug)}
-          >
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => toggleCompare(product.slug)}>
             {inCompare ? t("purchase.removeFromCompare") : t("purchase.addToCompare")}
-          </button>
+          </Button>
         </div>
-        <div className="mt-5 rounded-lg border border-black/10 bg-peach p-4 text-sm">
+        <div className="mt-5 rounded-theme border border-ink/10 bg-peach p-4 text-sm">
           <p>
             <span className="font-semibold text-ink">{t("purchase.warrantyLabel")}</span>
             {product.warranty}
@@ -215,90 +249,15 @@ export function ProductPurchase({
           </p>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Gallery({
-  product,
-  variant,
-  zoom,
-  setZoom,
-  onPick,
-}: {
-  product: Product;
-  variant: ProductVariant | null;
-  zoom: boolean;
-  setZoom: (open: boolean) => void;
-  onPick: (name: string, label: string) => void;
-}) {
-  const t = useTranslations("product");
-  const hue = variant?.imageHue ?? product.imageHue;
-  const image = productImage(product, variant);
-
-  return (
-    <div>
-      <button
-        type="button"
-        className="block w-full overflow-hidden rounded-lg bg-card shadow-soft"
-        onClick={() => setZoom(true)}
-        aria-label={t("zoom")}
-      >
-        <ProductMedia
-          hue={hue}
-          name={product.name}
-          image={image}
-          loading="eager"
-          className="aspect-square transition hover:scale-105"
-        />
-      </button>
-      <div className="mt-3 flex gap-2 overflow-x-auto">
-        {product.variants.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            aria-label={item.sku}
-            onClick={() => {
-              Object.entries(item.attributes).forEach(([name, label]) =>
-                onPick(name, label),
-              );
-            }}
-            className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border ${
-              item.id === variant?.id ? "border-primary" : "border-black/10"
-            }`}
-          >
-            <ProductMedia
-              hue={item.imageHue}
-              name={product.name}
-              image={productImage(product, item)}
-              className="h-full w-full text-base"
-            />
-          </button>
-        ))}
-      </div>
-      {zoom ? (
-        <div
-          className="fixed inset-0 z-[70] grid place-items-center bg-ink/70 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label={t("zoomed")}
-        >
-          <button
-            type="button"
-            className="absolute inset-0"
-            aria-label={t("closeZoom")}
-            onClick={() => setZoom(false)}
-          />
-          <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-lg">
-            <ProductMedia
-              hue={hue}
-              name={product.name}
-              image={image}
-              className="aspect-square text-6xl"
-            />
-          </div>
-        </div>
-      ) : null}
+      <StickyBuyBar
+        anchorRef={actionsRef}
+        name={product.name}
+        hue={variant?.imageHue ?? product.imageHue}
+        image={productImage(product, variant)}
+        price={price}
+        canBuy={canBuy}
+        onAdd={(from) => void addAndFly(from)}
+      />
     </div>
   );
 }

@@ -175,7 +175,13 @@
     "pageTitle": "Cart",
     "crumb": "Cart",
     "delivery": "Delivery",
-    "deliveryAtCheckout": "At checkout"
+    "deliveryAtCheckout": "At checkout",
+    "itemCount": "{count, plural, one {# item} other {# items}}",
+    "freeDelivery": {
+      "label": "Progress toward free delivery",
+      "remaining": "Add <strong>{amount}</strong> more for free delivery",
+      "unlocked": "You've unlocked free delivery!"
+    }
   },
   "toast": {
     "added": "Added to cart",
@@ -216,7 +222,8 @@
     "tabs": {
       "description": "Description",
       "reviews": "Reviews",
-      "qa": "Q&A"
+      "qa": "Q&A",
+      "label": "Product information"
     },
     "reviews": {
       "empty": "No reviews yet.",
@@ -252,6 +259,14 @@
       "warrantyLabel": "Warranty: ",
       "returnsLabel": "Returns: ",
       "whatsappMessage": "Hello UniBaazar, I want to order {name} (SKU: {sku})."
+    },
+    "gallery": {
+      "label": "Product images",
+      "previous": "Previous image",
+      "next": "Next image",
+      "position": "{current} / {total}",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out"
     }
   },
   "chat": {
