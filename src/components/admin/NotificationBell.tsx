@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { IconButton } from "@/components/ui/IconButton";
 
 type Row = {
   id: string;
@@ -46,6 +48,7 @@ export function NotificationBell() {
   const [data, setData] = useState<Payload>({ unread: 0, sound: true, rows: [] });
   const prevUnread = useRef(0);
   const primed = useRef(false);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/v1/admin/notifications", { cache: "no-store" });
@@ -78,6 +81,30 @@ export function NotificationBell() {
     return () => window.clearInterval(timer);
   }, [load]);
 
+  // Close on Escape or a click outside the trigger/panel — the dropdown had
+  // neither before; both are standard disclosure-widget behavior.
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    function onKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+    function onPointerDown(event: PointerEvent): void {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [open]);
+
   async function markAll(): Promise<void> {
     await fetch("/api/v1/admin/notifications", {
       method: "POST",
@@ -88,31 +115,29 @@ export function NotificationBell() {
   }
 
   return (
-    <div className="relative">
-      <button
-        type="button"
-        className="relative rounded-md p-2 text-ink hover:bg-black/5"
+    <div className="relative" ref={panelRef}>
+      <IconButton
         aria-label={data.unread ? `${data.unread} unread alerts` : "Alerts"}
+        aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        <Bell className="h-5 w-5" />
+        <Bell aria-hidden="true" className="size-5" />
         {data.unread > 0 ? (
-          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-bold text-white">
+          <span
+            aria-hidden="true"
+            className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-bold text-white"
+          >
             {data.unread > 99 ? "99+" : data.unread}
           </span>
         ) : null}
-      </button>
+      </IconButton>
       {open ? (
-        <div className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-lg border border-black/10 bg-card shadow-soft">
+        <div className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-theme border border-muted bg-card shadow-soft">
           <div className="flex items-center justify-between border-b border-black/5 px-3 py-2">
-            <p className="text-sm font-semibold text-ink">Alerts</p>
-            <button
-              type="button"
-              className="text-xs font-semibold text-primary"
-              onClick={() => void markAll()}
-            >
+            <p className="font-heading text-sm font-semibold text-ink">Alerts</p>
+            <Button variant="ghost" size="sm" onClick={() => void markAll()}>
               Mark all read
-            </button>
+            </Button>
           </div>
           <ul className="max-h-80 overflow-y-auto">
             {data.rows.length === 0 ? (
