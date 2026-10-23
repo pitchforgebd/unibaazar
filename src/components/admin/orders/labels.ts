@@ -31,22 +31,33 @@ export function orderStatusVariant(status: string): BadgeVariant {
 }
 
 // Payment status uses the same shape of mapping (paid = success, dead-end
-// states = outline, pending = neutral default).
+// states = outline, pending/authorizing = neutral default). PARTIALLY_REFUNDED
+// gets its own "accent" treatment — it's not a dead end (more can still be
+// refunded, or the payment stays as-is) and isn't fully resolved either.
 export function paymentStatusVariant(status: string): BadgeVariant {
   if (status === "PAID") {
     return "success";
   }
-  if (status === "FAILED" || status === "REFUNDED") {
+  if (status === "FAILED" || status === "CANCELLED" || status === "REFUNDED") {
     return "outline";
+  }
+  if (status === "PARTIALLY_REFUNDED") {
+    return "accent";
   }
   return "default";
 }
 
-// Decisions that release money or close an order permanently — these get
-// an AlertDialog confirmation before firing, everywhere in the orders
-// cluster, even though the actual legality of the transition is still
-// enforced server-side by modules/orders/state-machine.ts.
-const IRREVERSIBLE_STATUSES = new Set(["CANCELLED", "FAILED", "REFUNDED", "RETURNED"]);
+// Decisions that release money or close an order/payment permanently —
+// these get an AlertDialog confirmation before firing, everywhere in the
+// orders cluster, even though the actual legality of the transition is
+// still enforced server-side by modules/orders|payments/state-machine.ts.
+const IRREVERSIBLE_STATUSES = new Set([
+  "CANCELLED",
+  "FAILED",
+  "REFUNDED",
+  "RETURNED",
+  "PARTIALLY_REFUNDED",
+]);
 
 export function isIrreversibleStatus(status: string): boolean {
   return IRREVERSIBLE_STATUSES.has(status);

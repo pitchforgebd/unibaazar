@@ -16,6 +16,10 @@ import { recordAudit } from "@/server/security/audit";
 import { loadInvoice } from "@/server/settings/store";
 import { adjustStock } from "@/modules/inventory";
 import { canTransition, holdsStock, transitionOrder } from "@/modules/orders";
+import {
+  canTransition as canTransitionPayment,
+  transitionPayment,
+} from "@/modules/payments";
 
 const pageSize = 20;
 
@@ -221,10 +225,14 @@ export async function listAdminOrders(query: OrderListQuery): Promise<{
     where.paymentMethod = query.payment;
   }
   if (
+    query.paymentStatus === "INITIATED" ||
     query.paymentStatus === "PENDING" ||
+    query.paymentStatus === "AUTHORIZED" ||
     query.paymentStatus === "PAID" ||
     query.paymentStatus === "FAILED" ||
-    query.paymentStatus === "REFUNDED"
+    query.paymentStatus === "CANCELLED" ||
+    query.paymentStatus === "REFUNDED" ||
+    query.paymentStatus === "PARTIALLY_REFUNDED"
   ) {
     where.payments = { some: { status: query.paymentStatus } };
   }
@@ -660,7 +668,22 @@ export async function setPaymentStatus(
   if (!payment) {
     throw new Error("This order has no payment");
   }
-  await prisma.payment.update({ where: { id: payment.id }, data: { status } });
+  if (payment.status === status) {
+    return "Status is already set.";
+  }
+  if (!canTransitionPayment(payment.status, status)) {
+    await recordAudit({
+      actorId,
+      action: "order.payment.rejected",
+      entityType: "Order",
+      entityId: orderId,
+      metadata: { from: payment.status, attempted: status },
+    });
+    return `Cannot move a payment from ${payment.status} to ${status}.`;
+  }
+  await prisma.$transaction((tx) =>
+    transitionPayment(tx, payment, status, "Set by admin"),
+  );
   await recordAudit({
     actorId,
     action: "order.payment",

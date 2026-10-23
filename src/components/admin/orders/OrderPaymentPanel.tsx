@@ -64,7 +64,16 @@ export function OrderPaymentPanel({ order }: { order: AdminOrderDetail }) {
             }
             className="max-w-xs"
           >
-            {["PENDING", "PAID", "FAILED", "REFUNDED"].map((item) => (
+            {[
+              "INITIATED",
+              "PENDING",
+              "AUTHORIZED",
+              "PAID",
+              "FAILED",
+              "CANCELLED",
+              "REFUNDED",
+              "PARTIALLY_REFUNDED",
+            ].map((item) => (
               <option key={item} value={item}>
                 {prettyStatus(item)}
               </option>

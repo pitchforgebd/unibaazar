@@ -104,10 +104,14 @@ enum PaymentMethod {
 }
 
 enum PaymentStatus {
+  INITIATED
   PENDING
+  AUTHORIZED
   PAID
   FAILED
+  CANCELLED
   REFUNDED
+  PARTIALLY_REFUNDED
 }
 
 enum DeliveryArea {
@@ -204,20 +208,20 @@ model RolePermission {
 }
 
 model User {
-  id                  String            @id @default(cuid())
+  id                  String              @id @default(cuid())
   roleId              String
   name                String
-  phone               String            @unique @db.VarChar(20)
-  email               String?           @unique @db.VarChar(191)
+  phone               String              @unique @db.VarChar(20)
+  email               String?             @unique @db.VarChar(191)
   passwordHash        String?
-  status              UserStatus        @default(ACTIVE)
-  totpSecret          String?           @db.VarChar(64)
-  totpEnabled         Boolean           @default(false)
+  status              UserStatus          @default(ACTIVE)
+  totpSecret          String?             @db.VarChar(64)
+  totpEnabled         Boolean             @default(false)
   resetTokenHash      String?
   resetTokenExpiresAt DateTime?
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-  role                Role              @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  role                Role                @relation(fields: [roleId], references: [id], onDelete: Restrict)
   customer            Customer?
   addresses           Address[]
   carts               Cart[]
@@ -629,15 +633,15 @@ model FlashSaleItem {
 // ProductVariant.stock at order placement (src/modules/inventory) — this
 // table only affects what "available" means while a reservation is ACTIVE.
 model StockReservation {
-  id        String             @id @default(cuid())
-  token     String             @db.VarChar(64)
+  id        String            @id @default(cuid())
+  token     String            @db.VarChar(64)
   variantId String
   qty       Int
-  status    ReservationStatus  @default(ACTIVE)
+  status    ReservationStatus @default(ACTIVE)
   expiresAt DateTime
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
-  variant   ProductVariant     @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  variant   ProductVariant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   @@unique([token, variantId])
   @@index([variantId, status, expiresAt])
@@ -792,19 +796,52 @@ model OrderStatusHistory {
 }
 
 model Payment {
-  id         String        @id @default(cuid())
-  orderId    String
-  method     PaymentMethod
-  status     PaymentStatus @default(PENDING)
-  amount     Decimal       @db.Decimal(12, 2)
-  gatewayRef String?       @db.VarChar(191)
-  payload    Json?
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  order      Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id             String                 @id @default(cuid())
+  orderId        String
+  method         PaymentMethod
+  status         PaymentStatus          @default(PENDING)
+  amount         Decimal                @db.Decimal(12, 2)
+  // Cumulative amount refunded so far — tracked separately from `status`
+  // so a second (or third) partial refund while already
+  // PARTIALLY_REFUNDED doesn't need an illegal same-status "transition";
+  // see src/modules/payments/server/refund.ts.
+  refundedAmount Decimal                @default(0) @db.Decimal(12, 2)
+  gatewayRef     String?                @db.VarChar(191)
+  payload        Json?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  order          Order                  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  statusHistory  PaymentStatusHistory[]
 
   @@index([orderId])
   @@index([gatewayRef])
+}
+
+model PaymentStatusHistory {
+  id        String        @id @default(cuid())
+  paymentId String
+  status    PaymentStatus
+  note      String?       @db.Text
+  createdAt DateTime      @default(now())
+  payment   Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId, createdAt])
+}
+
+// One row per processed gateway webhook/IPN call, keyed by the gateway's
+// own transaction identifier — the idempotency guard the master plan's
+// Phase 7 asks for. A duplicate delivery (the gateway retries a webhook
+// it didn't get a 200 for, or an attacker replays a captured request)
+// hits the unique constraint and is rejected before any Payment/Order
+// write happens, which a status check alone ("already PAID, no-op")
+// can't guarantee under concurrent delivery of the same event.
+model PaymentWebhookEvent {
+  id         String   @id @default(cuid())
+  provider   String   @db.VarChar(40)
+  eventKey   String   @db.VarChar(191)
+  receivedAt DateTime @default(now())
+
+  @@unique([provider, eventKey])
 }
 
 model Shipment {
