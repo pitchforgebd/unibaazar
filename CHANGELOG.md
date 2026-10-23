@@ -4,6 +4,44 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Phase 6 — Admin panel rebuild (2026-10-24)
+
+### Added
+
+- **`components/ui`/`components/motion` adopted across every admin
+  module**: dashboard, reports, notifications, catalog, inventory, SEO,
+  orders, customers, marketing, content, users, settings — finishing the
+  design system's rollout started in Phase 5. Full breakdown in
+  `docs/qa/phase-06-report.md`.
+- **Order-status funnel** on the dashboard (today/7d/30d counts per
+  status) and a **stock-valuation report** (cost-basis, by category),
+  the one report type from the master plan's list that didn't exist yet.
+- **`e2e/rbac/admin-roles.spec.ts`**: logs in as each staff role and
+  asserts it sees only the modules its permissions grant. New seed
+  accounts per role in `prisma/seed.ts`.
+- **5 new settings-group parity tests** (theme, checkout, social,
+  system, tracking) in the existing parity suite.
+- `DeleteButton` rebuilt on `AlertDialog` instead of native
+  `window.confirm`/`alert`; `ToastStack` now mounted in the admin layout.
+- ADR 0017 (Phase 6 scope — survey-first, same approach as ADR 0016).
+
+### Fixed
+
+- **`Reveal`'s scroll-trigger hid list/detail pages' primary content**
+  until the admin scrolled — removed from 8 files (orders, customers,
+  coupons, banners, sliders, reports) where the data an admin came to
+  see started below the 20%-visible trigger threshold on page load.
+- **Zero-confirmation deletes** on category/brand/unit/label/attribute/
+  tag rows — now gated behind `AlertDialog`.
+- **`(admin)/admin/error.tsx` called `useTranslations()`** with no
+  `NextIntlClientProvider` in admin's tree — the error boundary would
+  itself crash on the exact class of error it exists to catch. Fixed
+  with plain English strings, like every other admin component.
+- **Audit-log completeness**: 16 admin write actions
+  (`catalog-actions.ts`'s taxonomy/question-moderation actions,
+  `syncCourier()`) had no `recordAudit` entry at all. Also deleted a
+  dead, unimported duplicate of `user-actions.ts`.
+
 ## Phase 5 — Storefront rebuild (2026-10-23)
 
 ### Added

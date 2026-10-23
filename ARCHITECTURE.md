@@ -240,7 +240,12 @@ own research found:
   real customer journey in Phase 5 (homepage, listing, product, cart,
   checkout, account, order success, wishlist/compare — see
   `docs/decisions/0016-phase-5-scope-storefront-rebuild.md` and
-  `docs/qa/phase-05-report.md`); admin adoption is still Phase 6 work.
+  `docs/qa/phase-05-report.md`). Adopted across every admin module in
+  Phase 6 (see `docs/decisions/0017-phase-6-scope-admin-rebuild.md` and
+  `docs/qa/phase-06-report.md`) — `components/ui`/`components/motion` are
+  now the primary toolkit everywhere in the app except the handful of
+  legacy `buttonClass`/`fieldClass` (`src/components/ui/controls.ts`)
+  call sites intentionally left outside both phases' scope.
 - **`src/components/motion`**: `Reveal`, `Stagger`/`StaggerItem`,
   `PressScale`, `flyToCart`/`useFlyToCart`, `CountUp`, `Marquee`,
   `Shimmer`, `ShakeOnError`, `PageTransition` — built on the `motion`
@@ -341,6 +346,16 @@ Admin → Maintenance (super-admin only) is the one exception to "one module per
 domain" — it's a registry of idempotent one-off jobs (cache clear, demo-catalog
 seed, admin bootstrap, resumable media-variant backfill) rather than a CRUD
 module; see §9.
+
+Access control is role/permission based (`src/server/security/permissions.ts`'s
+`roleGrants`, backed by `Role`/`Permission`/`RolePermission` in the schema), with
+one `*Access()`/`require*()` pair per domain in `src/server/admin/access.ts`.
+Covered end-to-end by `e2e/rbac/admin-roles.spec.ts` (Phase 6) — logs in as each
+staff role and asserts it sees only the modules its permissions grant. Every
+mutating action calls `recordAudit()`, either inside its `src/server/admin/*`
+function or its `*-actions.ts` wrapper (the codebase uses both patterns
+depending on the module — check the specific file before assuming which); swept
+for completeness in Phase 6 (`docs/qa/phase-06-report.md`).
 
 ## 8. API layer
 
