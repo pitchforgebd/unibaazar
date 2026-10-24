@@ -4,6 +4,47 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Phase 7 — Payment module (2026-10-24)
+
+### Added
+
+- **`src/modules/payments/`**: the payment state machine the master plan
+  asks for. `PaymentStatus` expanded from 4 states to 8 (adds
+  `INITIATED`, `AUTHORIZED`, `CANCELLED`, `PARTIALLY_REFUNDED`), with an
+  explicit transition graph — closes the same ungoverned-status bug
+  class ADR 0012/0013 fixed for orders ahead of Phase 3.
+- **Amount-tracked refunds**: new `Payment.refundedAmount` column, a
+  real "Refund" action/UI (amount field, confirmation, remaining-balance
+  display) on the order payment panel, replacing a path that could set
+  `REFUNDED` with no amount recorded at all.
+- **Webhook idempotency**: a new `PaymentWebhookEvent` table claims each
+  gateway IPN/callback event by its own transaction id before any
+  Payment/Order write, via a DB unique constraint — safe under
+  concurrent delivery of the same event.
+- **SSLCommerz credentials moved into the encrypted admin-settings
+  system** (Admin → Settings → Integrations), reusing Phase 2's
+  encrypted-secrets machinery instead of raw `.env` vars.
+- **A genuinely real "Test payment" connection check** — previously a
+  no-op that always returned the same message regardless of
+  configuration.
+- **Daily payment reconciliation** with mismatch alerts — Admin →
+  Maintenance → "Reconcile payments", or the new
+  `POST /api/v1/cron/payment-reconciliation` route (daily cron).
+- ADR 0018 (Phase 7 scope — survey-first, same approach as ADRs
+  0016/0017; documents what's deferred pending third-party merchant
+  credentials this environment doesn't have).
+
+### Fixed
+
+- `setPaymentStatus` had zero transition-legality checks — any status
+  could move to any other status with no validation.
+- `syncCourier()` updated `Shipment.status` with no audit trail unless
+  the sync happened to also confirm the order.
+- `e2e/a11y/key-pages.spec.ts` raced `Reveal`/`Stagger`'s entrance
+  animation — axe could catch a genuinely in-flight element mid-fade, a
+  real but transient contrast failure, not what a settled page ever
+  shows. Fixed by forcing reduced motion before each scan.
+
 ## Phase 6 — Admin panel rebuild (2026-10-24)
 
 ### Added

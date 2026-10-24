@@ -368,8 +368,15 @@ components and (for a few endpoints) external systems:
   `banners` — public read endpoints backing the storefront
 - `cart/quote` — the single source of truth for authoritative pricing
 - `orders`, `orders/track` — order creation and guest tracking
-- `payments/*` — gateway initiate/verify/callback/webhooks (bKash/Nagad/
-  SSLCommerz/Aamarpay, configured via `.env` or Admin → Settings)
+- `payments/*` — gateway initiate/verify/callback/webhooks. COD and
+  SSLCommerz are real, working providers (`src/lib/payment/`);
+  SSLCommerz acts as an aggregator for bKash/Nagad/Rocket/card today,
+  not 4 separate direct integrations — see
+  `docs/decisions/0018-phase-7-scope-payment-module.md`. SSLCommerz
+  credentials come from Admin → Settings → Integrations (encrypted),
+  falling back to `.env` for local dev. `modules/payments/` (Phase 7)
+  governs every payment-status change through an explicit transition
+  graph, the same shape `modules/orders` already uses for order status.
 - `contact`, `newsletter` — public lead-capture forms
 - `cron/*` — `CRON_SECRET`-gated **scheduled** maintenance endpoints (see §9)
 - `webhooks/steadfast` — inbound courier status updates
@@ -378,8 +385,9 @@ components and (for a few endpoints) external systems:
 
 `src/app/api/v1/cron/*` are POST routes gated by `assertCronSecret()`
 (`src/server/cron/auth.ts`, compares a bearer token against `CRON_SECRET`). They
-exist for recurring scheduled maintenance only — `low-stock-sweep` and
-`cancel-unpaid-orders` — invoked by a real cron entry (see `DEPLOYMENT.md`).
+exist for recurring scheduled maintenance only — `low-stock-sweep`,
+`cancel-unpaid-orders`, and (Phase 7) `payment-reconciliation` — invoked by a
+real cron entry (see `DEPLOYMENT.md`).
 
 Two routes used to live here for a different reason: **one-off database bootstrap
 operations** (`bootstrap-admin`, `seed-catalog`) that would normally be a CLI script
