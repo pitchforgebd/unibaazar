@@ -154,7 +154,7 @@ database on each request.
   `HomeSection`, `Subscriber`
 - **Platform**: `Setting` (key/value store backing every admin settings screen),
   `SeoMeta`, `NotFoundHit`, `Redirect`, `SmsLog`, `EmailLog`, `Notification`,
-  `AuditLog`, `TrackingEvent`
+  `NotificationDedupe`, `AuditLog`, `TrackingEvent`
 
 `Setting` is the generic persistence mechanism for everything configured in
 Admin → Settings (general/branding, theme, social links, checkout, invoice,
@@ -381,13 +381,26 @@ components and (for a few endpoints) external systems:
 - `cron/*` — `CRON_SECRET`-gated **scheduled** maintenance endpoints (see §9)
 - `webhooks/steadfast` — inbound courier status updates
 
+Outbound notifications (`src/lib/sms/`, `src/lib/email/`) are consumed by
+server code, not exposed as their own API routes. Every `sendSms`/`sendEmail`
+call logs to `SmsLog`/`EmailLog` (browsable at Admin → Orders →
+"Notification logs", Phase 8) and renders a shared branded HTML layout
+(`src/lib/email/template.ts`) alongside the plain-text body it always sent.
+An optional `dedupeKey` makes a send idempotent via `src/lib/notify/dedupe.ts`'s
+`NotificationDedupe` table (same unique-constraint-claim shape
+`modules/payments`' webhook idempotency uses) — used by order-status notices
+and the abandoned-cart reminder so a cron re-run or a raced request can't
+double-send. `src/lib/sms/bulksmsbd.ts` picks GSM-7 `text` vs `unicode` mode
+per-message (`needsUnicode()`) instead of always sending `text`, which
+silently garbled any Bengali-language template before Phase 8.
+
 ## 9. The `cron/*` pattern (specific to this host) and Admin → Maintenance
 
 `src/app/api/v1/cron/*` are POST routes gated by `assertCronSecret()`
 (`src/server/cron/auth.ts`, compares a bearer token against `CRON_SECRET`). They
 exist for recurring scheduled maintenance only — `low-stock-sweep`,
-`cancel-unpaid-orders`, and (Phase 7) `payment-reconciliation` — invoked by a
-real cron entry (see `DEPLOYMENT.md`).
+`cancel-unpaid-orders`, (Phase 7) `payment-reconciliation`, and (Phase 8)
+`abandoned-cart` — invoked by a real cron entry (see `DEPLOYMENT.md`).
 
 Two routes used to live here for a different reason: **one-off database bootstrap
 operations** (`bootstrap-admin`, `seed-catalog`) that would normally be a CLI script

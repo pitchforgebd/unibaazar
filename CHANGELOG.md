@@ -4,6 +4,40 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Phase 8 — Courier, SMS, and email modules (2026-10-24)
+
+### Fixed
+
+- **OTP and password-reset codes were generated and stored correctly but
+  never actually delivered** — a real, live-site bug.
+  `requestOtp()`/`requestReset()` now send via SMS or email through a new
+  `deliverCode()` in `src/server/auth/accounts.ts`.
+- **Bengali-language SMS templates would silently garble on delivery** —
+  `bulksmsbd.ts` always sent GSM-7 `type=text` regardless of body
+  content. New `needsUnicode()` switches to `type=unicode` whenever the
+  message needs it.
+
+### Added
+
+- **Notification idempotency**: new `NotificationDedupe` table +
+  `claimNotification()`, wired into `sendSms`/`sendEmail` via an optional
+  `dedupeKey` and into order-status notices.
+- **Branded, responsive HTML email** (`src/lib/email/template.ts`) —
+  every `sendEmail()` call now renders a shared HTML layout alongside
+  the plain-text body it already sent, not plain text only.
+- **Daily abandoned-cart reminder email** — new
+  `POST /api/v1/cron/abandoned-cart` route and matching Maintenance-board
+  job, finds carts quiet 2h–7d with an email on file.
+- **Courier/SMS balance and fraud-check calls** — `steadfastProvider`
+  gained `balance()`/`fraudCheck()`, `bulkSmsBdProvider` gained
+  `balance()`; Admin → Settings → Integrations' "Test connection"
+  buttons now make a real call instead of logging a no-op.
+- **Admin notification log viewer** — new tab at
+  `/admin/orders/notification-logs` lists `SmsLog`/`EmailLog`, most
+  recent first; no admin screen surfaced these before.
+- ADR 0019 (Phase 8 scope — real gap narrower than, and in the
+  OTP/reset-delivery case more urgent than, the master plan's wishlist).
+
 ## Phase 7 — Payment module (2026-10-24)
 
 ### Added
