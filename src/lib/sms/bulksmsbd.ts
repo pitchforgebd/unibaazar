@@ -2,6 +2,29 @@ import { loadIntegrations } from "@/server/settings/store";
 import { loadSecret } from "@/server/settings/secret";
 import type { SmsProvider, SmsSendResult } from "./types";
 
+// GSM 03.38's default alphabet (the "text" SMS encoding) — anything
+// outside this set, Bengali included, can't round-trip through it: the
+// provider either rejects the message or garbles the unrepresentable
+// characters. BulkSMSBD's `type=unicode` mode (UCS-2) handles any
+// script correctly, at a smaller 70-char-per-segment cost instead of
+// 160. A previous version of this file always sent `type=text`, which
+// would have silently broken (not thrown — the HTTP call still
+// "succeeds") any Bengali-language template an admin saved.
+const GSM7_BASIC =
+  "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡" +
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà" +
+  "^{}\\[~]|€\f";
+const GSM7_SET = new Set(GSM7_BASIC);
+
+export function needsUnicode(body: string): boolean {
+  for (const char of body) {
+    if (!GSM7_SET.has(char)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 async function config(): Promise<{ apiKey: string; senderId: string } | null> {
   const [secretKey, integrations] = await Promise.all([
     loadSecret("secret.sms"),
@@ -23,7 +46,7 @@ async function send(to: string, body: string): Promise<SmsSendResult> {
   try {
     const query = new URLSearchParams({
       api_key: configured.apiKey,
-      type: "text",
+      type: needsUnicode(body) ? "unicode" : "text",
       number: to,
       senderid: configured.senderId,
       message: body,
