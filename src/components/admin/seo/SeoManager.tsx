@@ -59,22 +59,28 @@ export function SeoManager({
       </div>
       <section className="rounded-theme bg-card p-4 shadow-soft">
         <h2 className="font-heading font-semibold text-ink">Sitemaps</h2>
+        <p className="mt-1 text-sm text-muted">
+          /sitemap.xml is an index — it lists every per-type sitemap below, so submit only
+          that one URL to Search Console.
+        </p>
         <ul className="mt-2 space-y-1 text-sm">
-          <li>
-            <Link className="text-primary" href="/sitemap.xml">
-              {`${origin}/sitemap.xml`}
-            </Link>
-          </li>
-          <li>
-            <Link className="text-primary" href="/image-sitemap.xml">
-              {`${origin}/image-sitemap.xml`}
-            </Link>
-          </li>
-          <li>
-            <Link className="text-primary" href="/robots.txt">
-              {`${origin}/robots.txt`}
-            </Link>
-          </li>
+          {[
+            "/sitemap.xml",
+            "/sitemaps/pages.xml",
+            "/sitemaps/products.xml",
+            "/sitemaps/categories.xml",
+            "/sitemaps/brands.xml",
+            "/sitemaps/blog.xml",
+            "/sitemaps/videos.xml",
+            "/image-sitemap.xml",
+            "/robots.txt",
+          ].map((path) => (
+            <li key={path}>
+              <Link className="text-primary" href={path}>
+                {`${origin}${path}`}
+              </Link>
+            </li>
+          ))}
         </ul>
       </section>
       <form

@@ -202,6 +202,22 @@ still accepts the old `?secret=` form too (`src/server/cron/auth.ts`), so
 existing cron lines keep working, but prefer the header form for anything
 you add or edit from here on.
 
+## Submitting the sitemap to search engines (Phase 11)
+
+`/sitemap.xml` is a sitemap _index_ — it lists every per-type sitemap
+(products, categories, brands, pages, blog, videos, product/category
+images) and is the only URL that needs submitting anywhere:
+
+- **Google Search Console** → Sitemaps → add `https://unibaazar.com/sitemap.xml`.
+- **Bing Webmaster Tools** → Sitemaps → same URL.
+
+Deliberately not implemented: the deprecated `ResultOfSitemapPing`-style
+`https://www.google.com/ping?sitemap=...` endpoint — Google retired it,
+and Search Console re-crawls a submitted sitemap on its own schedule
+(plus immediately after a `fetch` from inside Search Console itself).
+Re-submitting after a bulk content change isn't necessary; Search
+Console already notices via the sitemap's own `lastmod` dates.
+
 ---
 
 ## First login and smoke test (after the very first deploy)
