@@ -193,7 +193,7 @@ export async function loadDashboard(): Promise<DashboardData> {
       take: 5,
     }),
     prisma.order.findMany({ orderBy: { placedAt: "desc" }, take: 8 }),
-    prisma.trackingEvent.count({ where: { name: "purchase", createdAt: { gte: week } } }),
+    prisma.trackingEvent.count({ where: { name: "Purchase", createdAt: { gte: week } } }),
   ]);
 
   const counts = new Map(statusRows.map((row) => [row.status, row._count._all]));

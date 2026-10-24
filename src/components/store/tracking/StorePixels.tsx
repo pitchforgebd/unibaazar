@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "@/i18n/navigation";
-import { ensureFbq, hasTrackingConsent, track } from "@/lib/tracking/browser";
+import {
+  ensureFbq,
+  hasConsentFor,
+  hasTrackingConsent,
+  setAdsConversionTarget,
+  track,
+} from "@/lib/tracking/browser";
+import { readUtm } from "@/lib/tracking/utm";
+import { ensureVisitorId } from "@/lib/tracking/visitor";
 import type { TrackingSettings } from "@/server/tracking/config";
 
 function addScript(id: string, src: string): void {
@@ -16,25 +24,60 @@ function addScript(id: string, src: string): void {
   document.head.appendChild(script);
 }
 
+/** Google Consent Mode v2 signal — read by any Google tag (GA4, Ads,
+ * and GTM-managed tags) once loaded, independent of whether this app's
+ * own script-loading gate (below) already kept them from loading at
+ * all pre-consent. Called both when a Google script first boots and
+ * again on every later consent change, per Google's own "default then
+ * update" pattern. */
+function pushConsentSignal(analytics: boolean, marketing: boolean): void {
+  window.dataLayer = window.dataLayer ?? [];
+  window.gtag?.("consent", "update", {
+    analytics_storage: analytics ? "granted" : "denied",
+    ad_storage: marketing ? "granted" : "denied",
+    ad_user_data: marketing ? "granted" : "denied",
+    ad_personalization: marketing ? "granted" : "denied",
+  });
+}
+
 export function StorePixels({ config }: { config: TrackingSettings }) {
   const pathname = usePathname();
   const [ready, setReady] = useState(false);
+  const [analyticsReady, setAnalyticsReady] = useState(false);
+  const [marketingReady, setMarketingReady] = useState(false);
 
   useEffect(() => {
-    const sync = () => setReady(hasTrackingConsent());
+    const sync = () => {
+      setReady(hasTrackingConsent());
+      setAnalyticsReady(hasConsentFor("analytics"));
+      setMarketingReady(hasConsentFor("marketing"));
+      pushConsentSignal(hasConsentFor("analytics"), hasConsentFor("marketing"));
+    };
     sync();
     window.addEventListener("unibaazar:consent", sync);
     return () => window.removeEventListener("unibaazar:consent", sync);
   }, []);
 
   useEffect(() => {
-    if (!ready) {
-      return;
-    }
-    if (config.metaPixelId) {
+    if (marketingReady && config.metaPixelId) {
       ensureFbq();
       addScript("ub-meta", "https://connect.facebook.net/en_US/fbevents.js");
       window.fbq?.("init", config.metaPixelId);
+    }
+    if (marketingReady && config.tiktokPixelId) {
+      addScript("ub-tiktok", "https://analytics.tiktok.com/i18n/pixel/events.js");
+    }
+    if (marketingReady && config.pinterestId) {
+      addScript("ub-pinterest", "https://s.pinimg.com/ct/core.js");
+    }
+    if (marketingReady && config.snapId) {
+      addScript("ub-snap", "https://sc-static.net/scevent.min.js");
+    }
+  }, [marketingReady, config]);
+
+  useEffect(() => {
+    if (!analyticsReady) {
+      return;
     }
     if (config.gtmId) {
       window.dataLayer = window.dataLayer ?? [];
@@ -47,14 +90,20 @@ export function StorePixels({ config }: { config: TrackingSettings }) {
       window.gtag = function gtag(...args: unknown[]) {
         window.dataLayer?.push(args);
       };
+      window.gtag("consent", "default", {
+        analytics_storage: "granted",
+        ad_storage: marketingReady ? "granted" : "denied",
+        ad_user_data: marketingReady ? "granted" : "denied",
+        ad_personalization: marketingReady ? "granted" : "denied",
+      });
       window.gtag("js", new Date());
       window.gtag("config", config.ga4Id);
       if (config.adsId) {
         window.gtag("config", config.adsId);
       }
     }
-    if (config.tiktokPixelId) {
-      addScript("ub-tiktok", "https://analytics.tiktok.com/i18n/pixel/events.js");
+    if (config.adsId && config.adsLabel) {
+      setAdsConversionTarget(config.adsId, config.adsLabel);
     }
     if (config.clarityId) {
       addScript("ub-clarity", `https://www.clarity.ms/tag/${config.clarityId}`);
@@ -65,27 +114,18 @@ export function StorePixels({ config }: { config: TrackingSettings }) {
         `https://static.hotjar.com/c/hotjar-${config.hotjarId}.js?sv=6`,
       );
     }
-    if (config.pinterestId) {
-      addScript("ub-pinterest", "https://s.pinimg.com/ct/core.js");
-    }
-    if (config.snapId) {
-      addScript("ub-snap", "https://sc-static.net/scevent.min.js");
-    }
-  }, [ready, config]);
+  }, [analyticsReady, marketingReady, config]);
 
   useEffect(() => {
     if (!ready) {
       return;
     }
-    const params = new URLSearchParams(window.location.search);
-    const utm: Record<string, string> = {};
-    for (const key of ["utm_source", "utm_medium", "utm_campaign"] as const) {
-      const value = params.get(key)?.trim().slice(0, 80);
-      if (value) {
-        utm[key] = value;
-      }
-    }
-    track("PageView", { path: pathname, ...utm });
+    // readUtm() is the persisted last-touch set (lib/tracking/utm.ts),
+    // not just whatever's literally in this page's own URL — a visitor
+    // who landed on a ?utm_source=... page and clicked elsewhere on the
+    // site would otherwise only have their very first PageView
+    // attributable, undercounting every page after it.
+    track("PageView", { path: pathname, ...readUtm(), visitorId: ensureVisitorId() });
   }, [ready, pathname]);
 
   return null;

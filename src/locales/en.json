@@ -203,8 +203,16 @@
   },
   "cookie": {
     "text": "Cookies are used for analytics and ads only after you allow them.",
-    "accept": "Accept",
-    "reject": "Reject"
+    "acceptAll": "Accept all",
+    "rejectAll": "Reject all",
+    "customize": "Customize",
+    "necessary": "Necessary",
+    "necessaryDesc": "Always on — required for the site to work (cart, login, checkout).",
+    "analytics": "Analytics",
+    "analyticsDesc": "Helps us see which pages and products get used, so we can improve them.",
+    "marketing": "Marketing",
+    "marketingDesc": "Lets ad platforms (Meta, TikTok) measure and improve ad performance.",
+    "savePreferences": "Save preferences"
   },
   "product": {
     "add": "Add to cart",
