@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/db";
+import { claimNotification } from "@/lib/notify/dedupe";
 import { loadIntegrations } from "@/server/settings/store";
 import { loadSecret } from "@/server/settings/secret";
 
@@ -26,11 +27,26 @@ async function transporter() {
   };
 }
 
+/** `dedupeKey`, when passed, makes this call idempotent — see
+ * sendSms()'s docs in src/lib/sms/send.ts for the full rationale, same
+ * shared mechanism (src/lib/notify/dedupe.ts). */
 export async function sendEmail(
   to: string,
   subject: string,
   body: string,
+  dedupeKey?: string,
 ): Promise<void> {
+  if (dedupeKey && !(await claimNotification(`email:${dedupeKey}`))) {
+    await prisma.emailLog.create({
+      data: {
+        to: to.slice(0, 191),
+        subject: subject.slice(0, 191),
+        body,
+        status: "skipped",
+      },
+    });
+    return;
+  }
   const log = await prisma.emailLog.create({
     data: {
       to: to.slice(0, 191),

@@ -68,13 +68,20 @@ export async function queueStatusNotice(order: {
     total: formatTaka(order.total.toNumber()),
     tracking: order.trackingId ?? "",
   };
+  // Keyed on (order, status): a genuine race between two concurrent
+  // status-change requests landing on the same order before either
+  // commits could otherwise both pass transition-legality checks and
+  // both notify — this is the backstop, not the primary guard (that's
+  // transitionOrder()'s own same-status no-op in the common case).
+  const dedupeKey = `order-status:${order.id}:${order.status}`;
   const sms = fillTemplate(templates.sms, values);
-  await sendSms(order.phone, sms, { orderId: order.id });
+  await sendSms(order.phone, sms, { orderId: order.id }, dedupeKey);
   if (order.email) {
     await sendEmail(
       order.email,
       fillTemplate(templates.emailSubject, values),
       fillTemplate(templates.emailBody, values),
+      dedupeKey,
     );
   }
 }

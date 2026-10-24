@@ -844,6 +844,17 @@ model PaymentWebhookEvent {
   @@unique([provider, eventKey])
 }
 
+// Same shape and purpose as PaymentWebhookEvent, for outbound
+// notifications (Phase 8) instead of inbound gateway webhooks: an
+// optional dedupe key an SMS/email send can be claimed against before
+// it goes out, so a retried or repeat-triggered send (e.g. an order
+// legitimately re-entering the same status) doesn't double-send.
+model NotificationDedupe {
+  id     String   @id @default(cuid())
+  key    String   @unique @db.VarChar(191)
+  sentAt DateTime @default(now())
+}
+
 model Shipment {
   id            String         @id @default(cuid())
   orderId       String         @unique
