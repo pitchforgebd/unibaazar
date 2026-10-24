@@ -17,6 +17,7 @@ import { summarizeCart } from "@/lib/catalog/cart-lines";
 import { useCartCatalog } from "@/lib/catalog/useCartCatalog";
 import { useCheckoutQuote, type CheckoutQuote } from "@/lib/catalog/useCheckoutQuote";
 import { track } from "@/lib/tracking/browser";
+import { readFbclidCookies } from "@/lib/tracking/fbclid";
 import { readUtm } from "@/lib/tracking/utm";
 import { isStoredOrder, savePlacedOrder } from "@/lib/orders/session";
 import { formatTaka } from "@/lib/utils/currency";
@@ -111,6 +112,7 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
         couponCode: state.couponCode || undefined,
         reservationToken: state.reservationToken,
         ...readUtm(),
+        ...readFbclidCookies(),
       }),
     });
     const body: unknown = await response.json().catch(() => null);

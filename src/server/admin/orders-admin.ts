@@ -21,6 +21,7 @@ import {
   refundPayment,
   transitionPayment,
 } from "@/modules/payments";
+import { signalPurchaseOnConfirmedPayment } from "@/server/tracking/signals";
 
 const pageSize = 20;
 
@@ -696,6 +697,9 @@ export async function setPaymentStatus(
     entityId: orderId,
     metadata: { status },
   });
+  if (status === "PAID") {
+    await signalPurchaseOnConfirmedPayment(orderId).catch(() => undefined);
+  }
   if (status === "REFUNDED") {
     return setOrderStatus(actorId, orderId, "REFUNDED", "Payment marked refunded");
   }

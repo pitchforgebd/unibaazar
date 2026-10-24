@@ -7,6 +7,7 @@ import { recordAudit } from "@/server/security/audit";
 import { signaturesMatch } from "@/server/security/signature";
 import { ApiError } from "@/server/http";
 import { canTransition, claimWebhookEvent, transitionPayment } from "@/modules/payments";
+import { signalPurchaseOnConfirmedPayment } from "@/server/tracking/signals";
 import type { Prisma } from "@prisma/client";
 
 function webhookSecret(): string {
@@ -76,30 +77,37 @@ async function applyPaymentResult(
   auditAction: string,
   auditMetadata: Record<string, unknown>,
 ): Promise<"PAID" | "FAILED" | string> {
-  return prisma.$transaction(async (tx) => {
-    const payment = await tx.payment.findUniqueOrThrow({ where: { id: paymentId } });
-    if (!canTransition(payment.status, to)) {
+  return prisma
+    .$transaction(async (tx) => {
+      const payment = await tx.payment.findUniqueOrThrow({ where: { id: paymentId } });
+      if (!canTransition(payment.status, to)) {
+        await recordAudit({
+          action: `${auditAction}.rejected`,
+          entityType: "Order",
+          entityId: orderId,
+          metadata: { ...auditMetadata, from: payment.status, attempted: to },
+        });
+        return payment.status;
+      }
+      const withGatewayData = await tx.payment.update({
+        where: { id: paymentId },
+        data: { gatewayRef, payload: payload as Prisma.InputJsonValue },
+      });
+      await transitionPayment(tx, withGatewayData, to, `Gateway reported: ${to}`);
       await recordAudit({
-        action: `${auditAction}.rejected`,
+        action: auditAction,
         entityType: "Order",
         entityId: orderId,
-        metadata: { ...auditMetadata, from: payment.status, attempted: to },
+        metadata: { ...auditMetadata, status: to },
       });
-      return payment.status;
-    }
-    const withGatewayData = await tx.payment.update({
-      where: { id: paymentId },
-      data: { gatewayRef, payload: payload as Prisma.InputJsonValue },
+      return to;
+    })
+    .then(async (status) => {
+      if (status === "PAID") {
+        await signalPurchaseOnConfirmedPayment(orderId).catch(() => undefined);
+      }
+      return status;
     });
-    await transitionPayment(tx, withGatewayData, to, `Gateway reported: ${to}`);
-    await recordAudit({
-      action: auditAction,
-      entityType: "Order",
-      entityId: orderId,
-      metadata: { ...auditMetadata, status: to },
-    });
-    return to;
-  });
 }
 
 export async function applySslcommerzIpn(fields: Record<string, string>) {

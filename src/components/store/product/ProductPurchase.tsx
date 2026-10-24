@@ -19,6 +19,7 @@ import { resolveVariant } from "@/lib/catalog/variants";
 import { siteConfig } from "@/config/site";
 import { formatTaka } from "@/lib/utils/currency";
 import { useAddToCart } from "@/hooks/useAddToCart";
+import { track } from "@/lib/tracking/browser";
 import { useUiStore } from "@/store/ui";
 import { useCompareStore, useWishlistStore } from "@/store/lists";
 import type { Product } from "@/types/catalog";
@@ -231,7 +232,16 @@ export function ProductPurchase({
           </div>
         ) : null}
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button variant="ghost" size="sm" onClick={() => toggleWishlist(product.slug)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (!saved) {
+                track("AddToWishlist", { slug: product.slug });
+              }
+              toggleWishlist(product.slug);
+            }}
+          >
             {saved ? t("purchase.removeFromWishlist") : t("purchase.addToWishlist")}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => toggleCompare(product.slug)}>

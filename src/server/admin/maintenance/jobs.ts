@@ -13,6 +13,7 @@ import { reindexSearch } from "@/server/admin/maintenance/reindex";
 import { seedDemoCatalog } from "@/server/admin/maintenance/seed-catalog";
 import { rebuildSitemap } from "@/server/admin/maintenance/sitemap";
 import { finishRun, startRun } from "@/server/admin/maintenance/runs";
+import { retryFailedConversions } from "@/server/tracking/signals";
 
 export type MaintenanceJobResult = {
   summary: string;
@@ -134,6 +135,25 @@ export const maintenanceJobs: MaintenanceJob[] = [
       return {
         summary: `Checked ${checked} active carts. Emailed ${queued}.`,
         details: { checked, queued },
+      };
+    },
+  },
+  {
+    id: "retry-conversions",
+    label: "Retry failed Meta/TikTok events",
+    description:
+      "Retries every Conversions API send still marked failed (bad/expired token, a " +
+      "transient Graph/TikTok API outage), capped at 5 attempts each. Intended to run " +
+      "daily.",
+    form: "none",
+    run: async () => {
+      const { retried, fixed } = await retryFailedConversions();
+      return {
+        summary:
+          retried === 0
+            ? "No failed conversion events to retry."
+            : `Retried ${retried}, ${fixed} now sent.`,
+        details: { retried, fixed },
       };
     },
   },

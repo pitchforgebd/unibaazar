@@ -23,6 +23,16 @@ const utmField = z
   .transform((value) => value.replace(/[<>]/g, ""))
   .optional();
 
+// Meta's own first-party identifiers (lib/tracking/fbclid.ts reads them
+// from the `_fbp`/`_fbc` cookies the Pixel script sets) — not user input,
+// but still untrusted request data, so sanitized the same way utmField is.
+const fbCookieField = z
+  .string()
+  .trim()
+  .max(255)
+  .transform((value) => value.replace(/[<>]/g, ""))
+  .optional();
+
 export const placeOrderSchema = checkoutSchema.and(
   z.object({
     lines: z.array(cartLineSchema).min(1, "Your cart is empty"),
@@ -33,6 +43,8 @@ export const placeOrderSchema = checkoutSchema.and(
     utmCampaign: utmField,
     utmTerm: utmField,
     utmContent: utmField,
+    fbp: fbCookieField,
+    fbc: fbCookieField,
   }),
 );
 

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { trackingAction } from "@/app/(admin)/admin/tracking-actions";
+import { Badge } from "@/components/ui/Badge";
 import { SettingsDenied } from "@/components/admin/settings/SettingsDenied";
 import { SettingsForm } from "@/components/admin/settings/SettingsForm";
 import { settingsAccess } from "@/server/admin/access";
 import { loadTracking, siteOrigin } from "@/server/tracking/config";
-import { listRecentEvents } from "@/server/tracking/signals";
+import { listRecentConversions, listRecentEvents } from "@/server/tracking/signals";
 
 export const metadata: Metadata = { title: "Tracking" };
 
@@ -14,7 +15,11 @@ export default async function TrackingPage() {
   if (!session) {
     return <SettingsDenied />;
   }
-  const [values, events] = await Promise.all([loadTracking(), listRecentEvents()]);
+  const [values, events, conversions] = await Promise.all([
+    loadTracking(),
+    listRecentEvents(),
+    listRecentConversions(),
+  ]);
   const origin = siteOrigin();
   return (
     <div className="space-y-4">
@@ -155,6 +160,33 @@ export default async function TrackingPage() {
             <li key={event.id}>
               {event.when} · {event.name}
               {event.source ? ` · ${event.source}` : ""}
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section className="rounded-lg bg-card p-4 shadow-soft">
+        <h2 className="font-semibold text-ink">Conversions API sends</h2>
+        <p className="mt-1 text-sm text-muted">
+          Every server-side Meta/TikTok send, and whether it actually went through — a
+          failed send retries automatically (Admin → Maintenance, or the daily cron) up to
+          5 times.
+        </p>
+        {conversions.length === 0 ? (
+          <p className="mt-2 text-sm text-muted">No events yet.</p>
+        ) : null}
+        <ul className="mt-2 space-y-1 text-sm">
+          {conversions.map((row) => (
+            <li key={row.id} className="flex items-center gap-2">
+              <span>
+                {row.when} · {row.provider} · {row.eventName}
+              </span>
+              <Badge variant={row.status === "sent" ? "success" : "accent"}>
+                {row.status}
+              </Badge>
+              {row.attempts > 1 ? (
+                <span className="text-muted">× {row.attempts}</span>
+              ) : null}
+              {row.error ? <span className="text-muted">{row.error}</span> : null}
             </li>
           ))}
         </ul>

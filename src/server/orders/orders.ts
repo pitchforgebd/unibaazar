@@ -139,6 +139,8 @@ export async function placeOrder(
     utmCampaign?: string;
     utmTerm?: string;
     utmContent?: string;
+    fbp?: string;
+    fbc?: string;
     /** Same opaque id the client used for its cart quote(s) — lets
      * placeOrder consume the stock already held under that reservation
      * instead of decrementing again. Optional for backward compatibility. */
@@ -214,6 +216,8 @@ export async function placeOrder(
             utmCampaign: input.utmCampaign || null,
             utmTerm: input.utmTerm || null,
             utmContent: input.utmContent || null,
+            fbp: input.fbp || null,
+            fbc: input.fbc || null,
             items: {
               create: quote.lines.map((line) => ({
                 variantId: line.variantId,
@@ -244,13 +248,26 @@ export async function placeOrder(
         return order;
       });
       noteDeviceOrder(context.device);
-      await signalPurchase({
-        eventId: created.number,
-        value: quote.total,
-        currency: "BDT",
-        phone,
-        email: input.email,
-      }).catch(() => undefined);
+      // COD is the one payment method with no later confirmation step —
+      // placing the order IS the commitment, so this is the only method
+      // signaled here. Every other method signals from
+      // signalPurchaseOnConfirmedPayment() once its payment actually
+      // reaches PAID (applyPaymentResult()/setPaymentStatus()) — firing
+      // it here unconditionally used to report a completed Purchase to
+      // Meta/TikTok for gateway orders that were never actually paid for.
+      // See docs/decisions/0020-phase-9-scope-facebook-meta-module.md.
+      if (input.paymentMethod === "cod") {
+        await signalPurchase({
+          eventId: created.number,
+          orderId: created.id,
+          value: quote.total,
+          currency: "BDT",
+          phone,
+          email: input.email,
+          fbp: input.fbp,
+          fbc: input.fbc,
+        }).catch(() => undefined);
+      }
       await recordAudit({
         actorId: session?.userId,
         action: "order.place",
