@@ -210,13 +210,24 @@ export async function queueSmsTest(actorId: string): Promise<string> {
     throw new Error("Save an SMS sender name first");
   }
   await sendSms("01700000000", "UniBaazar settings test");
+  const balanceNote = await smsBalanceNote();
   await recordAudit({
     actorId,
     action: "settings.sms.test",
     entityType: "Setting",
     entityId: "integrations",
   });
-  return "Test SMS sent to 01700000000";
+  return `Test SMS sent to 01700000000.${balanceNote}`;
+}
+
+async function smsBalanceNote(): Promise<string> {
+  const { bulkSmsBdProvider } = await import("@/lib/sms/bulksmsbd");
+  try {
+    const { amount } = await bulkSmsBdProvider.balance!();
+    return ` Balance: ৳${amount.toFixed(2)}.`;
+  } catch {
+    return "";
+  }
 }
 
 export async function queueEmailTest(actorId: string): Promise<string> {
@@ -275,13 +286,25 @@ export async function noteGatewayTest(
   if (!settings.courierUser) {
     throw new Error("Save a Steadfast API key first");
   }
+  const message = await testSteadfastConnection();
   await recordAudit({
     actorId,
     action: "settings.courier.test",
     entityType: "Setting",
     entityId: "integrations",
+    metadata: { provider: "steadfast", result: message },
   });
-  return "Steadfast courier test recorded. No parcel was booked.";
+  return message;
+}
+
+async function testSteadfastConnection(): Promise<string> {
+  const { steadfastProvider } = await import("@/lib/courier/steadfast");
+  try {
+    const { amount } = await steadfastProvider.balance!();
+    return `Connected — Steadfast balance is ৳${amount.toFixed(2)}.`;
+  } catch (error) {
+    return `Connection failed: ${error instanceof Error ? error.message : "Unknown error"}`;
+  }
 }
 
 async function testSslcommerzConnection(): Promise<string> {

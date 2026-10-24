@@ -1,6 +1,12 @@
 import { loadIntegrations } from "@/server/settings/store";
 import { loadSecret } from "@/server/settings/secret";
-import type { BookableOrder, CourierBooking, CourierProvider } from "./types";
+import type {
+  BookableOrder,
+  CourierBalance,
+  CourierBooking,
+  CourierFraudCheck,
+  CourierProvider,
+} from "./types";
 
 type SteadfastPayload = {
   message?: string;
@@ -10,6 +16,20 @@ type SteadfastPayload = {
     status?: string;
   };
   delivery_status?: string;
+};
+
+// Sourced from third-party client docs, not an official page — same
+// caveat the original single-order booking/status code already carries.
+// Reconfirm field names against the real dashboard's API document once
+// a real account exists.
+type SteadfastBalancePayload = {
+  current_balance?: number | string;
+};
+
+type SteadfastFraudPayload = {
+  total_parcel?: number | string;
+  success_parcel?: number | string;
+  cancelled_parcel?: number | string;
 };
 
 async function keys(): Promise<{ apiKey: string; secret: string } | null> {
@@ -85,4 +105,58 @@ async function status(consignmentId: string): Promise<string | null> {
   return payload?.delivery_status || payload?.consignment?.status || null;
 }
 
-export const steadfastProvider: CourierProvider = { id: "steadfast", book, status };
+async function balance(): Promise<CourierBalance> {
+  const configured = await keys();
+  if (!configured) {
+    throw new Error("Add Steadfast API keys first");
+  }
+  const response = await fetch("https://portal.packzy.com/api/v1/get_balance", {
+    headers: {
+      "Api-Key": configured.apiKey,
+      "Secret-Key": configured.secret,
+    },
+  });
+  const payload = (await response
+    .json()
+    .catch(() => null)) as SteadfastBalancePayload | null;
+  if (!response.ok) {
+    throw new Error("Steadfast balance check failed");
+  }
+  return { amount: Number(payload?.current_balance ?? 0), raw: payload };
+}
+
+async function fraudCheck(phone: string): Promise<CourierFraudCheck> {
+  const configured = await keys();
+  if (!configured) {
+    throw new Error("Add Steadfast API keys first");
+  }
+  const response = await fetch(
+    `https://portal.packzy.com/api/v1/fraud_check/${encodeURIComponent(phone)}`,
+    {
+      headers: {
+        "Api-Key": configured.apiKey,
+        "Secret-Key": configured.secret,
+      },
+    },
+  );
+  const payload = (await response
+    .json()
+    .catch(() => null)) as SteadfastFraudPayload | null;
+  if (!response.ok) {
+    throw new Error("Steadfast fraud check failed");
+  }
+  return {
+    totalOrders: Number(payload?.total_parcel ?? 0),
+    successfulDeliveries: Number(payload?.success_parcel ?? 0),
+    cancelledOrders: Number(payload?.cancelled_parcel ?? 0),
+    raw: payload,
+  };
+}
+
+export const steadfastProvider: CourierProvider = {
+  id: "steadfast",
+  book,
+  status,
+  balance,
+  fraudCheck,
+};
