@@ -11,6 +11,7 @@ const links = [
   { href: "/admin/orders/abandoned", label: "Abandoned" },
   { href: "/admin/orders/returns", label: "Returns" },
   { href: "/admin/orders/templates", label: "Templates" },
+  { href: "/admin/orders/notification-logs", label: "Notification logs" },
 ];
 
 export function OrdersNav() {

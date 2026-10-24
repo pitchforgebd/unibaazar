@@ -51,6 +51,55 @@ export function fillTemplate(template: string, values: Record<string, string>): 
   return template.replace(/\{([a-z_]+)\}/g, (_match, key: string) => values[key] ?? "");
 }
 
+export type SmsLogRow = {
+  id: string;
+  to: string;
+  body: string;
+  provider: string;
+  status: string;
+  createdAt: string;
+};
+
+export type EmailLogRow = {
+  id: string;
+  to: string;
+  subject: string;
+  status: string;
+  createdAt: string;
+};
+
+/** No admin screen surfaced these before Phase 8 — every send/skip was
+ * written to SmsLog/EmailLog but only usable via a raw DB query. */
+export async function listSmsLogs(limit = 100): Promise<SmsLogRow[]> {
+  const rows = await prisma.smsLog.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    to: row.to,
+    body: row.body,
+    provider: row.provider,
+    status: row.status,
+    createdAt: row.createdAt.toISOString(),
+  }));
+}
+
+export async function listEmailLogs(limit = 100): Promise<EmailLogRow[]> {
+  const rows = await prisma.emailLog.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: { id: true, to: true, subject: true, status: true, createdAt: true },
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    to: row.to,
+    subject: row.subject,
+    status: row.status,
+    createdAt: row.createdAt.toISOString(),
+  }));
+}
+
 export async function queueStatusNotice(order: {
   id: string;
   number: string;
