@@ -13,7 +13,7 @@ export type NotifyTemplates = {
   emailBody: string;
 };
 
-const defaults: NotifyTemplates = {
+export const defaults: NotifyTemplates = {
   sms: "Hi {name}, UniBaazar order {order_id} is {status}. Total {total}. Tracking {tracking}.",
   emailSubject: "Order {order_id} is {status}",
   emailBody:
