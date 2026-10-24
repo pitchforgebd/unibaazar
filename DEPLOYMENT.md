@@ -181,6 +181,9 @@ cPanel → **Cron Jobs**. Replace `YOUR_CRON_SECRET` with the real
 # Sweep every payment for an amount/refund mismatch and alert if any are found — daily at 3am
 0 3 * * * curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://unibaazar.com/api/v1/cron/payment-reconciliation"
 
+# Email a reminder for carts quiet 2h-7d with an address on file — daily at 10am
+0 10 * * * curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://unibaazar.com/api/v1/cron/abandoned-cart"
+
 # Daily database backup at 2am (also runs automatically before every deploy)
 0 2 * * * cd ~/unibaazar/current && BACKUP_DIR=~/unibaazar/shared/backups node scripts/deploy/backup-db.mjs
 ```

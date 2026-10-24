@@ -4,6 +4,7 @@ import {
   mediaBackfillInputSchema,
 } from "@/lib/validation/admin-maintenance";
 import { alertPaymentMismatch } from "@/server/admin/alerts";
+import { sendAbandonedCartEmails } from "@/server/admin/maintenance/abandoned-cart";
 import { bootstrapAdminAccount } from "@/server/admin/maintenance/bootstrap-admin";
 import { clearAllCaches } from "@/server/admin/maintenance/cache";
 import { runMediaBackfill } from "@/server/admin/maintenance/media-backfill";
@@ -118,6 +119,21 @@ export const maintenanceJobs: MaintenanceJob[] = [
             ? `Checked ${checked} payments. No mismatches found.`
             : `Checked ${checked} payments. Found ${mismatches.length} mismatch(es) — see details.`,
         details: { checked, mismatches },
+      };
+    },
+  },
+  {
+    id: "abandoned-cart-email",
+    label: "Email abandoned carts",
+    description:
+      "Finds carts left untouched for 2 hours to 7 days with an email on file and sends a " +
+      "reminder, once per cart per time it goes quiet. Intended to run daily.",
+    form: "none",
+    run: async () => {
+      const { checked, queued } = await sendAbandonedCartEmails();
+      return {
+        summary: `Checked ${checked} active carts. Emailed ${queued}.`,
+        details: { checked, queued },
       };
     },
   },
