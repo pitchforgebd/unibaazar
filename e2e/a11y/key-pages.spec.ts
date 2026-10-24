@@ -15,6 +15,15 @@ const PAGES = [
 
 for (const { name, path } of PAGES) {
   test(`${name} page has no critical axe violations`, async ({ page }) => {
+    // Reveal/Stagger (components/motion) animate content in via opacity as
+    // it scrolls into view; under default motion, axe can race that
+    // animation and catch a real element mid-fade (a true but transient
+    // low-contrast frame, not what a settled page ever shows). Reduced
+    // motion makes every Reveal/Stagger item render at its final opacity
+    // immediately (see usePrefersReducedMotion()), which is what this test
+    // should be scanning — a deterministic, settled page — not timing
+    // against an in-flight CSS/JS animation.
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(path);
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa"])
