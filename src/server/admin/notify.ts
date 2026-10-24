@@ -4,6 +4,7 @@ import { sendEmail } from "@/lib/email/mailer";
 import { sendSms } from "@/lib/sms/send";
 import { templateSchema } from "@/lib/validation/admin-orders";
 import { formatTaka } from "@/lib/utils/currency";
+import { siteOrigin } from "@/server/tracking/config";
 
 const settingKey = "notify.orderStatus";
 
@@ -77,11 +78,13 @@ export async function queueStatusNotice(order: {
   const sms = fillTemplate(templates.sms, values);
   await sendSms(order.phone, sms, { orderId: order.id }, dedupeKey);
   if (order.email) {
+    const trackUrl = `${siteOrigin()}/track-order?order=${encodeURIComponent(order.number)}&phone=${encodeURIComponent(order.phone)}`;
     await sendEmail(
       order.email,
       fillTemplate(templates.emailSubject, values),
       fillTemplate(templates.emailBody, values),
       dedupeKey,
+      { label: "Track your order", href: trackUrl },
     );
   }
 }

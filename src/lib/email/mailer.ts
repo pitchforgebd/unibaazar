@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/db";
 import { claimNotification } from "@/lib/notify/dedupe";
+import { brandedEmailHtml, type EmailAction } from "@/lib/email/template";
 import { loadIntegrations } from "@/server/settings/store";
 import { loadSecret } from "@/server/settings/secret";
 
@@ -35,6 +36,7 @@ export async function sendEmail(
   subject: string,
   body: string,
   dedupeKey?: string,
+  action?: EmailAction,
 ): Promise<void> {
   if (dedupeKey && !(await claimNotification(`email:${dedupeKey}`))) {
     await prisma.emailLog.create({
@@ -66,6 +68,7 @@ export async function sendEmail(
       to,
       subject,
       text: body,
+      html: brandedEmailHtml(body, action),
     });
     await prisma.emailLog.update({ where: { id: log.id }, data: { status: "sent" } });
   } catch {
