@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { Prisma } from "@prisma/client";
 import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import { countActiveVisitors, loadAnalytics } from "./analytics";
@@ -14,7 +15,9 @@ describe("analytics (requires .env.test's DATABASE_URL)", () => {
   });
 
   async function trackingEvent(name: string, payload: Record<string, unknown>) {
-    const row = await prisma.trackingEvent.create({ data: { name, payload } });
+    const row = await prisma.trackingEvent.create({
+      data: { name, payload: payload as Prisma.InputJsonValue },
+    });
     trackingEventIds.push(row.id);
     return row;
   }

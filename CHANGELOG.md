@@ -4,6 +4,37 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Phase 10 — Analytics module (2026-10-24)
+
+### Fixed
+
+- **`dashboard.ts`'s "purchase events this week" metric was silently
+  broken** — queried the event name in the wrong case and always
+  returned zero, regardless of real purchase volume.
+- **`Search` events never recorded whether they matched anything** —
+  now carry `resultCount`, enabling a zero-result-searches report.
+- **`PageView` undercounted UTM attribution** — now carries the
+  persisted last-touch UTM set, not just the current page's own URL
+  params.
+
+### Added
+
+- **Categorized cookie consent** (necessary/analytics/marketing,
+  replacing the old binary accept/reject) **+ Google Consent Mode v2**
+  — both named explicitly in the master plan, neither existed before.
+  `StorePixels` now loads analytics and marketing scripts under their
+  own category independently.
+- **A real Google Ads conversion event** on `Purchase`, distinct from
+  GA4's own `purchase` event, when `adsId`/`adsLabel` are configured.
+- **A lightweight visitor-id cookie** + real-time-visitor count.
+- **New Admin → Analytics section** (`/admin/analytics`): traffic,
+  sources/UTM, conversion funnel, product performance, search terms,
+  real-time visitors — all reading live `TrackingEvent`/`Order` data.
+- ADR 0021 (Phase 10 scope — most groundwork already built from Phase
+  9; real gaps were the items above plus the broken dashboard metric;
+  daily rollup tables reasoned out as premature for this site's
+  current data volume).
+
 ## Phase 9 — Facebook/Meta module (2026-10-24)
 
 ### Fixed

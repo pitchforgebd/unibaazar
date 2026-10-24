@@ -347,6 +347,13 @@ domain" — it's a registry of idempotent one-off jobs (cache clear, demo-catalo
 seed, admin bootstrap, resumable media-variant backfill) rather than a CRUD
 module; see §9.
 
+Admin → Analytics (Phase 10, `reportsAccess()`-gated — same audience as
+Admin → Reports) reads `TrackingEvent`/`Order` live rather than through a
+pre-aggregated rollup table: traffic, UTM-attributed sources/revenue, a
+ViewContent→AddToCart→InitiateCheckout→Purchase funnel, per-product
+performance, top/zero-result search terms, and a polled real-time-visitor
+count (`src/server/admin/analytics.ts`).
+
 Access control is role/permission based (`src/server/security/permissions.ts`'s
 `roleGrants`, backed by `Role`/`Permission`/`RolePermission` in the schema), with
 one `*Access()`/`require*()` pair per domain in `src/server/admin/access.ts`.
@@ -389,6 +396,18 @@ components and (for a few endpoints) external systems:
   unpaid gateway orders as completed conversions).
 - `cron/*` — `CRON_SECRET`-gated **scheduled** maintenance endpoints (see §9)
 - `webhooks/steadfast` — inbound courier status updates
+- `admin/analytics/live` — polled by Admin → Analytics' real-time-visitor
+  widget; the only admin API route gated by `reports.view` rather than a page
+
+Cookie consent (Phase 10) is three categories — necessary (implicit),
+analytics, marketing — stored as JSON under the same `localStorage` key
+the old binary accept/reject banner used (`parseConsentValue()` in
+`src/lib/tracking/browser.ts` still reads a legacy bare `"accept"`/
+`"reject"` value from before this phase). `StorePixels.tsx` loads GA4/
+GTM/Clarity/Hotjar under analytics consent and Meta/TikTok/Pinterest/
+Snap under marketing consent independently, and pushes Google Consent
+Mode v2 signals (`gtag("consent", ...)`) on load and on every later
+consent change.
 
 Outbound notifications (`src/lib/sms/`, `src/lib/email/`) are consumed by
 server code, not exposed as their own API routes. Every `sendSms`/`sendEmail`
