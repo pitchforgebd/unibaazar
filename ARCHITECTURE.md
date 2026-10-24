@@ -154,7 +154,7 @@ database on each request.
   `HomeSection`, `Subscriber`
 - **Platform**: `Setting` (key/value store backing every admin settings screen),
   `SeoMeta`, `NotFoundHit`, `Redirect`, `SmsLog`, `EmailLog`, `Notification`,
-  `NotificationDedupe`, `AuditLog`, `TrackingEvent`
+  `NotificationDedupe`, `AuditLog`, `TrackingEvent`, `ConversionApiLog`
 
 `Setting` is the generic persistence mechanism for everything configured in
 Admin → Settings (general/branding, theme, social links, checkout, invoice,
@@ -378,6 +378,15 @@ components and (for a few endpoints) external systems:
   governs every payment-status change through an explicit transition
   graph, the same shape `modules/orders` already uses for order status.
 - `contact`, `newsletter` — public lead-capture forms
+- `tracking` — browser-side pixel events (`src/lib/tracking/browser.ts`'s
+  `track()`), logged to `TrackingEvent`. Meta/TikTok Conversions API
+  `Purchase` events are sent server-side, not through this route — see
+  `src/server/tracking/signals.ts` and
+  `docs/decisions/0020-phase-9-scope-facebook-meta-module.md`. `Purchase`
+  fires at order creation only for COD; every other payment method fires
+  once its payment actually reaches `PAID` (Phase 9 fixed a real bug
+  where it previously fired for every method at creation, reporting
+  unpaid gateway orders as completed conversions).
 - `cron/*` — `CRON_SECRET`-gated **scheduled** maintenance endpoints (see §9)
 - `webhooks/steadfast` — inbound courier status updates
 
@@ -399,8 +408,9 @@ silently garbled any Bengali-language template before Phase 8.
 `src/app/api/v1/cron/*` are POST routes gated by `assertCronSecret()`
 (`src/server/cron/auth.ts`, compares a bearer token against `CRON_SECRET`). They
 exist for recurring scheduled maintenance only — `low-stock-sweep`,
-`cancel-unpaid-orders`, (Phase 7) `payment-reconciliation`, and (Phase 8)
-`abandoned-cart` — invoked by a real cron entry (see `DEPLOYMENT.md`).
+`cancel-unpaid-orders`, (Phase 7) `payment-reconciliation`, (Phase 8)
+`abandoned-cart`, and (Phase 9) `retry-conversions` — invoked by a real
+cron entry (see `DEPLOYMENT.md`).
 
 Two routes used to live here for a different reason: **one-off database bootstrap
 operations** (`bootstrap-admin`, `seed-catalog`) that would normally be a CLI script

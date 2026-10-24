@@ -4,6 +4,33 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Phase 9 — Facebook/Meta module (2026-10-24)
+
+### Fixed
+
+- **`Purchase` fired before a gateway payment was actually confirmed** —
+  an SSLCommerz/bKash/etc. order abandoned or declined at the gateway
+  still reported a completed conversion to Meta/TikTok, corrupting
+  ROAS/CPA reporting. Now fires at order creation only for COD; every
+  other method fires once its payment reaches `PAID`.
+- **The wishlist store defaulted to a hardcoded product** (`slugs:
+["redmi-buds-4"]`) — every visitor saw it pre-wishlisted on every page
+  load with no way they put it there.
+
+### Added
+
+- **`fbp`/`fbc` capture** (`src/lib/tracking/fbclid.ts`) through checkout
+  into the CAPI `Purchase` payload — previously captured nowhere.
+- **`AddToWishlist` event** — named in the master plan's event list but
+  missing from the client/server/validation-schema trio that define
+  tracked events.
+- **Conversions API send logging + retry** — new `ConversionApiLog`
+  table, a daily `POST /api/v1/cron/retry-conversions` job (capped at 5
+  attempts), surfaced in Admin → Tracking's event list.
+- ADR 0020 (Phase 9 scope — most of the master plan's wishlist already
+  built across earlier phases; real gaps were the Purchase-timing bug
+  above plus the three items listed).
+
 ## Phase 8 — Courier, SMS, and email modules (2026-10-24)
 
 ### Fixed
