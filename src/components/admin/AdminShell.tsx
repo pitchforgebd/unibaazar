@@ -21,6 +21,7 @@ import {
   Tag,
   Tags,
   Activity,
+  TrendingUp,
   UserCog,
   Users,
   Wrench,
@@ -106,7 +107,10 @@ export function AdminShell({
       ? [
           {
             label: "Insights",
-            links: [{ href: "/admin/reports", label: "Reports", icon: Activity }],
+            links: [
+              { href: "/admin/reports", label: "Reports", icon: Activity },
+              { href: "/admin/analytics", label: "Analytics", icon: TrendingUp },
+            ],
           },
         ]
       : []),
