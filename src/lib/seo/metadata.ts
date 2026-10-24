@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { absoluteUrl, localeAlternates } from "@/lib/seo/urls";
+import { localeAlternates } from "@/lib/seo/alternates";
+import { absoluteUrl } from "@/lib/seo/urls";
 
 export type PublicSeo = {
   metaTitle: string;

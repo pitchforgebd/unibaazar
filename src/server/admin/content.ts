@@ -404,7 +404,7 @@ export async function allPublishedHomeVideos() {
   const rows = await prisma.homeVideo.findMany({
     where: { isActive: true },
     orderBy: { sortOrder: "asc" },
-    select: { id: true, title: true, youtubeUrl: true },
+    select: { id: true, title: true, youtubeUrl: true, createdAt: true },
   });
   return rows;
 }

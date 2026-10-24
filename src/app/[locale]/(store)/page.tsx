@@ -19,7 +19,8 @@ import { prisma } from "@/lib/db";
 import { cn } from "@/lib/utils/cn";
 import { InstagramFeed } from "@/components/store/social/InstagramFeed";
 import { YouTubeEmbed } from "@/components/store/social/YouTubeEmbed";
-import { absoluteUrl, localeAlternates } from "@/lib/seo/urls";
+import { localeAlternates } from "@/lib/seo/alternates";
+import { absoluteUrl } from "@/lib/seo/urls";
 import { instagramPostUrls } from "@/lib/seo/youtube";
 import {
   listHomeSections,

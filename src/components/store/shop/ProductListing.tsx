@@ -1,10 +1,12 @@
 import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { buttonStyles } from "@/components/ui/buttonStyles";
 import { PageTitle, type Crumb } from "@/components/store/common/PageTitle";
 import { ProductGrid } from "@/components/store/product/ProductCard";
+import { itemListJsonLd } from "@/lib/seo/schema";
 import { activeFilterCount } from "@/components/store/shop/activeFilters";
 import { FilterForm, type ShopTranslator } from "@/components/store/shop/FilterForm";
 import { MobileFilters } from "@/components/store/shop/MobileFilters";
@@ -81,6 +83,16 @@ export async function ProductListing({
   return (
     <>
       <PageTitle title={title} subtitle={subtitle} crumbs={crumbs} />
+      {page.items.length > 0 ? (
+        <JsonLd
+          data={itemListJsonLd(
+            page.items.map((product) => ({
+              name: product.name,
+              path: `/product/${product.slug}`,
+            })),
+          )}
+        />
+      ) : null}
       <Container className="grid gap-6 py-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start">
         {/* Desktop: a sidebar that stays in view below the sticky header
          * while the grid scrolls. Below lg it's display:none and the same

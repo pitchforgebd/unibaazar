@@ -101,6 +101,7 @@ export function SeoManager({
         </Button>
       </form>
       <form
+        id="redirect-form"
         className="space-y-3 rounded-theme bg-card p-4 shadow-soft"
         onSubmit={(event) => {
           event.preventDefault();
@@ -188,12 +189,13 @@ export function SeoManager({
               <th className="px-3 py-3 font-semibold">Path</th>
               <th className="px-3 py-3 font-semibold">Hits</th>
               <th className="px-3 py-3 font-semibold">Last seen</th>
+              <th className="px-3 py-3 font-semibold"> </th>
             </tr>
           </thead>
           <tbody>
             {misses.length === 0 ? (
               <tr>
-                <td className="px-3 py-3 text-muted" colSpan={3}>
+                <td className="px-3 py-3 text-muted" colSpan={4}>
                   No missing pages yet.
                 </td>
               </tr>
@@ -203,6 +205,20 @@ export function SeoManager({
                 <td className="px-3 py-3">{row.path}</td>
                 <td className="px-3 py-3">{row.count}</td>
                 <td className="px-3 py-3">{row.when}</td>
+                <td className="px-3 py-3 text-right">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setFromPath(row.path);
+                      document
+                        .getElementById("redirect-form")
+                        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }}
+                  >
+                    Create redirect
+                  </Button>
+                </td>
               </tr>
             ))}
           </tbody>

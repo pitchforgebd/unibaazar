@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
 import { VideoGallery } from "@/components/store/video/VideoGallery";
 import { allPublishedHomeVideos } from "@/server/admin/content";
 import { buildMetadata } from "@/lib/seo/metadata";
+import { videoObjectJsonLd } from "@/lib/seo/schema";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("videos");
@@ -28,6 +30,15 @@ export default async function VideosPage() {
       />
       {videos.length > 0 ? (
         <Container>
+          {videos.map((video) => {
+            const schema = videoObjectJsonLd({
+              name: video.title,
+              description: video.title,
+              youtubeUrl: video.youtubeUrl,
+              uploadDate: video.createdAt.toISOString(),
+            });
+            return schema ? <JsonLd key={video.id} data={schema} /> : null;
+          })}
           <VideoGallery videos={videos} />
         </Container>
       ) : (
