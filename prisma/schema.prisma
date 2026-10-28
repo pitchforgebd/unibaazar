@@ -852,6 +852,21 @@ model PaymentWebhookEvent {
 // optional dedupe key an SMS/email send can be claimed against before
 // it goes out, so a retried or repeat-triggered send (e.g. an order
 // legitimately re-entering the same status) doesn't double-send.
+// One row per security-sensitive write attempt (login, OTP, checkout,
+// contact, newsletter — §5.6's named buckets), so the limit survives a
+// server restart. src/server/security/rate-limit.ts's in-memory limiter
+// stays for the high-volume, non-security telemetry routes
+// (/api/v1/tracking, /api/v1/seo/miss) where a DB write per page view
+// would cost more than the limit is worth — see
+// docs/decisions/0023-phase-12-scope-hardening.md.
+model RateLimitHit {
+  id        String   @id @default(cuid())
+  bucket    String   @db.VarChar(100)
+  createdAt DateTime @default(now())
+
+  @@index([bucket, createdAt])
+}
+
 model NotificationDedupe {
   id     String   @id @default(cuid())
   key    String   @unique @db.VarChar(191)

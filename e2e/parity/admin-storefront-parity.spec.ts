@@ -105,6 +105,21 @@ test("theme parity: changing the top bar color recolors the storefront top bar",
   await expect(topBar).toHaveCSS("background-color", hexToRgb(uniqueColor), {
     timeout: 10_000,
   });
+
+  // Restore the shipped default, for the same reason the checkout test
+  // below restores COD. A random top bar colour is almost never
+  // AA-contrast-safe against the white text TopBar.tsx renders on it
+  // (themeDefaults' #C94607 is chosen to be — see
+  // src/server/settings/store.ts), so leaving it behind made
+  // `npm run test:a11y` fail on every page for every run after this
+  // one. That cost real debugging time in Phases 9, 10 and 11 before
+  // Phase 12's repeatable-regression work tracked it back to here.
+  await page.goto("/admin/settings/theme", { waitUntil: "networkidle" });
+  await page.getByLabel("Top bar color").fill("#C94607");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("saved", { exact: false })).toBeVisible({
+    timeout: 10_000,
+  });
 });
 
 test("checkout parity: disabling cash on delivery hides it from the storefront checkout", async ({

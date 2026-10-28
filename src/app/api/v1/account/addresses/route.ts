@@ -5,6 +5,7 @@ import {
   listAddressesForSession,
 } from "@/server/account/account";
 import { handle, readJson } from "@/server/http";
+import { assertSameOrigin } from "@/server/security/origin";
 
 export async function GET() {
   return handle(() => listAddressesForSession());
@@ -18,5 +19,8 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  return handle(() => createAddressForSession(parsed.data));
+  return handle(async () => {
+    assertSameOrigin(request);
+    return createAddressForSession(parsed.data);
+  });
 }

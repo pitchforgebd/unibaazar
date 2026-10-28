@@ -4,6 +4,7 @@ import { listStaffNotifications, markNotificationsRead } from "@/server/admin/al
 import { readSession } from "@/server/auth/session";
 import { isStaffRole } from "@/server/security/permissions";
 import { ApiError, readJson } from "@/server/http";
+import { assertSameOrigin } from "@/server/security/origin";
 
 export async function GET() {
   const session = await readSession();
@@ -20,6 +21,7 @@ const markSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    assertSameOrigin(request);
     const session = await readSession();
     if (!session || !isStaffRole(session.role)) {
       throw new ApiError(401, "Staff only");

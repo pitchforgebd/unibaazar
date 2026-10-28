@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
+import { secureCookies } from "@/server/security/cookies";
 
 const cookieName = "ub_session";
 const pending2faCookie = "ub_2fa";
@@ -24,7 +25,7 @@ export const sessionCookie = {
   options: {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    secure: secureCookies,
     path: "/",
     maxAge: 60 * 60 * 24 * 7,
   },
@@ -35,7 +36,7 @@ export const pending2faCookieOptions = {
   options: {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    secure: secureCookies,
     path: "/",
     maxAge: 60 * 10,
   },

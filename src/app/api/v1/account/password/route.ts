@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { passwordSchema } from "@/lib/validation/customer";
 import { changePasswordForSession } from "@/server/account/account";
 import { handle, readJson } from "@/server/http";
+import { assertSameOrigin } from "@/server/security/origin";
 
 export async function POST(request: Request) {
   const parsed = passwordSchema.safeParse(await readJson(request));
@@ -12,6 +13,7 @@ export async function POST(request: Request) {
     );
   }
   return handle(async () => {
+    assertSameOrigin(request);
     await changePasswordForSession(parsed.data);
     return { ok: true };
   });

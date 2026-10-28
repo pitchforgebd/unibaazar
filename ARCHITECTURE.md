@@ -466,6 +466,27 @@ why).
 
 ## 10. Security measures
 
+Rate limiting runs in two tiers (Phase 12). The security-sensitive write
+buckets §5.6 names — login, OTP, checkout, contact, newsletter, all
+funnelled through `guardWrite()` — are **DB-backed**
+(`src/server/security/rate-limit-db.ts`, `RateLimitHit`), so a limit
+survives a restart; the in-memory limiter
+(`src/server/security/rate-limit.ts`) is kept only for the high-volume
+telemetry routes (`/api/v1/tracking`, `/api/v1/seo/miss`), where a DB
+write per page view would cost more than the limit is worth. Because the
+limits now persist, `e2e/global-setup.ts` clears them before each
+Playwright run — the parity suite alone performs exactly the login
+limit's worth of logins.
+
+CSRF: auth cookies are `sameSite: "lax"`, and every session-authenticated
+mutating API route additionally calls `assertSameOrigin` inside
+`handle()` (so a cross-site attempt returns 403, not 500). The `Secure`
+flag on auth cookies follows `NEXT_PUBLIC_SITE_URL`'s scheme rather than
+`NODE_ENV` (`src/server/security/cookies.ts`) — a production build served
+over plain http for local/CI testing must not set `Secure`, because
+WebKit stores but never sends such a cookie, which made every
+authenticated flow untestable in Safari.
+
 - Rich text and any other user-supplied HTML is passed through
   `sanitizeRichText()` (`src/lib/security/sanitizeHtml.ts`) — an explicit tag/
   attribute allowlist, no script/style/event handlers, scoped `style` (only

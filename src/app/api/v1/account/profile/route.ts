@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { profileSchema } from "@/lib/validation/customer";
 import { updateProfileForSession } from "@/server/account/account";
 import { handle, readJson } from "@/server/http";
+import { assertSameOrigin } from "@/server/security/origin";
 
 export async function PATCH(request: Request) {
   const parsed = profileSchema.safeParse(await readJson(request));
@@ -11,5 +12,8 @@ export async function PATCH(request: Request) {
       { status: 400 },
     );
   }
-  return handle(() => updateProfileForSession(parsed.data));
+  return handle(async () => {
+    assertSameOrigin(request);
+    return updateProfileForSession(parsed.data);
+  });
 }

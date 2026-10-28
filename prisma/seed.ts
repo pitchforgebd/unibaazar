@@ -30,6 +30,14 @@ function money(value: number): Prisma.Decimal {
 }
 
 async function main(): Promise<void> {
+  // Phase 12 made the login/OTP/checkout/contact limits DB-backed so they
+  // survive a restart (src/server/security/rate-limit-db.ts). That is the
+  // point in production, but it also means a dev/test database accumulates
+  // them across runs — and restarting the server no longer clears a limit
+  // that a long QA session has already exhausted. Seeding is the natural
+  // "give me a clean slate" step, so it resets them here.
+  await prisma.rateLimitHit.deleteMany({});
+
   for (const role of roles) {
     await prisma.role.upsert({
       where: { slug: role.slug },

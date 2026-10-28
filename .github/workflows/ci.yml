@@ -42,6 +42,20 @@ jobs:
 
       - run: npm ci
 
+      # §5.6's "npm audit in CI". The hard gate is `critical` on
+      # production dependencies, not `high`: the remaining highs all
+      # need major upgrades (prisma 7, zod 4, next 16) that are
+      # deliberately deferred to their own migration rather than bundled
+      # into a hardening phase — see
+      # docs/decisions/0023-phase-12-scope-hardening.md. The full report
+      # below is informational so a new issue is still visible in the log.
+      - name: Dependency audit (gate on critical, production deps)
+        run: npm audit --omit=dev --audit-level=critical
+
+      - name: Dependency audit (full report, informational)
+        if: always()
+        run: npm audit || true
+
       # @prisma/client's own postinstall should already do this, but making
       # it explicit removes any doubt and is cheap/idempotent.
       - run: npx prisma generate
@@ -88,6 +102,61 @@ jobs:
           path: .lighthouseci/
           retention-days: 7
           if-no-files-found: ignore
+
+  # Phase 12's cross-browser regression gate. Separate from `verify` so
+  # the common path isn't slowed by three engines; runs the same
+  # critical-path flow on WebKit (desktop + iOS) and Firefox.
+  cross-browser:
+    runs-on: ubuntu-latest
+    env:
+      UV_THREADPOOL_SIZE: "2"
+      NEXT_TELEMETRY_DISABLED: "1"
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: unibaazar_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx playwright install --with-deps webkit firefox
+
+      - name: Write .env.test
+        run: |
+          cat > .env.test <<EOF
+          DATABASE_URL=mysql://root@127.0.0.1:3306/unibaazar_test
+          NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3100
+          AUTH_SECRET=ci-only-secret-${{ github.run_id }}-not-for-production
+          CRON_SECRET=ci-only-cron-secret-${{ github.run_id }}
+          SETTINGS_ENCRYPTION_KEY=0152098de6c360c7d52575971e1edae428f7f059cb58acd65ebb16e43b9bc534
+          ALLOW_DESIGN_ROUTE=1
+          EOF
+
+      - run: npm run db:migrate:test
+      - run: npm run db:seed:test
+      - run: npm run build:test
+      - run: npm run test:e2e:cross
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-cross-browser
+          path: playwright-report/
+          retention-days: 7
 
   build-artifact:
     needs: verify

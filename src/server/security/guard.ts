@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 import { assertCaptcha } from "@/server/security/captcha";
+import { secureCookies } from "@/server/security/cookies";
 import { assertSameOrigin } from "@/server/security/origin";
-import { rateLimit } from "@/server/security/rate-limit";
+import { rateLimitPersistent } from "@/server/security/rate-limit-db";
 
 const windows = {
   login: { limit: 8, windowMs: 15 * 60 * 1000 },
@@ -40,7 +41,10 @@ export async function guardWrite(
   assertSameOrigin(request);
   const ip = clientIp(request);
   const rule = windows[bucket];
-  rateLimit(`${bucket}:${ip}`, rule.limit, rule.windowMs);
+  // DB-backed so the limit survives a restart (§5.6) — the in-memory
+  // limiter this used to call resets on every deploy/crash, handing an
+  // attacker a fresh budget each time.
+  await rateLimitPersistent(`${bucket}:${ip}`, rule.limit, rule.windowMs);
   await assertCaptcha(captchaToken);
   const existing = deviceFromCookie(request.headers.get("cookie"));
   const device = existing ?? crypto.randomUUID();
@@ -49,7 +53,7 @@ export async function guardWrite(
     jar.set("ub_device", device, {
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure: secureCookies,
       path: "/",
       maxAge: 60 * 60 * 24 * 365,
     });

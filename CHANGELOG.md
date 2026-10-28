@@ -4,6 +4,57 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Phase 12 — Hardening, full QA, and launch prep (2026-10-29)
+
+### Security
+
+- **Rate limiting is now DB-backed** for login, OTP, checkout, contact
+  and newsletter (§5.6). The in-memory limiter reset on every restart,
+  so a deploy or crash handed an attacker a fresh budget. The in-memory
+  one is kept for high-volume telemetry routes only.
+- **A critical `next` advisory fixed** (15.5.27 → 15.5.28), plus a
+  `postcss` high and `markdown-it`. Production advisories 40 → 35,
+  critical 1 → 0. Three remaining `high`s need major upgrades
+  (prisma 7, zod 4, next 16) and are catalogued in ADR 0023.
+- **`npm audit` gates CI** at critical on production dependencies.
+- **CSRF defence-in-depth**: `assertSameOrigin` on the
+  session-authenticated mutations that lacked it (password, profile,
+  addresses, reviews, questions, order cancel/return, admin
+  notifications).
+
+### Fixed
+
+- **Authenticated flows were untestable in WebKit** — a production build
+  served over http marked the session cookie `Secure`, which WebKit
+  stores but never sends. The flag now follows the site URL's scheme.
+  Not user-facing (production is https), but it blinded the test suite
+  to the admin panel and account area in Safari.
+- **The parity theme test never restored the colour it set**, failing
+  every later a11y run. This was the real cause of the "stale test-DB
+  theme colour" artifact that the Phase 9, 10 and 11 QA reports wrote
+  off as environmental.
+- **Playwright's `globalSetup` pointed at the dev database**, because
+  the playwright scripts never loaded `.env.test`.
+
+### Added
+
+- **Cross-browser regression**: WebKit, iOS Safari and Firefox projects,
+  `npm run test:e2e:cross`, a slot in `verify:full`, and a CI job. The
+  full matrix now runs clean twice back to back with no manual
+  intervention.
+- **k6 load test** for listing and checkout
+  (`scripts/load/checkout-and-listing.js`), sized for this host's
+  thread ceiling.
+- **`docs/launch-checklist.md`** and ADR 0023.
+
+### Deferred
+
+- **CSP nonces** — needs `'strict-dynamic'`, and whether each
+  third-party pixel survives it can't be verified without real pixel
+  credentials. Exact steps recorded in ADR 0023.
+- **The data-migration rehearsal** — needs a production dump from the
+  human. This is the phase's "done when", so Phase 12 stays open.
+
 ## Phase 11 — SEO module (2026-10-24)
 
 ### Fixed

@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { prisma } from "@/lib/db";
 import { normalizeBdPhone } from "@/lib/validation/customer";
 import { ApiError } from "@/server/http";
+import { secureCookies } from "@/server/security/cookies";
 import { loadSecret } from "@/server/settings/secret";
 import { loadSocial, saveSetting } from "@/server/settings/store";
 import { siteOrigin } from "@/server/tracking/config";
@@ -187,7 +188,7 @@ export const oauthPendingCookie = {
   options: {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    secure: secureCookies,
     path: "/",
     maxAge: 60 * 15,
   },
