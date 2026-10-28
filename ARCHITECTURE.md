@@ -422,6 +422,21 @@ double-send. `src/lib/sms/bulksmsbd.ts` picks GSM-7 `text` vs `unicode` mode
 per-message (`needsUnicode()`) instead of always sending `text`, which
 silently garbled any Bengali-language template before Phase 8.
 
+**SEO** (Phase 11): `/sitemap.xml` is a `<sitemapindex>`
+(`src/app/sitemap.xml/route.ts`) pointing at seven per-type children under
+`src/app/sitemaps/*.xml` (pages, products, categories, brands, blog,
+videos — the last using Google's real video-sitemap extension, not a
+plain URL list — plus the pre-existing `image-sitemap.xml`), each entry
+carrying both locale variants and real `lastmod`; the shared XML builders
+live in `src/server/seo/sitemap.ts`. JSON-LD (`src/lib/seo/schema.ts`):
+`WebSite`/`Organization` (global, in `StoreShell`), `BreadcrumbList`,
+`Product` (with `Review`/`shippingDetails`) or `ProductGroup` once a
+product has more than one variant, `ItemList` (every `ProductListing`-
+backed page), `VideoObject`, `FAQPage`, `Article`. `src/middleware.ts`
+checks the admin-managed `Redirect` table before anything else runs,
+issuing a real 301/302 — see §11 for why that needed the Node.js
+middleware runtime.
+
 ## 9. The `cron/*` pattern (specific to this host) and Admin → Maintenance
 
 `src/app/api/v1/cron/*` are POST routes gated by `assertCronSecret()`
@@ -480,6 +495,17 @@ path) and redirects an unprefixed path to its `/bn/...` form when the cookie
 names Bengali — this is what makes the existing `LanguageToggle` component work
 unchanged (it just sets the cookie and calls `router.refresh()`).
 
+As of Phase 11, `middleware.ts` checks `findActiveRedirect()` against the
+admin-managed `Redirect` table _before_ any of the above runs, returning a
+real 301/302 when a path matches — the admin redirect manager existed since
+an earlier phase but nothing had ever called that lookup function until
+then (`docs/decisions/0022-phase-11-scope-seo-module.md`). A genuine
+301/302 needs Prisma, which the default Edge middleware runtime can't run,
+so the file opts into `runtime: "nodejs"` (stable since Next 15.5) —
+meaning this middleware now runs in the Node.js runtime, not Edge; every
+matched request pays one indexed-primary-key lookup before next-intl's own
+routing runs.
+
 The entire `(store)` route group lives under `src/app/[locale]/(store)/`.
 `src/app/[locale]/layout.tsx` is the real root layout for the storefront
 (`<html lang={locale}>`, `NextIntlClientProvider`, fonts, header/footer scripts);
@@ -499,8 +525,11 @@ in-app navigation stays within the current locale.
 
 `hreflang`/`x-default`: two mechanisms, both active. next-intl's middleware
 sets an HTTP `Link` response header (`alternateLinks: true`, the default) on
-every storefront response. On top of that, `src/lib/seo/urls.ts`'s
-`localeAlternates(path)` (built on next-intl's `getPathname`) feeds
+every storefront response. On top of that, `src/lib/seo/alternates.ts`'s
+`localeAlternates(path)` (built on next-intl's `getPathname` — split out of
+`urls.ts` in Phase 11, since that one function's next-intl import made every
+importer of `urls.ts`'s `absoluteUrl()`, including the JSON-LD builders in
+`lib/seo/schema.ts`, unable to run under `vitest`) feeds
 per-page HTML `<link rel="alternate" hreflang="...">` tags via
 `generateMetadata` — wired into every page using `src/lib/seo/metadata.ts`'s
 `buildMetadata()` (product, category, brand, blog post, CMS, search) plus

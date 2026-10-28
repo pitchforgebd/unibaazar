@@ -4,6 +4,35 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Phase 11 — SEO module (2026-10-24)
+
+### Fixed
+
+- **The admin redirect manager did nothing** — `findActiveRedirect()`
+  existed and worked correctly, but nothing in the real request path
+  ever called it. `middleware.ts` now checks it before next-intl's own
+  routing and returns a genuine 301/302, which needed opting the file
+  into the Node.js middleware runtime (stable since Next 15.5).
+- **No JSON-LD builder had unit tests** — `lib/seo/urls.ts`'s
+  `absoluteUrl()` shared a file with `localeAlternates()`, which needs
+  next-intl's navigation module and made every importer (including the
+  JSON-LD builders) unresolvable under `vitest`. Split into
+  `urls.ts`/`alternates.ts`.
+
+### Added
+
+- **`ProductGroup`, `ItemList`, `VideoObject` JSON-LD**, plus
+  individual `Review` objects and real `shippingDetails` on
+  `productJsonLd()` — all missing entirely before this phase.
+- **A product's Open Graph image now falls back to its own photo**
+  when no custom SEO image is set.
+- **A "Create redirect" shortcut** on Admin → SEO's 404 log.
+- **The sitemap is now a real index** split by type (pages, products,
+  categories, brands, blog, videos, images), both locale variants,
+  real `lastmod` — the video sitemap uses Google's proper extension.
+- ADR 0022 (Phase 11 scope — most of the SEO wishlist already built;
+  the redirect-manager bug was the headline finding).
+
 ## Phase 10 — Analytics module (2026-10-24)
 
 ### Fixed
