@@ -195,20 +195,36 @@ jobs:
       - name: Prune to production node_modules
         run: npm prune --omit=dev
 
+      # `scripts` is not optional: deploy.yml invokes
+      # scripts/deploy/deploy-release.sh *from inside the unpacked
+      # release*, and that script in turn runs scripts/deploy/backup-db.mjs
+      # and scripts/deploy/apply-migrations.sh. It was missing from this
+      # list until Phase 14, which would have failed the very first real
+      # deploy at its first command — nobody caught it because deploys
+      # were deliberately deferred until every phase was done
+      # (docs/decisions/0007-manual-deploy-trigger.md), so this pipeline
+      # had never actually run end to end. scripts/bootstrap-admin.cjs
+      # ships for the same reason: it is the only way to create the first
+      # admin on a fresh database.
       - name: Package the release artifact
         run: |
           mkdir -p artifact
+          # --exclude must come BEFORE the paths: tar treats it
+          # positionally, so with it trailing (as it was until Phase 14)
+          # it silently applied to nothing and shipped .next/cache —
+          # hundreds of MB of webpack cache in every release.
           tar -czf artifact/release.tar.gz \
+            --exclude='.next/cache' \
             .next \
             public \
             node_modules \
             prisma \
+            scripts \
             server.js \
             seo-hook.cjs \
             package.json \
             package-lock.json \
-            release-info.json \
-            --exclude='.next/cache'
+            release-info.json
 
       - uses: actions/upload-artifact@v4
         with:
