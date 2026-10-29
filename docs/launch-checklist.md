@@ -1,34 +1,73 @@
 # UniBaazar v2 launch checklist
 
-Written in Phase 12. Work top to bottom on launch day. Anything marked
-**[human]** needs a person with credentials or a judgement call — the
-codebase can't do it and shouldn't pretend to.
+Written in Phase 12; §1 rewritten in Phase 14 once it was settled that
+v1 is being replaced rather than upgraded. Work top to bottom on launch
+day. Anything marked **[human]** needs a person with credentials or a
+judgement call — the codebase can't do it and shouldn't pretend to.
 
 Related: `DEPLOYMENT.md` (how a deploy actually runs),
-`docs/qa/phase-12-report.md` (what was verified and how),
-`docs/decisions/0023-phase-12-scope-hardening.md` (what was deliberately
-left out, and why).
+`docs/qa/phase-12-report.md` and `docs/qa/phase-14-report.md` (what was
+verified and how), `docs/decisions/0023-phase-12-scope-hardening.md`
+(what was deliberately left out, and why),
+`docs/decisions/0025-migration-rehearsal-waived-fresh-install-instead.md`
+(why there is no rehearsal, and the three first-deploy bugs found in its
+place).
 
 ---
 
 ## 1. Before the deploy
 
-### Data migration rehearsal **[human provides the dump]**
+### Fresh install onto an empty database **[human]**
 
-This is the phase's formal gate (master plan, Phase 12: _"Done when: the
-human approves the rehearsal results"_).
+v1 is being **replaced, not upgraded**: the old deployment is deleted and
+v2 installed clean. The master plan's data-migration rehearsal is
+therefore waived — the production database holds only demo/test data, so
+there is nothing to preserve and a rehearsal would prove nothing. The
+reasoning, and the three first-deploy bugs that verifying this path
+turned up instead, are in
+`docs/decisions/0025-migration-rehearsal-waived-fresh-install-instead.md`.
 
-- [ ] **[human]** Export a fresh production dump (`mysqldump`) and place
-      it somewhere local. Do **not** point anything at the live DB — see
-      `CLAUDE.md`.
-- [ ] Restore it into a scratch schema: `mysql -u root scratch_rehearsal < dump.sql`
-- [ ] Point `.env.rehearsal`'s `DATABASE_URL` at `scratch_rehearsal` and
-      run `dotenv -e .env.rehearsal -- npx prisma migrate deploy`.
-- [ ] Verify nothing was lost, comparing against the dump's own counts: - [ ] `Order` row count and `SUM(total)` unchanged - [ ] `OrderItem` row count unchanged - [ ] `Customer` / `User` row counts unchanged - [ ] every historical order still resolves its items, payment and
-      status history (spot-check the 10 oldest and 10 newest) - [ ] `Payment.status` values all map onto the 8-state enum from
-      Phase 7's migration (nothing silently coerced)
-- [ ] **[human]** Approve the rehearsal result. Nothing below should run
-      before this.
+Work these in order. The first two are the entire recovery plan if the
+"only demo data" premise turns out to be wrong — there is no rollback
+target on a first deploy.
+
+- [ ] **[human]** **Copy `shared/uploads` off the host first.** Product
+      images uploaded through the admin live only there — not in git, not
+      in the release artifact. Deleting the old install deletes every
+      one of them. Copy the folder down, or accept re-uploading the lot.
+- [ ] **[human]** Take a final `mysqldump` of the old database and keep
+      it **outside the repo**. `.gitignore` blocks `*.sql`, `*.sql.gz`
+      and `*.dump`, but keep it off the working tree entirely.
+- [ ] **[human]** Confirm there really is nothing real in that dump
+      (count the rows in the `Order` table and glance at the phone
+      numbers). If anything is real, stop — the waived rehearsal is the
+      procedure to run, and it is in this file's git history.
+- [ ] **[human]** Create the new MySQL database and user in cPanel.
+      Leave the schema **empty** — `apply-migrations.sh` builds it.
+      Create the schema and user _before_ the first deploy: the deploy
+      backs up the database before migrating, and `mysqldump` against a
+      schema that does not exist aborts the whole run.
+- [ ] **[human]** Write `shared/.env` with `DATABASE_URL` pointing at
+      it. A generated cPanel password is fine now — symbols and
+      percent-escapes are both handled (ADR 0025) — but it must be
+      percent-encoded in the URL, as Prisma requires.
+- [ ] **[human]** Rotate every credential that ever appeared in git
+      history before putting it in `shared/.env` — see the secrets-leak
+      note in `DEPLOYMENT.md`. "The site still works" does not prove the
+      Phase 0 leak was rotated.
+- [ ] Deploy (§2 below). `apply-migrations.sh` creates
+      `_prisma_migrations` and applies all of them in order on a brand-new
+      schema.
+- [ ] **[human]** Create the first admin — the only way in on a fresh
+      database: `node scripts/bootstrap-admin.cjs` from inside the
+      release directory. It seeds roles, permissions and grants too.
+      Plain CommonJS on purpose, so it runs within the host's thread
+      ceiling (`ARCHITECTURE.md` §12).
+- [ ] **[human]** Restore `shared/uploads`, then spot-check that product
+      images actually render on the storefront.
+- [ ] **[human]** Configure settings that used to live in the old
+      install's database: store details, delivery charges, theme, and
+      every integration credential in §4.
 
 ### Code and config
 
@@ -38,17 +77,22 @@ human approves the rehearsal results"_).
 - [ ] `shared/.env` on the host has every variable `DEPLOYMENT.md` lists,
       including `SETTINGS_ENCRYPTION_KEY` (without it, every encrypted
       admin secret is unreadable) and `CRON_SECRET`.
-- [ ] **[human]** Rotate anything that ever appeared in git history — see
-      the secrets-leak note in the project memory/`DEPLOYMENT.md`.
 
 ### Backups and rollback
 
+**Deploy #1 has no rollback target**, and that is not a bug —
+`deploy-release.sh` reports `<none, this was the first deploy>` and
+stops rather than pretending otherwise. Until a second release exists,
+recovery means the pre-wipe dump and the `shared/uploads` copy from §1.
+
 - [ ] A pre-deploy DB backup exists (`scripts/deploy/backup-db.mjs` runs
       automatically, but confirm the file landed in `shared/backups`).
-- [ ] Rollback rehearsed at least once:
-      `./releases/<sha>/scripts/deploy/rollback.sh <previous-sha>`.
-- [ ] You know which release SHA is the rollback target
-      (`/api/health` reports the running one).
+      On deploy #1 this is a dump of an empty schema — it proves the
+      backup step works, nothing more.
+- [ ] **From deploy #2 on:** rollback rehearsed at least once,
+      `./releases/<sha>/scripts/deploy/rollback.sh <previous-sha>`, and
+      you know which SHA is the target (`/api/health` reports the
+      running one).
 
 ---
 

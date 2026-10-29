@@ -4,6 +4,46 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Phase 14 — Deploy readiness (2026-10-30)
+
+Was planned as the Phase 12 migration rehearsal. Waived: the production
+database holds only demo/test data and v1 is being replaced rather than
+upgraded, so there was nothing to preserve and a rehearsal would have
+proved nothing. Verified the path that will actually run instead — a
+first deploy onto an empty database (ADR 0025). The CI/CD pipeline had
+never executed end to end, because deploys have been deliberately
+deferred since ADR 0007.
+
+### Fixed
+
+- **The release artifact omitted `scripts/`.** `deploy.yml`'s last step
+  is `bash .../scripts/deploy/deploy-release.sh`, and that script calls
+  `backup-db.mjs` and `apply-migrations.sh`. The first real deploy would
+  have failed on its first command.
+- **`--exclude='.next/cache'` was written after tar's path list**, where
+  tar treats it as positional and it matched nothing, so every release
+  carried **710MB of webpack cache** — and the invocation exits non-zero,
+  so depending on the runner's tar version the step either shipped
+  ~718MB or failed outright. Moving the flag ahead of the paths takes
+  the artifact to 7.5MB and tar to exit 0.
+- **`apply-migrations.sh` could not parse a DB password containing
+  symbols** — it split credentials on the first `@` and never decoded
+  percent-escapes, so a cPanel-generated password broke it two ways: a
+  raw `@` put the rest of the password into the hostname, and the
+  percent-encoded form Prisma requires reached `MYSQL_PWD` literally.
+  Both aborted the first deploy to a fresh host, which is the only time
+  this code runs.
+
+### Changed
+
+- `docs/launch-checklist.md` §1 is now the fresh-install sequence rather
+  than the rehearsal. It leads with the two steps that are the whole
+  recovery plan for deploy #1: copy `shared/uploads` off the host
+  (product images live only there — not in git, not in the artifact) and
+  keep a final pre-wipe dump outside the repo.
+- The backups/rollback section now states plainly that deploy #1 has no
+  rollback target, which `deploy-release.sh` already handled correctly.
+
 ## Phase 13 — Pre-launch correctness fixes (2026-10-29)
 
 First phase past the master plan's Phase 12 — see

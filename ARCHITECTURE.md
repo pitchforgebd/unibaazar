@@ -617,6 +617,19 @@ process cold-starting the query engine, on the host at all. See
 rather than automatic on merge — see `docs/decisions/0007-manual-deploy-trigger.md`
 — but the mechanism itself replaces the manual zip/upload flow either way.)
 
+**That pipeline had never run end to end until Phase 14**, which is the
+direct consequence of deferring deploys: nothing proves a deploy script
+works except deploying. Verifying it before the first real deploy found
+that the release tarball omitted `scripts/` — the directory holding the
+three scripts `deploy.yml` actually invokes — that `--exclude='.next/cache'`
+sat after tar's path list where it matched nothing (710MB of webpack cache
+per release), and that `apply-migrations.sh` could not parse a DB password
+containing symbols, which is what cPanel generates. All three were
+first-deploy-only failures. See
+`docs/decisions/0025-migration-rehearsal-waived-fresh-install-instead.md`.
+The first admin on a fresh database comes from `scripts/bootstrap-admin.cjs`,
+plain CommonJS for the same thread-ceiling reason as everything else here.
+
 **(Resolved in Phase 2) ISR + cookie-based i18n was incompatible for routes with
 no pre-known params.** The old root layout read the locale cookie on every
 request (required for i18n to work at all). For a route configured as

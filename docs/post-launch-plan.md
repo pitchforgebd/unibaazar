@@ -32,32 +32,58 @@ a running server. ✅ See `docs/qa/phase-13-report.md`.
 
 ---
 
-## Phase 14 — Migration rehearsal 🔒 blocked on a production dump
+## Phase 14 — Deploy readiness ✅ done
 
-This is the open gate on Phase 12 — its stated "done when" is the human
-approving the rehearsal.
+Was "migration rehearsal", blocked on a production dump. The human
+confirmed the production database holds **only demo/test data** and that
+v1 is being deleted and replaced rather than upgraded — so there is
+nothing to preserve and a rehearsal would have proved nothing. Waived
+and replaced with verifying the path that will actually run, a first
+deploy onto an empty database (ADR 0025).
 
-- [ ] **[human]** fresh `mysqldump` of production, placed locally
-      (`CLAUDE.md` forbids connecting to production from here)
-- [ ] restore into a scratch schema, run `prisma migrate deploy`
-- [ ] integrity checks per `docs/launch-checklist.md` §1: order and item
-      counts, `SUM(total)`, customer counts, oldest/newest 10 orders
-      still resolving their items and payment history, every
-      `Payment.status` mapping cleanly onto Phase 7's 8-state enum
-- [ ] **[human]** confirm the Phase 0 leaked DB/admin passwords were
-      actually rotated — "the site still works" doesn't prove it
-- [ ] rehearse backup + rollback once
+That verification found three defects, none of them reachable without
+exercising the pipeline, and none of which a restored dump would have
+caught — the pipeline had never run end to end, because deploys have
+been deliberately deferred since ADR 0007:
 
-**Done when:** the human approves the rehearsal report. Phase 12 closes
-with it.
+- [x] the release tarball **omitted `scripts/`**, so `deploy.yml`'s final
+      step — `bash .../scripts/deploy/deploy-release.sh` — would have
+      failed on the first real deploy's first command
+- [x] `--exclude='.next/cache'` sat after the path list, where tar treats
+      it as positional and it matched nothing: **710MB of webpack cache
+      in every release**, and an invocation that exits non-zero
+- [x] `apply-migrations.sh` **could not parse a DB password containing
+      symbols** — exactly what cPanel generates for a fresh install
+- [x] every deploy script syntax-checked (`bash -n`, `node --check`)
+- [x] `docs/launch-checklist.md` §1 rewritten as the fresh-install
+      sequence, including the two steps that are the whole recovery plan
+      for deploy #1: copy `shared/uploads` off the host, and keep a final
+      pre-wipe dump outside the repo
+
+**Done when:** the release artifact contains everything the deploy
+invokes and the fresh-install path is written down. ✅ See
+`docs/qa/phase-14-report.md`. Phase 12's rehearsal gate closes on ADR
+0025 instead.
+
+Still blocked, carried forward: `hasMerchantReturnPolicy` needs the real
+return window in days (from Phase 13).
 
 ---
 
 ## Phase 15 — Merge and first deploy
 
-- [ ] merge the Phase 4–13 branch chain into `main` (one merge, per the
+- [ ] **first**, with no `next dev` running, `npm run test:parity` and
+      confirm **8/8**. Phase 14 fixed two defects in that suite but could
+      not observe the fix pass — a stray dev server was corrupting every
+      production build (`docs/qa/phase-14-report.md`).
+- [ ] merge the Phase 4–14 branch chain into `main` (one merge, per the
       standing no-per-phase-PR decision)
+- [ ] work `docs/launch-checklist.md` §1 first — the uploads copy, the
+      pre-wipe dump, and the empty schema all have to exist before the
+      deploy runs
 - [ ] trigger `deploy.yml` by hand
+- [ ] `node scripts/bootstrap-admin.cjs` to create the first admin —
+      there is no other way in on a fresh database
 - [ ] install the 6 cron entries from `DEPLOYMENT.md`, running each once
       to confirm it authenticates
 - [ ] post-deploy smoke: `/api/health` SHA, both locales, one admin
@@ -109,6 +135,10 @@ none of it belongs before launch.
       (ADR 0023 has the exact steps).
 - [ ] run the k6 load test (`scripts/load/checkout-and-listing.js`)
       against the real host, off-peak.
+- [ ] `playwright.config.ts`'s `reuseExistingServer: !process.env.CI` —
+      locally it silently tests against whatever stale server holds the
+      port, which cost a wrong diagnosis in Phase 14. CI is unaffected.
+      Either check the build id or stop reusing.
 
 **Done when:** no `high` advisories in production dependencies and no
 `unsafe-inline` in the CSP.
