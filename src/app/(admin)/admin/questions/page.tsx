@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { CatalogDenied } from "@/components/admin/catalog/CatalogDenied";
-import { QuestionList } from "@/components/admin/catalog/CatalogRecords";
+import { QuestionList } from "@/components/admin/catalog/QuestionList";
 import { catalogAccess } from "@/server/admin/access";
 import { listQuestions } from "@/server/admin/moderation";
 

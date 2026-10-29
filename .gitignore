@@ -28,6 +28,18 @@
 /release-info.json
 /artifact
 
+# A database dump must never reach git: it holds customer names, phones,
+# addresses and order history. The migration rehearsal that first needed
+# this guard was waived (ADR 0025), but the launch still takes a final
+# pre-wipe dump of production, so the guard stays. Belt and braces: the
+# scratch folder is ignored, and so is every .sql/.sql.gz/.dump anywhere
+# in the repo except the committed migrations.
+/.rehearsal
+*.sql
+*.sql.gz
+*.dump
+!prisma/migrations/**/*.sql
+
 # misc
 .DS_Store
 *.pem

@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { receivePurchaseAction } from "@/app/(admin)/admin/inventory-actions";
-import { buttonClass } from "@/components/ui/controls";
+import { Button } from "@/components/ui/Button";
+import { useToastStore } from "@/store/toast";
 import type { PurchaseDetail } from "@/server/admin/inventory";
 
 export function PurchaseView({ purchase }: { purchase: PurchaseDetail }) {
   const router = useRouter();
-  const [message, setMessage] = useState("");
+  const push = useToastStore((state) => state.push);
   const [pending, setPending] = useState(false);
   const open = purchase.status === "DRAFT" || purchase.status === "ORDERED";
 
@@ -24,7 +25,7 @@ export function PurchaseView({ purchase }: { purchase: PurchaseDetail }) {
           <p className="mt-1 text-sm text-ink">{purchase.notes}</p>
         ) : null}
       </div>
-      <div className="overflow-x-auto rounded-lg bg-card shadow-soft">
+      <div className="overflow-x-auto rounded-theme bg-card shadow-soft">
         <table className="min-w-[560px] w-full text-left text-sm">
           <thead className="border-b border-black/5 text-muted">
             <tr>
@@ -48,15 +49,14 @@ export function PurchaseView({ purchase }: { purchase: PurchaseDetail }) {
         </table>
       </div>
       {open ? (
-        <button
-          type="button"
-          className={buttonClass()}
-          disabled={pending}
+        <Button
+          isLoading={pending}
+          loadingLabel="Receiving…"
           onClick={() => {
             setPending(true);
             void receivePurchaseAction({ id: purchase.id }).then((result) => {
-              setMessage(result.message);
               setPending(false);
+              push({ message: result.message, type: result.ok ? "success" : "error" });
               if (result.ok) {
                 router.refresh();
               }
@@ -64,9 +64,8 @@ export function PurchaseView({ purchase }: { purchase: PurchaseDetail }) {
           }}
         >
           Receive into stock
-        </button>
+        </Button>
       ) : null}
-      {message ? <p className="text-sm text-ink">{message}</p> : null}
     </div>
   );
 }

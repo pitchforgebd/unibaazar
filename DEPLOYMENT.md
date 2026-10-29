@@ -178,6 +178,15 @@ cPanel → **Cron Jobs**. Replace `YOUR_CRON_SECRET` with the real
 # Catch any variant that drifted below its low-stock threshold — every 30 min
 */30 * * * * curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://unibaazar.com/api/v1/cron/low-stock-sweep"
 
+# Sweep every payment for an amount/refund mismatch and alert if any are found — daily at 3am
+0 3 * * * curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://unibaazar.com/api/v1/cron/payment-reconciliation"
+
+# Email a reminder for carts quiet 2h-7d with an address on file — daily at 10am
+0 10 * * * curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://unibaazar.com/api/v1/cron/abandoned-cart"
+
+# Retry any failed Meta/TikTok Conversions API send, capped at 5 attempts — daily at 4am
+0 4 * * * curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://unibaazar.com/api/v1/cron/retry-conversions"
+
 # Daily database backup at 2am (also runs automatically before every deploy)
 0 2 * * * cd ~/unibaazar/current && BACKUP_DIR=~/unibaazar/shared/backups node scripts/deploy/backup-db.mjs
 ```
@@ -192,6 +201,22 @@ parameter — a secret in a query string ends up in access logs. The endpoint
 still accepts the old `?secret=` form too (`src/server/cron/auth.ts`), so
 existing cron lines keep working, but prefer the header form for anything
 you add or edit from here on.
+
+## Submitting the sitemap to search engines (Phase 11)
+
+`/sitemap.xml` is a sitemap _index_ — it lists every per-type sitemap
+(products, categories, brands, pages, blog, videos, product/category
+images) and is the only URL that needs submitting anywhere:
+
+- **Google Search Console** → Sitemaps → add `https://unibaazar.com/sitemap.xml`.
+- **Bing Webmaster Tools** → Sitemaps → same URL.
+
+Deliberately not implemented: the deprecated `ResultOfSitemapPing`-style
+`https://www.google.com/ping?sitemap=...` endpoint — Google retired it,
+and Search Console re-crawls a submitted sitemap on its own schedule
+(plus immediately after a `fetch` from inside Search Console itself).
+Re-submitting after a bulk content change isn't necessary; Search
+Console already notices via the sitemap's own `lastmod` dates.
 
 ---
 

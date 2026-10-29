@@ -3,12 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { manualOrderAction } from "@/app/(admin)/admin/order-actions";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
+import { useToastStore } from "@/store/toast";
 
 type Line = { sku: string; qty: string };
 
 export function ManualOrderForm() {
   const router = useRouter();
+  const push = useToastStore((state) => state.push);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -20,7 +25,6 @@ export function ManualOrderForm() {
   const [source, setSource] = useState<"phone" | "facebook">("phone");
   const [customerNote, setCustomerNote] = useState("");
   const [lines, setLines] = useState<Line[]>([{ sku: "", qty: "1" }]);
-  const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
 
   async function submit(): Promise<void> {
@@ -36,7 +40,7 @@ export function ManualOrderForm() {
       source,
       lines: lines.filter((line) => line.sku.trim()),
     });
-    setMessage(result.message);
+    push({ message: result.message, type: result.ok ? "success" : "error" });
     setPending(false);
     if (result.ok && result.id) {
       router.push(`/admin/orders/${result.id}`);
@@ -46,102 +50,83 @@ export function ManualOrderForm() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-ink">New order</h1>
+      <h1 className="font-heading text-2xl font-bold text-ink">New order</h1>
       <p className="text-sm text-muted">
         Create an order taken by phone or Facebook. Stock is reserved immediately.
       </p>
-      {message ? <p className="text-sm text-ink">{message}</p> : null}
-      <div className="grid gap-3 rounded-lg bg-card p-4 shadow-soft sm:grid-cols-2">
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Name</span>
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Phone</span>
-          <input
-            value={phone}
-            onChange={(event) => setPhone(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Email</span>
-          <input
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Source</span>
-          <select
-            value={source}
-            onChange={(event) => setSource(event.target.value as "phone" | "facebook")}
-            className={fieldClass}
-          >
-            <option value="phone">Phone</option>
-            <option value="facebook">Facebook</option>
-          </select>
-        </label>
-        <label className="block text-sm sm:col-span-2">
-          <span className="mb-1 block font-semibold text-ink">Address</span>
-          <textarea
-            value={address}
-            onChange={(event) => setAddress(event.target.value)}
-            className={`${fieldClass} h-24 py-2`}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Area</span>
-          <select
-            value={area}
-            onChange={(event) =>
-              setArea(event.target.value as "INSIDE_DHAKA" | "OUTSIDE_DHAKA")
-            }
-            className={fieldClass}
-          >
-            <option value="INSIDE_DHAKA">Inside Dhaka</option>
-            <option value="OUTSIDE_DHAKA">Outside Dhaka</option>
-          </select>
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Payment</span>
-          <select
-            value={paymentMethod}
-            onChange={(event) =>
-              setPaymentMethod(event.target.value as typeof paymentMethod)
-            }
-            className={fieldClass}
-          >
-            {["COD", "BKASH", "NAGAD", "ROCKET", "CARD"].map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-sm sm:col-span-2">
-          <span className="mb-1 block font-semibold text-ink">Customer note</span>
-          <input
-            value={customerNote}
-            onChange={(event) => setCustomerNote(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
+      <div className="grid gap-3 rounded-theme bg-card p-4 shadow-soft sm:grid-cols-2">
+        <Input
+          label="Name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+        <Input
+          label="Phone"
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+        />
+        <Input
+          label="Email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
+        <Select
+          label="Source"
+          value={source}
+          onChange={(event) => setSource(event.target.value as "phone" | "facebook")}
+        >
+          <option value="phone">Phone</option>
+          <option value="facebook">Facebook</option>
+        </Select>
+        <Textarea
+          label="Address"
+          containerClassName="sm:col-span-2"
+          value={address}
+          onChange={(event) => setAddress(event.target.value)}
+        />
+        <Select
+          label="Area"
+          value={area}
+          onChange={(event) =>
+            setArea(event.target.value as "INSIDE_DHAKA" | "OUTSIDE_DHAKA")
+          }
+        >
+          <option value="INSIDE_DHAKA">Inside Dhaka</option>
+          <option value="OUTSIDE_DHAKA">Outside Dhaka</option>
+        </Select>
+        <Select
+          label="Payment"
+          value={paymentMethod}
+          onChange={(event) =>
+            setPaymentMethod(event.target.value as typeof paymentMethod)
+          }
+        >
+          {["COD", "BKASH", "NAGAD", "ROCKET", "CARD"].map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </Select>
+        <Input
+          label="Customer note"
+          containerClassName="sm:col-span-2"
+          value={customerNote}
+          onChange={(event) => setCustomerNote(event.target.value)}
+        />
       </div>
 
-      <div className="space-y-3 rounded-lg bg-card p-4 shadow-soft">
-        <h2 className="font-semibold text-ink">Products</h2>
+      <div className="space-y-3 rounded-theme bg-card p-4 shadow-soft">
+        <h2 className="font-heading font-semibold text-ink">Products</h2>
         {lines.map((line, index) => (
-          <div key={index} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_auto]">
-            <input
-              value={line.sku}
-              aria-label={`SKU ${index + 1}`}
+          <div
+            key={index}
+            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_auto] sm:items-end"
+          >
+            <Input
+              label={`SKU ${index + 1}`}
+              hideLabel
               placeholder="SKU"
+              value={line.sku}
               onChange={(event) =>
                 setLines((current) =>
                   current.map((row, rowIndex) =>
@@ -149,11 +134,11 @@ export function ManualOrderForm() {
                   ),
                 )
               }
-              className={fieldClass}
             />
-            <input
+            <Input
+              label={`Qty ${index + 1}`}
+              hideLabel
               value={line.qty}
-              aria-label={`Qty ${index + 1}`}
               onChange={(event) =>
                 setLines((current) =>
                   current.map((row, rowIndex) =>
@@ -161,11 +146,9 @@ export function ManualOrderForm() {
                   ),
                 )
               }
-              className={fieldClass}
             />
-            <button
-              type="button"
-              className={buttonClass("outline")}
+            <Button
+              variant="outline"
               onClick={() =>
                 setLines((current) =>
                   current.length === 1
@@ -175,25 +158,19 @@ export function ManualOrderForm() {
               }
             >
               Remove
-            </button>
+            </Button>
           </div>
         ))}
-        <button
-          type="button"
-          className={buttonClass("outline")}
+        <Button
+          variant="outline"
           onClick={() => setLines((current) => [...current, { sku: "", qty: "1" }])}
         >
           Add line
-        </button>
+        </Button>
       </div>
-      <button
-        type="button"
-        className={buttonClass()}
-        disabled={pending}
-        onClick={() => void submit()}
-      >
+      <Button isLoading={pending} onClick={() => void submit()}>
         Create order
-      </button>
+      </Button>
     </div>
   );
 }

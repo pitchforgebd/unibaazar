@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { OrderDetail } from "@/components/store/account/OrderDetail";
 
 type OrderPageProps = {
@@ -7,7 +8,8 @@ type OrderPageProps = {
 
 export async function generateMetadata({ params }: OrderPageProps): Promise<Metadata> {
   const { id } = await params;
-  return { title: `Order ${id}` };
+  const t = await getTranslations("orders");
+  return { title: t("metaTitle", { id }) };
 }
 
 export default async function AccountOrderPage({ params }: OrderPageProps) {

@@ -9,7 +9,11 @@ import {
 } from "@/app/(admin)/admin/content-actions";
 import { RichTextField } from "@/components/admin/catalog/RichTextField";
 import { SeoHints } from "@/components/admin/seo/SeoHints";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 
 type CategoryRow = { id: string; slug: string; name: string };
 type PostRow = {
@@ -51,7 +55,7 @@ export function BlogBoard({
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-ink">Blog</h1>
       <form
-        className="grid gap-3 rounded-lg bg-card p-4 shadow-soft sm:grid-cols-2"
+        className="grid gap-3 rounded-theme bg-card p-4 shadow-soft sm:grid-cols-2"
         onSubmit={(event) => {
           event.preventDefault();
           setPending(true);
@@ -67,26 +71,20 @@ export function BlogBoard({
         }}
       >
         <h2 className="font-semibold text-ink sm:col-span-2">Category</h2>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Name</span>
-          <input
-            value={categoryName}
-            onChange={(event) => setCategoryName(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Slug</span>
-          <input
-            value={categorySlug}
-            onChange={(event) => setCategorySlug(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
+        <Input
+          label="Name"
+          value={categoryName}
+          onChange={(event) => setCategoryName(event.target.value)}
+        />
+        <Input
+          label="Slug"
+          value={categorySlug}
+          onChange={(event) => setCategorySlug(event.target.value)}
+        />
         <div className="sm:col-span-2">
-          <button type="submit" className={buttonClass("outline")} disabled={pending}>
+          <Button type="submit" variant="outline" isLoading={pending}>
             Save category
-          </button>
+          </Button>
         </div>
       </form>
       <ul className="space-y-1 text-sm text-ink">
@@ -96,9 +94,9 @@ export function BlogBoard({
           </li>
         ))}
       </ul>
-      <div className="overflow-x-auto rounded-lg bg-card shadow-soft">
+      <div className="overflow-x-auto rounded-theme bg-card shadow-soft">
         <table className="min-w-[560px] w-full text-left text-sm">
-          <thead className="border-b border-black/5 text-muted">
+          <thead className="border-b border-ink/5 text-muted">
             <tr>
               <th className="px-3 py-3 font-semibold">Post</th>
               <th className="px-3 py-3 font-semibold">Author</th>
@@ -107,14 +105,16 @@ export function BlogBoard({
           </thead>
           <tbody>
             {posts.map((row) => (
-              <tr key={row.id} className="border-b border-black/5 last:border-0">
+              <tr key={row.id} className="border-b border-ink/5 last:border-0">
                 <td className="px-3 py-3">
                   <p className="font-semibold text-ink">{row.title}</p>
                   <p className="text-xs text-muted">{row.category}</p>
                 </td>
                 <td className="px-3 py-3">{row.authorName}</td>
                 <td className="px-3 py-3">
-                  {row.status === "PUBLISHED" ? "Published" : "Draft"}
+                  <Badge variant={row.status === "PUBLISHED" ? "success" : "default"}>
+                    {row.status === "PUBLISHED" ? "Published" : "Draft"}
+                  </Badge>
                 </td>
               </tr>
             ))}
@@ -122,7 +122,7 @@ export function BlogBoard({
         </table>
       </div>
       <form
-        className="space-y-3 rounded-lg bg-card p-4 shadow-soft"
+        className="space-y-3 rounded-theme bg-card p-4 shadow-soft"
         onSubmit={(event) => {
           event.preventDefault();
           setPending(true);
@@ -151,122 +151,90 @@ export function BlogBoard({
       >
         <h2 className="font-semibold text-ink">Post</h2>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-ink">Title</span>
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              className={fieldClass}
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-ink">Slug</span>
-            <input
-              value={slug}
-              onChange={(event) => setSlug(event.target.value)}
-              className={fieldClass}
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-ink">Author</span>
-            <input
-              value={authorName}
-              onChange={(event) => setAuthorName(event.target.value)}
-              className={fieldClass}
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-ink">Category slug</span>
-            <input
-              value={postCategory}
-              onChange={(event) => setPostCategory(event.target.value)}
-              className={fieldClass}
-            />
-          </label>
-        </div>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Excerpt</span>
-          <input
-            value={excerpt}
-            onChange={(event) => setExcerpt(event.target.value)}
-            className={fieldClass}
+          <Input
+            label="Title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
           />
-        </label>
+          <Input
+            label="Slug"
+            value={slug}
+            onChange={(event) => setSlug(event.target.value)}
+          />
+          <Input
+            label="Author"
+            value={authorName}
+            onChange={(event) => setAuthorName(event.target.value)}
+          />
+          <Input
+            label="Category slug"
+            value={postCategory}
+            onChange={(event) => setPostCategory(event.target.value)}
+          />
+        </div>
+        <Input
+          label="Excerpt"
+          value={excerpt}
+          onChange={(event) => setExcerpt(event.target.value)}
+        />
         <RichTextField
           label="Content"
           value={content}
           onChange={setContent}
           uploadAction={uploadContentImageAction}
         />
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Status</span>
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-            className={fieldClass}
-          >
-            <option value="PUBLISHED">Published</option>
-            <option value="DRAFT">Draft</option>
-          </select>
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">SEO title</span>
-          <input
-            value={metaTitle}
-            onChange={(event) => setMetaTitle(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">SEO description</span>
-          <input
-            value={metaDescription}
-            onChange={(event) => setMetaDescription(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Canonical path</span>
-          <input
-            value={canonical}
-            onChange={(event) => setCanonical(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">OG image URL</span>
-          <input
-            value={ogImage}
-            onChange={(event) => setOgImage(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Focus keyword</span>
-          <input
-            value={focusKeyword}
-            onChange={(event) => setFocusKeyword(event.target.value)}
-            className={fieldClass}
-          />
-        </label>
-        <label className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <input
-            type="checkbox"
-            checked={noIndex}
-            onChange={(event) => setNoIndex(event.target.checked)}
-          />
-          Hide from search engines
-        </label>
+        <Select
+          label="Status"
+          value={status}
+          onChange={(event) => setStatus(event.target.value)}
+        >
+          <option value="PUBLISHED">Published</option>
+          <option value="DRAFT">Draft</option>
+        </Select>
+        <Input
+          label="SEO title"
+          value={metaTitle}
+          onChange={(event) => setMetaTitle(event.target.value)}
+        />
+        <Input
+          label="SEO description"
+          value={metaDescription}
+          onChange={(event) => setMetaDescription(event.target.value)}
+        />
+        <Input
+          label="Canonical path"
+          value={canonical}
+          onChange={(event) => setCanonical(event.target.value)}
+        />
+        <Input
+          label="OG image URL"
+          value={ogImage}
+          onChange={(event) => setOgImage(event.target.value)}
+        />
+        <Input
+          label="Focus keyword"
+          value={focusKeyword}
+          onChange={(event) => setFocusKeyword(event.target.value)}
+        />
+        <Checkbox
+          label="Hide from search engines"
+          checked={noIndex}
+          onChange={(event) => setNoIndex(event.target.checked)}
+        />
         <SeoHints
           title={metaTitle || title}
           description={metaDescription || excerpt}
           h1={title}
           focusKeyword={focusKeyword}
         />
-        <button type="submit" className={buttonClass()} disabled={pending}>
+        <Button type="submit" isLoading={pending} loadingLabel="Saving…">
           Save post
-        </button>
-        {message ? <p className="text-sm text-ink">{message}</p> : null}
+        </Button>
+        {message ? (
+          <p role="status" className="text-sm text-foreground">
+            {message}
+          </p>
+        ) : null}
       </form>
     </div>
   );

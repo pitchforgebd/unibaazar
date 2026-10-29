@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { Select } from "@/components/ui/Select";
 import { useRouter } from "@/i18n/navigation";
 import { shopHref } from "@/lib/catalog/queries";
 import type { ShopQuery, ShopSort } from "@/types/catalog";
@@ -23,26 +24,24 @@ export function SortSelect({ basePath, query }: SortSelectProps) {
   ];
 
   return (
-    <label className="flex items-center gap-2 text-sm text-muted">
-      {t("sortLabel")}
-      <select
-        aria-label={t("sortProductsAria")}
-        value={query.sort}
-        className="h-10 rounded-md border border-black/10 bg-card px-2 text-sm text-foreground"
-        onChange={(event) => {
-          const sort = options.find((item) => item.value === event.target.value)?.value;
-          if (!sort) {
-            return;
-          }
-          router.push(shopHref(basePath, query, { sort, page: 1 }));
-        }}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Select
+      label={t("sortProductsAria")}
+      hideLabel
+      value={query.sort}
+      containerClassName="w-44 sm:w-52"
+      onChange={(event) => {
+        const sort = options.find((item) => item.value === event.target.value)?.value;
+        if (!sort) {
+          return;
+        }
+        router.push(shopHref(basePath, query, { sort, page: 1 }));
+      }}
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </Select>
   );
 }

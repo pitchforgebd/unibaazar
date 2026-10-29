@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { createStaffAction, updateStaffAction } from "@/app/(admin)/admin/user-actions";
 import type { StaffRow } from "@/server/admin/users";
 
@@ -29,20 +32,22 @@ export function StaffPanel({
         </p>
       </div>
 
-      <form method="get" className="flex flex-wrap gap-2">
-        <input
+      <form method="get" className="flex flex-wrap items-end gap-2">
+        <Input
           name="q"
+          label="Search"
+          hideLabel
           defaultValue={query}
           placeholder="Search name, phone, email"
-          className={`${fieldClass} max-w-sm`}
+          containerClassName="max-w-sm flex-1"
         />
-        <button type="submit" className={buttonClass("outline")}>
+        <Button type="submit" variant="outline">
           Search
-        </button>
+        </Button>
       </form>
 
       <form
-        className="grid gap-3 rounded-lg bg-card p-4 shadow-soft sm:grid-cols-2 lg:grid-cols-3"
+        className="grid gap-3 rounded-theme bg-card p-4 shadow-soft sm:grid-cols-2 lg:grid-cols-3"
         onSubmit={(event) => {
           event.preventDefault();
           const form = new FormData(event.currentTarget);
@@ -65,55 +70,33 @@ export function StaffPanel({
         <h2 className="sm:col-span-2 lg:col-span-3 text-lg font-semibold text-ink">
           Add staff
         </h2>
-        <label className="block text-sm">
-          Name
-          <input name="name" required className={`${fieldClass} mt-1`} />
-        </label>
-        <label className="block text-sm">
-          Phone
-          <input
-            name="phone"
-            required
-            className={`${fieldClass} mt-1`}
-            placeholder="017xxxxxxxx"
-          />
-        </label>
-        <label className="block text-sm">
-          Email
-          <input name="email" type="email" className={`${fieldClass} mt-1`} />
-        </label>
-        <label className="block text-sm">
-          Password
-          <input
-            name="password"
-            type="password"
-            required
-            minLength={6}
-            className={`${fieldClass} mt-1`}
-          />
-        </label>
-        <label className="block text-sm">
-          Role
-          <select name="roleSlug" className={`${fieldClass} mt-1`} defaultValue="staff">
-            {roles.map((role) => (
-              <option key={role.slug} value={role.slug}>
-                {role.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Input name="name" label="Name" required />
+        <Input name="phone" label="Phone" required placeholder="017xxxxxxxx" />
+        <Input name="email" label="Email" type="email" />
+        <Input name="password" label="Password" type="password" required minLength={6} />
+        <Select name="roleSlug" label="Role" defaultValue="staff">
+          {roles.map((role) => (
+            <option key={role.slug} value={role.slug}>
+              {role.name}
+            </option>
+          ))}
+        </Select>
         <div className="flex items-end">
-          <button type="submit" className={buttonClass("primary")} disabled={pending}>
+          <Button type="submit" isLoading={pending} loadingLabel="Creating…">
             Create
-          </button>
+          </Button>
         </div>
       </form>
 
-      {message ? <p className="text-sm text-ink">{message}</p> : null}
+      {message ? (
+        <p role="status" className="text-sm text-foreground">
+          {message}
+        </p>
+      ) : null}
 
-      <div className="overflow-x-auto rounded-lg bg-card shadow-soft">
+      <div className="overflow-x-auto rounded-theme bg-card shadow-soft">
         <table className="min-w-full text-left text-sm">
-          <thead className="border-b border-black/5 text-muted">
+          <thead className="border-b border-ink/5 text-muted">
             <tr>
               <th className="px-3 py-2 font-semibold">Name</th>
               <th className="px-3 py-2 font-semibold">Phone</th>
@@ -125,20 +108,27 @@ export function StaffPanel({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className="border-b border-black/5">
+              <tr key={row.id} className="border-b border-ink/5">
                 <td className="px-3 py-2 font-semibold text-ink">{row.name}</td>
                 <td className="px-3 py-2">{row.phone}</td>
-                <td className="px-3 py-2">{row.roleName}</td>
-                <td className="px-3 py-2">{row.status}</td>
+                <td className="px-3 py-2">
+                  <Badge variant="outline">{row.roleName}</Badge>
+                </td>
+                <td className="px-3 py-2">
+                  <Badge variant={row.status === "ACTIVE" ? "success" : "default"}>
+                    {row.status}
+                  </Badge>
+                </td>
                 <td className="px-3 py-2">{row.totpEnabled ? "On" : "Off"}</td>
                 <td className="px-3 py-2 text-right">
-                  <button
+                  <Button
                     type="button"
-                    className={buttonClass("outline")}
+                    variant="outline"
+                    size="sm"
                     onClick={() => setEditing(row)}
                   >
                     Edit
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}
@@ -148,7 +138,7 @@ export function StaffPanel({
 
       {editing ? (
         <form
-          className="grid gap-3 rounded-lg border border-black/10 bg-card p-4 sm:grid-cols-2"
+          className="grid gap-3 rounded-theme border border-muted bg-card p-4 sm:grid-cols-2"
           onSubmit={(event) => {
             event.preventDefault();
             const form = new FormData(event.currentTarget);
@@ -172,69 +162,34 @@ export function StaffPanel({
           <h2 className="sm:col-span-2 text-lg font-semibold text-ink">
             Edit {editing.name}
           </h2>
-          <label className="block text-sm">
-            Name
-            <input
-              name="name"
-              defaultValue={editing.name}
-              required
-              className={`${fieldClass} mt-1`}
-            />
-          </label>
-          <label className="block text-sm">
-            Email
-            <input
-              name="email"
-              type="email"
-              defaultValue={editing.email}
-              className={`${fieldClass} mt-1`}
-            />
-          </label>
-          <label className="block text-sm">
-            Role
-            <select
-              name="roleSlug"
-              defaultValue={editing.role}
-              className={`${fieldClass} mt-1`}
-            >
-              {roles.map((role) => (
-                <option key={role.slug} value={role.slug}>
-                  {role.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-sm">
-            Status
-            <select
-              name="status"
-              defaultValue={editing.status}
-              className={`${fieldClass} mt-1`}
-            >
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="DISABLED">DISABLED</option>
-            </select>
-          </label>
-          <label className="block text-sm sm:col-span-2">
-            New password (optional)
-            <input
+          <Input name="name" label="Name" defaultValue={editing.name} required />
+          <Input name="email" label="Email" type="email" defaultValue={editing.email} />
+          <Select name="roleSlug" label="Role" defaultValue={editing.role}>
+            {roles.map((role) => (
+              <option key={role.slug} value={role.slug}>
+                {role.name}
+              </option>
+            ))}
+          </Select>
+          <Select name="status" label="Status" defaultValue={editing.status}>
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="DISABLED">DISABLED</option>
+          </Select>
+          <div className="sm:col-span-2">
+            <Input
               name="password"
+              label="New password (optional)"
               type="password"
               minLength={6}
-              className={`${fieldClass} mt-1`}
             />
-          </label>
+          </div>
           <div className="sm:col-span-2 flex gap-2">
-            <button type="submit" className={buttonClass("primary")} disabled={pending}>
+            <Button type="submit" isLoading={pending} loadingLabel="Saving…">
               Save
-            </button>
-            <button
-              type="button"
-              className={buttonClass("outline")}
-              onClick={() => setEditing(null)}
-            >
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setEditing(null)}>
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       ) : null}

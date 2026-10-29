@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { buttonClass } from "@/components/ui/controls";
+import { Button } from "@/components/ui/Button";
 import {
   setRolePermissionAction,
   syncRolesAction,
@@ -26,10 +26,11 @@ export function RolesMatrix({ matrix }: { matrix: Matrix }) {
             Toggle grants per staff role. Sync restores the seeded defaults.
           </p>
         </div>
-        <button
+        <Button
           type="button"
-          className={buttonClass("outline")}
-          disabled={pending}
+          variant="outline"
+          isLoading={pending}
+          loadingLabel="Syncing…"
           onClick={() =>
             start(() => {
               void syncRolesAction().then((result) => setMessage(result.message));
@@ -37,12 +38,16 @@ export function RolesMatrix({ matrix }: { matrix: Matrix }) {
           }
         >
           Sync defaults
-        </button>
+        </Button>
       </div>
-      {message ? <p className="text-sm text-ink">{message}</p> : null}
-      <div className="overflow-x-auto rounded-lg bg-card shadow-soft">
+      {message ? (
+        <p role="status" className="text-sm text-foreground">
+          {message}
+        </p>
+      ) : null}
+      <div className="overflow-x-auto rounded-theme bg-card shadow-soft">
         <table className="min-w-full text-left text-sm">
-          <thead className="border-b border-black/5 text-muted">
+          <thead className="border-b border-ink/5 text-muted">
             <tr>
               <th className="px-3 py-2 font-semibold">Permission</th>
               {rows.map((role) => (
@@ -54,7 +59,7 @@ export function RolesMatrix({ matrix }: { matrix: Matrix }) {
           </thead>
           <tbody>
             {matrix.permissions.map((permission) => (
-              <tr key={permission.slug} className="border-b border-black/5">
+              <tr key={permission.slug} className="border-b border-ink/5">
                 <td className="px-3 py-2">
                   <p className="font-semibold text-ink">{permission.name}</p>
                   <p className="text-xs text-muted">{permission.slug}</p>
@@ -68,6 +73,7 @@ export function RolesMatrix({ matrix }: { matrix: Matrix }) {
                         checked={checked}
                         disabled={pending}
                         aria-label={`${role.name} ${permission.name}`}
+                        className="size-4 cursor-pointer accent-primary disabled:cursor-not-allowed disabled:opacity-50"
                         onChange={(event) => {
                           const enabled = event.target.checked;
                           setRows((current) =>

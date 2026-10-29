@@ -27,15 +27,23 @@ describe("revealVariants", () => {
     ["right", { x: -REVEAL_DISTANCE, y: 0 }],
     ["none", { x: 0, y: 0 }],
   ] as const)("offsets the hidden state for direction %s", (direction, offset) => {
-    expect(revealVariants(direction, false).hidden).toEqual({ opacity: 0, ...offset });
+    expect(revealVariants(direction, false).hidden).toEqual({
+      opacity: 0,
+      visibility: "hidden",
+      ...offset,
+    });
   });
 
   it("is fade-only under reduced motion, with instant x/y", () => {
     const variants = revealVariants("up", true);
-    expect(variants.hidden).toEqual({ opacity: 0, x: 0, y: 0 });
+    expect(variants.hidden).toEqual({ opacity: 0, visibility: "hidden", x: 0, y: 0 });
     expect(variants.visible).toMatchObject({
       transition: { x: { duration: 0 }, y: { duration: 0 } },
     });
+  });
+
+  it("makes the visible state visible again, out of the hidden state's visibility:hidden", () => {
+    expect(revealVariants("up", false).visible).toMatchObject({ visibility: "visible" });
   });
 
   it("omits delay unless asked, so a parent stagger's offset isn't overridden", () => {

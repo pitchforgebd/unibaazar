@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { ShakeOnError } from "@/components/motion";
+import { Button } from "@/components/ui/Button";
+import { buttonStyles } from "@/components/ui/buttonStyles";
+import { Input } from "@/components/ui/Input";
+import { FreeDeliveryProgress } from "@/components/store/cart/FreeDeliveryProgress";
+import { QuantityStepper } from "@/components/store/cart/QuantityStepper";
 import { ProductMedia } from "@/components/store/product/ProductMedia";
 import { summarizeCart } from "@/lib/catalog/cart-lines";
 import { productImage } from "@/lib/catalog/pricing";
@@ -25,6 +30,7 @@ export function CartView() {
   const toast = useTranslations("toast");
   const [code, setCode] = useState(couponCode ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [applying, setApplying] = useState(false);
   const { catalog, loading } = useCartCatalog(lines);
   const summary = summarizeCart(lines, couponDiscount, catalog);
@@ -35,9 +41,9 @@ export function CartView() {
 
   if (summary.resolved.length === 0) {
     return (
-      <div className="rounded-lg bg-card p-8 text-center shadow-soft">
+      <div className="rounded-theme bg-card p-8 text-center shadow-soft">
         <p className="font-semibold text-ink">{t("empty")}</p>
-        <Link href="/shop" className={`${buttonClass("primary")} mt-4`}>
+        <Link href="/shop" className={buttonStyles({ className: "mt-4" })}>
           {t("shop")}
         </Link>
       </div>
@@ -45,20 +51,20 @@ export function CartView() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       <ul className="space-y-3">
         {summary.resolved.map((item) => (
           <li
             key={`${item.line.slug}-${item.line.variantId}`}
-            className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 rounded-lg bg-card p-3 shadow-soft sm:grid-cols-[88px_minmax(0,1fr)_auto]"
+            className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 rounded-theme bg-card p-3 shadow-soft sm:grid-cols-[88px_minmax(0,1fr)_auto]"
           >
             <ProductMedia
               hue={item.variant.imageHue}
               name={item.product.name}
               image={productImage(item.product, item.variant)}
-              className="h-[72px] rounded-md sm:h-[88px]"
+              className="h-18 rounded-theme sm:h-22"
             />
-            <div>
+            <div className="min-w-0">
               <Link
                 href={`/product/${item.product.slug}`}
                 className="font-semibold text-ink hover:text-primary"
@@ -69,40 +75,23 @@ export function CartView() {
               <p className="mt-1 text-sm font-semibold text-primary">
                 {formatTaka(item.unitPrice)}
               </p>
-              <div className="mt-2 flex items-center gap-2">
-                <button
-                  type="button"
-                  aria-label={t("decrease")}
-                  className="grid h-8 w-8 place-items-center rounded-md border border-black/10"
-                  onClick={() =>
-                    void setQty(item.line.slug, item.line.variantId, item.line.qty - 1)
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <QuantityStepper
+                  qty={item.line.qty}
+                  onChange={(qty) =>
+                    void setQty(item.line.slug, item.line.variantId, qty)
                   }
-                >
-                  −
-                </button>
-                <span className="w-6 text-center text-sm font-semibold">
-                  {item.line.qty}
-                </span>
-                <button
-                  type="button"
-                  aria-label={t("increase")}
-                  className="grid h-8 w-8 place-items-center rounded-md border border-black/10"
-                  onClick={() =>
-                    void setQty(item.line.slug, item.line.variantId, item.line.qty + 1)
-                  }
-                >
-                  +
-                </button>
-                <button
-                  type="button"
-                  className="ml-2 text-sm text-muted hover:text-primary"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => {
                     removeLine(item.line.slug, item.line.variantId);
                     push(toast("removed"));
                   }}
                 >
                   {t("remove")}
-                </button>
+                </Button>
               </div>
             </div>
             <p className="col-span-2 text-sm font-semibold sm:col-span-1 sm:text-right">
@@ -111,43 +100,52 @@ export function CartView() {
           </li>
         ))}
       </ul>
-      <aside className="h-fit rounded-lg bg-card p-4 shadow-soft">
-        <h2 className="font-semibold text-ink">{t("total")}</h2>
-        <form
-          className="mt-4 flex gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setApplying(true);
-            applyCoupon(code)
-              .then((message) => {
-                setError(message);
-                if (!message) {
-                  push(toast("coupon"));
-                }
-              })
-              .finally(() => setApplying(false));
-          }}
-        >
-          <input
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
-            placeholder={t("coupon")}
-            aria-label={t("coupon")}
-            className={fieldClass}
-          />
-          <button type="submit" className={buttonClass("outline")} disabled={applying}>
-            {t("apply")}
-          </button>
-        </form>
-        {error ? <p className="mt-2 text-xs text-red-700">{error}</p> : null}
+      <aside className="h-fit rounded-theme bg-card p-4 shadow-soft lg:sticky lg:top-28">
+        <h2 className="font-heading font-semibold text-ink">{t("total")}</h2>
+        <FreeDeliveryProgress
+          merchandise={summary.merchandise}
+          className="mt-3 rounded-theme bg-peach p-3"
+        />
+        <ShakeOnError trigger={error ? `${error}-${attempt}` : null} className="mt-4">
+          <form
+            className="flex items-start gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setApplying(true);
+              applyCoupon(code)
+                .then((message) => {
+                  setError(message);
+                  setAttempt((value) => value + 1);
+                  if (!message) {
+                    push(toast("coupon"));
+                  }
+                })
+                .finally(() => setApplying(false));
+            }}
+          >
+            <Input
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              placeholder={t("coupon")}
+              label={t("coupon")}
+              hideLabel
+              error={error ?? undefined}
+              containerClassName="min-w-0 flex-1"
+            />
+            <Button type="submit" variant="outline" isLoading={applying}>
+              {t("apply")}
+            </Button>
+          </form>
+        </ShakeOnError>
         {couponCode ? (
-          <button
-            type="button"
-            className="mt-2 text-xs font-semibold text-primary"
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2 -ms-3 text-primary"
             onClick={clearCoupon}
           >
             {t("remove")} {couponCode}
-          </button>
+          </Button>
         ) : (
           <p className="mt-2 text-xs text-muted">{t("tryCoupon")}</p>
         )}
@@ -164,12 +162,15 @@ export function CartView() {
             <dt>{t("delivery")}</dt>
             <dd>{t("deliveryAtCheckout")}</dd>
           </div>
-          <div className="flex justify-between border-t border-black/5 pt-2 text-base font-semibold">
+          <div className="flex justify-between border-t border-ink/10 pt-2 text-base font-semibold">
             <dt>{t("total")}</dt>
             <dd>{formatTaka(summary.merchandise)}</dd>
           </div>
         </dl>
-        <Link href="/checkout" className={`${buttonClass("primary")} mt-4 w-full`}>
+        <Link
+          href="/checkout"
+          className={buttonStyles({ size: "lg", className: "mt-4 w-full" })}
+        >
           {t("checkout")}
         </Link>
       </aside>

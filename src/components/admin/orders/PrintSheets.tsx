@@ -24,7 +24,7 @@ export function PrintSheets({
       {documents.map((doc, index) => (
         <article
           key={`${doc.id}-${doc.kind}`}
-          className={`rounded-lg bg-card p-6 text-ink shadow-soft print:rounded-none print:shadow-none ${
+          className={`rounded-theme bg-card p-6 text-ink shadow-soft print:rounded-none print:shadow-none ${
             index < documents.length - 1 ? "print:break-after-page" : ""
           }`}
         >

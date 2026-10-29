@@ -4,8 +4,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { bulkBookAction, bulkStatusAction } from "@/app/(admin)/admin/order-actions";
-import { areaLabel, prettyStatus } from "@/components/admin/orders/labels";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import {
+  areaLabel,
+  orderStatusVariant,
+  paymentStatusVariant,
+  prettyStatus,
+} from "./labels";
+import { OrderFiltersForm } from "./OrderFiltersForm";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { Select } from "@/components/ui/Select";
+import { buttonStyles } from "@/components/ui/buttonStyles";
+import { useToastStore } from "@/store/toast";
 import { orderStatuses } from "@/lib/validation/admin-orders";
 import { formatTaka } from "@/lib/utils/currency";
 import type { AdminOrderRow, OrderListQuery } from "@/server/admin/orders-admin";
@@ -39,9 +50,9 @@ export function OrderList({
   total: number;
 }) {
   const router = useRouter();
+  const push = useToastStore((state) => state.push);
   const [selected, setSelected] = useState<string[]>([]);
   const [status, setStatus] = useState("CONFIRMED");
-  const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
   const allChecked = rows.length > 0 && rows.every((row) => selected.includes(row.id));
 
@@ -51,14 +62,21 @@ export function OrderList({
     );
   }
 
-  async function runStatus(): Promise<void> {
+  function requireSelection(): boolean {
     if (selected.length === 0) {
-      setMessage("Select at least one order.");
+      push({ message: "Select at least one order.", type: "error" });
+      return false;
+    }
+    return true;
+  }
+
+  async function runStatus(): Promise<void> {
+    if (!requireSelection()) {
       return;
     }
     setPending(true);
     const result = await bulkStatusAction({ ids: selected, status });
-    setMessage(result.message);
+    push({ message: result.message, type: result.ok ? "success" : "error" });
     setPending(false);
     if (result.ok) {
       setSelected([]);
@@ -67,13 +85,12 @@ export function OrderList({
   }
 
   async function runBook(): Promise<void> {
-    if (selected.length === 0) {
-      setMessage("Select at least one order.");
+    if (!requireSelection()) {
       return;
     }
     setPending(true);
     const result = await bulkBookAction({ ids: selected });
-    setMessage(result.message);
+    push({ message: result.message, type: result.ok ? "success" : "error" });
     setPending(false);
     if (result.ok) {
       setSelected([]);
@@ -82,16 +99,14 @@ export function OrderList({
   }
 
   function openPrint(kind: string): void {
-    if (selected.length === 0) {
-      setMessage("Select at least one order.");
+    if (!requireSelection()) {
       return;
     }
     router.push(`/admin/orders/print?kind=${kind}&ids=${selected.join(",")}`);
   }
 
   function openInvoicePdf(): void {
-    if (selected.length === 0) {
-      setMessage("Select at least one order.");
+    if (!requireSelection()) {
       return;
     }
     window.open(`/admin/orders/print/pdf?ids=${selected.join(",")}`, "_blank");
@@ -101,169 +116,60 @@ export function OrderList({
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-ink">Orders</h1>
+          <h1 className="font-heading text-2xl font-bold text-ink">Orders</h1>
           <p className="text-sm text-muted">
             {total} {total === 1 ? "order" : "orders"}
           </p>
         </div>
-        <Link href="/admin/orders/new" className={buttonClass()}>
+        <Link href="/admin/orders/new" className={buttonStyles()}>
           New order
         </Link>
       </div>
 
-      <form
-        method="get"
-        className="grid gap-3 rounded-lg bg-card p-4 shadow-soft sm:grid-cols-2 lg:grid-cols-4"
-      >
-        <label className="block text-sm sm:col-span-2">
-          <span className="mb-1 block font-semibold text-ink">Search</span>
-          <input
-            name="q"
-            defaultValue={query.q}
-            placeholder="Order ID, phone, or name"
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Status</span>
-          <select name="status" defaultValue={query.status} className={fieldClass}>
-            <option value="">Any status</option>
-            {orderStatuses.map((item) => (
-              <option key={item} value={item}>
-                {prettyStatus(item)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Payment</span>
-          <select name="payment" defaultValue={query.payment} className={fieldClass}>
-            <option value="">Any method</option>
-            {["COD", "BKASH", "NAGAD", "ROCKET", "CARD"].map((item) => (
-              <option key={item} value={item}>
-                {prettyStatus(item)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Payment status</span>
-          <select
-            name="paymentStatus"
-            defaultValue={query.paymentStatus}
-            className={fieldClass}
-          >
-            <option value="">Any</option>
-            {["PENDING", "PAID", "FAILED", "REFUNDED"].map((item) => (
-              <option key={item} value={item}>
-                {prettyStatus(item)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Courier</span>
-          <select name="courier" defaultValue={query.courier} className={fieldClass}>
-            <option value="">Any</option>
-            <option value="steadfast">Steadfast</option>
-            <option value="none">No shipment</option>
-          </select>
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Area</span>
-          <select name="area" defaultValue={query.area} className={fieldClass}>
-            <option value="">Any area</option>
-            <option value="INSIDE_DHAKA">Inside Dhaka</option>
-            <option value="OUTSIDE_DHAKA">Outside Dhaka</option>
-          </select>
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">From</span>
-          <input
-            type="date"
-            name="from"
-            defaultValue={query.from}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">To</span>
-          <input type="date" name="to" defaultValue={query.to} className={fieldClass} />
-        </label>
-        <div className="flex items-end gap-2 sm:col-span-2">
-          <button type="submit" className={buttonClass()}>
-            Apply filters
-          </button>
-          <Link href="/admin/orders" className={buttonClass("outline")}>
-            Clear
-          </Link>
-        </div>
-      </form>
+      <OrderFiltersForm query={query} />
 
-      <div className="flex flex-wrap items-center gap-2 rounded-lg bg-card p-4 shadow-soft">
-        <select
+      <div className="flex flex-wrap items-end gap-2 rounded-theme bg-card p-4 shadow-soft">
+        <Select
+          label="Bulk status"
+          hideLabel
           value={status}
           onChange={(event) => setStatus(event.target.value)}
-          className={`${fieldClass} max-w-xs`}
+          className="max-w-xs"
         >
           {orderStatuses.map((item) => (
             <option key={item} value={item}>
               {prettyStatus(item)}
             </option>
           ))}
-        </select>
-        <button
-          type="button"
-          className={buttonClass("ink")}
-          disabled={pending}
-          onClick={() => void runStatus()}
-        >
+        </Select>
+        <Button variant="outline" isLoading={pending} onClick={() => void runStatus()}>
           Update status
-        </button>
-        <button
-          type="button"
-          className={buttonClass("outline")}
-          disabled={pending}
-          onClick={() => void runBook()}
-        >
+        </Button>
+        <Button variant="outline" isLoading={pending} onClick={() => void runBook()}>
           Send to Steadfast
-        </button>
-        <button
-          type="button"
-          className={buttonClass("outline")}
-          onClick={() => openPrint("invoice")}
-        >
+        </Button>
+        <Button variant="outline" onClick={() => openPrint("invoice")}>
           Print invoices
-        </button>
-        <button type="button" className={buttonClass("outline")} onClick={openInvoicePdf}>
+        </Button>
+        <Button variant="outline" onClick={openInvoicePdf}>
           Invoice PDFs
-        </button>
-        <button
-          type="button"
-          className={buttonClass("outline")}
-          onClick={() => openPrint("packing")}
-        >
+        </Button>
+        <Button variant="outline" onClick={() => openPrint("packing")}>
           Packing slips
-        </button>
-        <button
-          type="button"
-          className={buttonClass("outline")}
-          onClick={() => openPrint("label")}
-        >
+        </Button>
+        <Button variant="outline" onClick={() => openPrint("label")}>
           Shipping labels
-        </button>
+        </Button>
       </div>
-      {message ? <p className="text-sm text-ink">{message}</p> : null}
 
-      <div className="overflow-x-auto rounded-lg bg-card shadow-soft">
+      <div className="overflow-x-auto rounded-theme bg-card shadow-soft">
         <table className="min-w-[760px] w-full text-left text-sm">
-          <thead className="border-b border-black/5 text-muted">
+          <thead className="border-b border-ink/10 text-muted">
             <tr>
               <th className="px-3 py-3">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={allChecked}
-                  aria-label="Select all orders"
+                  label={<span className="sr-only">Select all orders</span>}
                   onChange={() =>
                     setSelected(allChecked ? [] : rows.map((row) => row.id))
                   }
@@ -287,12 +193,11 @@ export function OrderList({
               </tr>
             ) : (
               rows.map((row) => (
-                <tr key={row.id} className="border-b border-black/5 last:border-0">
+                <tr key={row.id} className="border-b border-ink/10 last:border-0">
                   <td className="px-3 py-3">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={selected.includes(row.id)}
-                      aria-label={`Select ${row.number}`}
+                      label={<span className="sr-only">Select {row.number}</span>}
                       onChange={() => toggle(row.id)}
                     />
                   </td>
@@ -310,11 +215,17 @@ export function OrderList({
                     <p className="text-xs text-muted">{row.phone}</p>
                   </td>
                   <td className="px-3 py-3">{formatTaka(row.total)}</td>
-                  <td className="px-3 py-3">{prettyStatus(row.status)}</td>
+                  <td className="px-3 py-3">
+                    <Badge variant={orderStatusVariant(row.status)}>
+                      {prettyStatus(row.status)}
+                    </Badge>
+                  </td>
                   <td className="px-3 py-3">
                     {prettyStatus(row.paymentMethod)}
-                    <p className="text-xs text-muted">
-                      {prettyStatus(row.paymentStatus)}
+                    <p className="mt-1">
+                      <Badge variant={paymentStatusVariant(row.paymentStatus)}>
+                        {prettyStatus(row.paymentStatus)}
+                      </Badge>
                     </p>
                   </td>
                   <td className="px-3 py-3">{areaLabel(row.area)}</td>
@@ -332,12 +243,18 @@ export function OrderList({
         </p>
         <div className="flex gap-2">
           {page > 1 ? (
-            <Link href={listHref(query, page - 1)} className={buttonClass("outline")}>
+            <Link
+              href={listHref(query, page - 1)}
+              className={buttonStyles({ variant: "outline" })}
+            >
               Previous
             </Link>
           ) : null}
           {page < pages ? (
-            <Link href={listHref(query, page + 1)} className={buttonClass("outline")}>
+            <Link
+              href={listHref(query, page + 1)}
+              className={buttonStyles({ variant: "outline" })}
+            >
               Next
             </Link>
           ) : null}

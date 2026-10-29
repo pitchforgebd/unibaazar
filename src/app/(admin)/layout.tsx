@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { fontVariables } from "@/app/fonts";
 import { buildRootMetadata } from "@/app/metadata";
 import { FooterScript, HeaderScript } from "@/components/layout/SiteScripts";
+import { ToastStack } from "@/components/ui/toast/ToastStack";
 import { loadSystem } from "@/server/settings/store";
 import "@/styles/globals.css";
 
@@ -18,6 +19,7 @@ export default async function AdminRootLayout({ children }: { children: ReactNod
       <body className="min-h-full bg-page font-sans text-foreground antialiased">
         <HeaderScript script={system.headerScript} />
         {children}
+        <ToastStack regionLabel="Notifications" dismissLabel="Dismiss" />
         <FooterScript script={system.footerScript} />
       </body>
     </html>

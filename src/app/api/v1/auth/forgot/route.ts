@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     );
   }
   return handle(async () => {
-    await guardWrite(request, "otp", parsed.data.captchaToken);
+    await guardWrite(request, "otp", parsed.data.captchaToken, parsed.data.identity);
     const code = await requestReset(parsed.data.identity);
     return {
       sent: true,

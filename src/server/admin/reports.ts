@@ -373,6 +373,85 @@ async function stockReport(
   };
 }
 
+type StockValuationInput = {
+  categoryName: string;
+  stock: number;
+  costPrice: number | null;
+};
+
+/** Pure aggregation so the grouping/total math is unit-testable without a
+ * database. Unlike `stockReport` above (a per-SKU listing that falls back
+ * to the selling price when cost isn't set), this is a strict cost-basis
+ * valuation: a variant with no cost price contributes 0, matching how the
+ * profit report already treats a blank cost. */
+export function aggregateStockValuation(
+  variants: StockValuationInput[],
+): Pick<ReportTable, "columns" | "rows" | "note"> {
+  const buckets = new Map<
+    string,
+    { variants: number; units: number; valuation: number }
+  >();
+  for (const variant of variants) {
+    const bucket = buckets.get(variant.categoryName) ?? {
+      variants: 0,
+      units: 0,
+      valuation: 0,
+    };
+    bucket.variants += 1;
+    bucket.units += variant.stock;
+    bucket.valuation += variant.stock * (variant.costPrice ?? 0);
+    buckets.set(variant.categoryName, bucket);
+  }
+  const rows = [...buckets.entries()]
+    .sort((left, right) => right[1].valuation - left[1].valuation)
+    .map(([category, bucket]) => [
+      category,
+      String(bucket.variants),
+      String(bucket.units),
+      money(bucket.valuation),
+    ]);
+  const totalUnits = variants.reduce((sum, variant) => sum + variant.stock, 0);
+  const totalValuation = variants.reduce(
+    (sum, variant) => sum + variant.stock * (variant.costPrice ?? 0),
+    0,
+  );
+  rows.push([
+    "Total",
+    String(variants.length),
+    String(totalUnits),
+    money(totalValuation),
+  ]);
+  return {
+    columns: ["Category", "Variants", "Units in stock", "Valuation (BDT)"],
+    rows,
+    note: "Active variants of published products only. Valuation is stock times the variant cost price — a variant with no cost price counts as 0 (it does not fall back to the selling price). This is a current snapshot; the date range does not change it.",
+  };
+}
+
+async function stockValuationReport(): Promise<
+  Pick<ReportTable, "columns" | "rows" | "note">
+> {
+  const variants = await prisma.productVariant.findMany({
+    where: { status: "ACTIVE", product: { status: "PUBLISHED" } },
+    select: {
+      stock: true,
+      costPrice: true,
+      product: {
+        select: {
+          categories: { take: 1, select: { category: { select: { name: true } } } },
+        },
+      },
+    },
+  });
+  return aggregateStockValuation(
+    variants.map((variant) => ({
+      categoryName: variant.product.categories[0]?.category.name ?? "Uncategorized",
+      stock: variant.stock,
+      costPrice: variant.costPrice?.toNumber() ?? null,
+    })),
+  );
+}
+
 async function returnsReport(
   range: Range,
 ): Promise<Pick<ReportTable, "columns" | "rows" | "note">> {
@@ -554,15 +633,17 @@ export async function loadReport(query: ReportQuery): Promise<ReportTable> {
                     ? await stockReport(false)
                     : query.report === "low-stock"
                       ? await stockReport(true)
-                      : query.report === "returns"
-                        ? await returnsReport(range)
-                        : query.report === "courier"
-                          ? await courierReport(range)
-                          : query.report === "traffic"
-                            ? await trafficReport(range)
-                            : query.report === "carts"
-                              ? await cartReport(range)
-                              : await taxReport(range);
+                      : query.report === "stockValuation"
+                        ? await stockValuationReport()
+                        : query.report === "returns"
+                          ? await returnsReport(range)
+                          : query.report === "courier"
+                            ? await courierReport(range)
+                            : query.report === "traffic"
+                              ? await trafficReport(range)
+                              : query.report === "carts"
+                                ? await cartReport(range)
+                                : await taxReport(range);
   return {
     id: query.report,
     title: reportLabels[query.report],

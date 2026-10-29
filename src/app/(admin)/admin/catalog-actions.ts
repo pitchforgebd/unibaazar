@@ -218,9 +218,15 @@ export async function saveCategoryAction(
 }
 
 export async function deleteCategoryAction(id: string): Promise<ActionResult> {
-  await requireCatalog();
+  const session = await requireCatalog();
   try {
     await deleteCategory(id);
+    await recordAudit({
+      actorId: session.userId,
+      action: "catalog.category.delete",
+      entityType: "category",
+      entityId: id,
+    });
     refreshCatalog();
     return { ok: true, message: "Category deleted." };
   } catch (error) {
@@ -229,9 +235,14 @@ export async function deleteCategoryAction(id: string): Promise<ActionResult> {
 }
 
 export async function saveBrandAction(input: BrandFormValues): Promise<ActionResult> {
-  await requireCatalog();
+  const session = await requireCatalog();
   try {
     await saveBrand(input);
+    await recordAudit({
+      actorId: session.userId,
+      action: "catalog.brand.save",
+      entityType: "brand",
+    });
     refreshCatalog();
     return { ok: true, message: "Brand saved." };
   } catch (error) {
@@ -240,9 +251,15 @@ export async function saveBrandAction(input: BrandFormValues): Promise<ActionRes
 }
 
 export async function deleteBrandAction(id: string): Promise<ActionResult> {
-  await requireCatalog();
+  const session = await requireCatalog();
   try {
     await deleteBrand(id);
+    await recordAudit({
+      actorId: session.userId,
+      action: "catalog.brand.delete",
+      entityType: "brand",
+      entityId: id,
+    });
     refreshCatalog();
     return { ok: true, message: "Brand deleted." };
   } catch (error) {
@@ -251,9 +268,14 @@ export async function deleteBrandAction(id: string): Promise<ActionResult> {
 }
 
 export async function saveUnitAction(input: UnitFormValues): Promise<ActionResult> {
-  await requireCatalog();
+  const session = await requireCatalog();
   try {
     await saveUnit(input);
+    await recordAudit({
+      actorId: session.userId,
+      action: "catalog.unit.save",
+      entityType: "unit",
+    });
     refreshCatalog();
     return { ok: true, message: "Unit saved." };
   } catch (error) {
@@ -262,9 +284,15 @@ export async function saveUnitAction(input: UnitFormValues): Promise<ActionResul
 }
 
 export async function deleteUnitAction(id: string): Promise<ActionResult> {
-  await requireCatalog();
+  const session = await requireCatalog();
   try {
     await deleteUnit(id);
+    await recordAudit({
+      actorId: session.userId,
+      action: "catalog.unit.delete",
+      entityType: "unit",
+      entityId: id,
+    });
     refreshCatalog();
     return { ok: true, message: "Unit deleted." };
   } catch (error) {
@@ -273,9 +301,14 @@ export async function deleteUnitAction(id: string): Promise<ActionResult> {
 }
 
 export async function saveLabelAction(input: LabelFormValues): Promise<ActionResult> {
-  await requireCatalog();
+  const session = await requireCatalog();
   try {
     await saveLabel(input);
+    await recordAudit({
+      actorId: session.userId,
+      action: "catalog.label.save",
+      entityType: "label",
+    });
     refreshCatalog();
     return { ok: true, message: "Label saved." };
   } catch (error) {
@@ -284,9 +317,15 @@ export async function saveLabelAction(input: LabelFormValues): Promise<ActionRes
 }
 
 export async function deleteLabelAction(id: string): Promise<ActionResult> {
-  await requireCatalog();
+  const session = await requireCatalog();
   try {
     await deleteLabel(id);
+    await recordAudit({
+      actorId: session.userId,
+      action: "catalog.label.delete",
+      entityType: "label",
+      entityId: id,
+    });
     refreshCatalog();
     return { ok: true, message: "Label deleted." };
   } catch (error) {
@@ -297,9 +336,15 @@ export async function deleteLabelAction(id: string): Promise<ActionResult> {
 export async function saveAttributeAction(
   input: AttributeFormValues,
 ): Promise<ActionResult> {
-  await requireCatalog();
+  const session = await requireCatalog();
   try {
     const id = await saveAttribute(input);
+    await recordAudit({
+      actorId: session.userId,
+      action: "catalog.attribute.save",
+      entityType: "attribute",
+      entityId: id,
+    });
     refreshCatalog();
     return { ok: true, id, message: "Attribute saved." };
   } catch (error) {
@@ -308,9 +353,15 @@ export async function saveAttributeAction(
 }
 
 export async function deleteAttributeAction(id: string): Promise<ActionResult> {
-  await requireCatalog();
+  const session = await requireCatalog();
   try {
     await deleteAttribute(id);
+    await recordAudit({
+      actorId: session.userId,
+      action: "catalog.attribute.delete",
+      entityType: "attribute",
+      entityId: id,
+    });
     refreshCatalog();
     return { ok: true, message: "Attribute deleted." };
   } catch (error) {
@@ -321,9 +372,14 @@ export async function deleteAttributeAction(id: string): Promise<ActionResult> {
 export async function saveAttributeValueAction(
   input: AttributeValueFormValues,
 ): Promise<ActionResult> {
-  await requireCatalog();
+  const session = await requireCatalog();
   try {
     await saveAttributeValue(input);
+    await recordAudit({
+      actorId: session.userId,
+      action: "catalog.attribute-value.save",
+      entityType: "attributeValue",
+    });
     refreshCatalog();
     return { ok: true, message: "Value saved." };
   } catch (error) {
@@ -332,9 +388,15 @@ export async function saveAttributeValueAction(
 }
 
 export async function deleteAttributeValueAction(id: string): Promise<ActionResult> {
-  await requireCatalog();
+  const session = await requireCatalog();
   try {
     await deleteAttributeValue(id);
+    await recordAudit({
+      actorId: session.userId,
+      action: "catalog.attribute-value.delete",
+      entityType: "attributeValue",
+      entityId: id,
+    });
     refreshCatalog();
     return { ok: true, message: "Value deleted." };
   } catch (error) {
@@ -343,9 +405,15 @@ export async function deleteAttributeValueAction(id: string): Promise<ActionResu
 }
 
 export async function renameTagAction(from: string, to: string): Promise<ActionResult> {
-  await requireCatalog();
+  const session = await requireCatalog();
   try {
     const changed = await renameTag(from, to);
+    await recordAudit({
+      actorId: session.userId,
+      action: "catalog.tag.rename",
+      entityType: "tag",
+      metadata: { from, to, changed },
+    });
     refreshCatalog();
     return { ok: true, message: `Updated ${changed} products.` };
   } catch (error) {
@@ -354,9 +422,15 @@ export async function renameTagAction(from: string, to: string): Promise<ActionR
 }
 
 export async function removeTagAction(tag: string): Promise<ActionResult> {
-  await requireCatalog();
+  const session = await requireCatalog();
   try {
     const changed = await removeTag(tag);
+    await recordAudit({
+      actorId: session.userId,
+      action: "catalog.tag.remove",
+      entityType: "tag",
+      metadata: { tag, changed },
+    });
     refreshCatalog();
     return { ok: true, message: `Removed the tag from ${changed} products.` };
   } catch (error) {
@@ -404,9 +478,15 @@ export async function answerQuestionAction(
   id: string,
   answer: string,
 ): Promise<ActionResult> {
-  await requireCatalog();
+  const session = await requireCatalog();
   try {
     await answerQuestion(id, answer);
+    await recordAudit({
+      actorId: session.userId,
+      action: "catalog.question.answer",
+      entityType: "question",
+      entityId: id,
+    });
     refreshCatalog();
     return { ok: true, message: "Answer saved." };
   } catch (error) {
@@ -415,9 +495,15 @@ export async function answerQuestionAction(
 }
 
 export async function deleteQuestionAction(id: string): Promise<ActionResult> {
-  await requireCatalog();
+  const session = await requireCatalog();
   try {
     await deleteQuestion(id);
+    await recordAudit({
+      actorId: session.userId,
+      action: "catalog.question.delete",
+      entityType: "question",
+      entityId: id,
+    });
     refreshCatalog();
     return { ok: true, message: "Question deleted." };
   } catch (error) {

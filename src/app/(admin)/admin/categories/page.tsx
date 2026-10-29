@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { CatalogDenied } from "@/components/admin/catalog/CatalogDenied";
-import { CategoryManager } from "@/components/admin/catalog/CatalogRecords";
+import { CategoryManager } from "@/components/admin/catalog/CategoryManager";
 import type { CategoryFormValues } from "@/lib/validation/admin-catalog";
 import { catalogAccess } from "@/server/admin/access";
 import { listCategories, loadCategory } from "@/server/admin/taxonomy";

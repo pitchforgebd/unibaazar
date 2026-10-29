@@ -5,13 +5,19 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
 import { SectionHeading } from "@/components/store/common/SectionHeading";
-import { ProductGrid } from "@/components/store/product/ProductCard";
+import { Reveal } from "@/components/motion";
 import { ProductPurchase } from "@/components/store/product/ProductPurchase";
+import { StaggeredProductGrid } from "@/components/store/product/StaggeredProductGrid";
 import { TrackOnce } from "@/components/store/tracking/TrackOnce";
 import { ProductTabs } from "@/components/store/product/ProductTabs";
 import { RecentlyViewed } from "@/components/store/product/RecentlyViewed";
 import { buildMetadata } from "@/lib/seo/metadata";
-import { breadcrumbJsonLd, productJsonLd } from "@/lib/seo/schema";
+import {
+  breadcrumbJsonLd,
+  productGroupJsonLd,
+  productJsonLd,
+  videoObjectJsonLd,
+} from "@/lib/seo/schema";
 import { findSeo } from "@/server/seo/public";
 import {
   getStoreCategory,
@@ -20,7 +26,7 @@ import {
   getStoreReviews,
   listStoreProducts,
 } from "@/server/catalog/products";
-import { loadSocial } from "@/server/settings/store";
+import { loadCheckout, loadSocial } from "@/server/settings/store";
 
 type ProductPageProps = {
   params: Promise<{ locale: string; slug: string }>;
@@ -56,7 +62,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     description: seo?.metaDescription || product?.shortDescription,
     path: `/product/${slug}`,
     canonical: seo?.canonical,
-    ogImage: seo?.ogImage,
+    ogImage: seo?.ogImage || product?.images[0]?.url,
     noIndex: seo?.noIndex,
     focusKeyword: seo?.focusKeyword,
   });
@@ -68,11 +74,25 @@ export default async function ProductPage({ params }: ProductPageProps) {
   if (!product) {
     notFound();
   }
-  const [category, catalog, social] = await Promise.all([
+  const [category, catalog, social, reviews, checkout] = await Promise.all([
     getStoreCategory(product.categorySlug),
     listStoreProducts(),
     loadSocial(),
+    getStoreReviews(product.slug),
+    loadCheckout(),
   ]);
+  const deliveryRates = { inside: checkout.inside, outside: checkout.outside };
+  const productSchema =
+    product.variants.length > 1
+      ? productGroupJsonLd(product, { deliveryRates })
+      : productJsonLd(product, { reviews, deliveryRates });
+  const videoSchema = product.videoUrl
+    ? videoObjectJsonLd({
+        name: product.name,
+        description: product.shortDescription,
+        youtubeUrl: product.videoUrl,
+      })
+    : null;
   const related = catalog
     .filter(
       (item) => item.slug !== product.slug && item.categorySlug === product.categorySlug,
@@ -95,7 +115,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
           { label: product.name },
         ]}
       />
-      <JsonLd data={productJsonLd(product)} />
+      <JsonLd data={productSchema} />
+      {videoSchema ? <JsonLd data={videoSchema} /> : null}
       <JsonLd
         data={breadcrumbJsonLd([
           { href: "/", label: common("home") },
@@ -119,13 +140,15 @@ export default async function ProductPage({ params }: ProductPageProps) {
         <ProductTabs
           productSlug={product.slug}
           description={product.description}
-          reviews={await getStoreReviews(product.slug)}
+          reviews={reviews}
           questions={await getStoreQuestions(product.slug)}
         />
         {related.length > 0 ? (
           <section className="mt-10">
-            <SectionHeading title={t("relatedHeading")} />
-            <ProductGrid products={related} />
+            <Reveal>
+              <SectionHeading title={t("relatedHeading")} />
+            </Reveal>
+            <StaggeredProductGrid products={related} />
           </section>
         ) : null}
         <RecentlyViewed currentSlug={product.slug} />

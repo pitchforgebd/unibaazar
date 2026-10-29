@@ -7,7 +7,9 @@ import {
   logoutOtherDevicesAction,
   startTotpAction,
 } from "@/app/(admin)/admin/user-actions";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 
 export function TotpPanel({ enabled }: { enabled: boolean }) {
   const [message, setMessage] = useState<string | null>(null);
@@ -20,17 +22,22 @@ export function TotpPanel({ enabled }: { enabled: boolean }) {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold text-ink">My two-factor authentication</h1>
+        <p className="mt-2 flex items-center gap-2 text-sm text-muted">
+          Status:{" "}
+          <Badge variant={enabled ? "success" : "default"}>
+            {enabled ? "On" : "Off"}
+          </Badge>
+        </p>
         <p className="text-sm text-muted">
-          Status: <span className="font-semibold text-ink">{enabled ? "On" : "Off"}</span>
-          . Use an authenticator app such as Google Authenticator.
+          Use an authenticator app such as Google Authenticator.
         </p>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <button
+        <Button
           type="button"
-          className={buttonClass("primary")}
-          disabled={pending}
+          isLoading={pending}
+          loadingLabel="Starting…"
           onClick={() =>
             start(() => {
               void startTotpAction().then(async (result) => {
@@ -48,10 +55,10 @@ export function TotpPanel({ enabled }: { enabled: boolean }) {
           }
         >
           {enabled ? "Reset 2FA" : "Set up 2FA"}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className={buttonClass("outline")}
+          variant="outline"
           disabled={pending}
           onClick={() =>
             start(() => {
@@ -62,11 +69,11 @@ export function TotpPanel({ enabled }: { enabled: boolean }) {
           }
         >
           Sign out other devices
-        </button>
+        </Button>
       </div>
 
       {secret && otpauth ? (
-        <div className="max-w-md space-y-3 rounded-lg bg-card p-4 shadow-soft">
+        <div className="max-w-md space-y-3 rounded-theme bg-card p-4 shadow-soft">
           {qr ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={qr} alt="2FA QR code" className="mx-auto h-[220px] w-[220px]" />
@@ -91,25 +98,17 @@ export function TotpPanel({ enabled }: { enabled: boolean }) {
               });
             }}
           >
-            <label className="block text-sm">
-              Confirm code
-              <input
-                name="code"
-                inputMode="numeric"
-                required
-                className={`${fieldClass} mt-1`}
-              />
-            </label>
-            <button type="submit" className={buttonClass("ink")} disabled={pending}>
+            <Input name="code" label="Confirm code" inputMode="numeric" required />
+            <Button type="submit" isLoading={pending} loadingLabel="Enabling…">
               Enable 2FA
-            </button>
+            </Button>
           </form>
         </div>
       ) : null}
 
       {enabled ? (
         <form
-          className="max-w-md space-y-2 rounded-lg bg-card p-4 shadow-soft"
+          className="max-w-md space-y-2 rounded-theme bg-card p-4 shadow-soft"
           onSubmit={(event) => {
             event.preventDefault();
             const form = new FormData(event.currentTarget);
@@ -120,22 +119,28 @@ export function TotpPanel({ enabled }: { enabled: boolean }) {
             });
           }}
         >
-          <label className="block text-sm">
-            Disable with current code
-            <input
-              name="code"
-              inputMode="numeric"
-              required
-              className={`${fieldClass} mt-1`}
-            />
-          </label>
-          <button type="submit" className={buttonClass("outline")} disabled={pending}>
+          <Input
+            name="code"
+            label="Disable with current code"
+            inputMode="numeric"
+            required
+          />
+          <Button
+            type="submit"
+            variant="outline"
+            isLoading={pending}
+            loadingLabel="Turning off…"
+          >
             Turn off 2FA
-          </button>
+          </Button>
         </form>
       ) : null}
 
-      {message ? <p className="text-sm text-ink">{message}</p> : null}
+      {message ? (
+        <p role="status" className="text-sm text-foreground">
+          {message}
+        </p>
+      ) : null}
     </div>
   );
 }

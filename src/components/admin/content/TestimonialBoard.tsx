@@ -8,7 +8,13 @@ import {
 } from "@/app/(admin)/admin/content-actions";
 import { uploadCatalogImageAction } from "@/app/(admin)/admin/catalog-actions";
 import { DeleteButton } from "@/components/admin/common/DeleteButton";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { Button } from "@/components/ui/Button";
+import { controlBase } from "@/components/ui/Field";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
+import { Stagger, StaggerItem } from "@/components/motion";
+import { cn } from "@/lib/utils/cn";
 
 type TestimonialRow = {
   id: string;
@@ -55,36 +61,40 @@ export function TestimonialBoard({ rows }: { rows: TestimonialRow[] }) {
           blank — the screenshot is shown as-is on the homepage.
         </p>
       </div>
-      {rows.map((row) => (
-        <article key={row.id} className="rounded-lg bg-card p-4 shadow-soft">
-          <div className="flex items-start justify-between gap-3">
-            <p className="font-semibold text-ink">
-              {row.name} · {row.rating}/5
-            </p>
-            <div className="flex shrink-0 items-center gap-3">
-              <button
-                type="button"
-                className="text-xs font-semibold text-primary"
-                onClick={() => edit(row)}
-              >
-                Edit
-              </button>
-              <DeleteButton
-                action={() => deleteTestimonialAction({ id: row.id })}
-                confirmText={`Delete testimonial from ${row.name}?`}
-              />
-            </div>
-          </div>
-          {row.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={row.imageUrl} alt="" className="mt-2 h-24 rounded object-cover" />
-          ) : (
-            <p className="mt-1 text-sm text-muted">{row.quote}</p>
-          )}
-        </article>
-      ))}
+      <Stagger as="ul" className="space-y-3">
+        {rows.map((row) => (
+          <StaggerItem as="li" key={row.id}>
+            <article className="rounded-theme bg-card p-4 shadow-soft">
+              <div className="flex items-start justify-between gap-3">
+                <p className="font-semibold text-ink">
+                  {row.name} · {row.rating}/5
+                </p>
+                <div className="flex shrink-0 items-center gap-3">
+                  <Button variant="ghost" size="sm" onClick={() => edit(row)}>
+                    Edit
+                  </Button>
+                  <DeleteButton
+                    action={() => deleteTestimonialAction({ id: row.id })}
+                    confirmText={`Delete testimonial from ${row.name}?`}
+                  />
+                </div>
+              </div>
+              {row.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={row.imageUrl}
+                  alt=""
+                  className="mt-2 h-24 rounded-theme object-cover"
+                />
+              ) : (
+                <p className="mt-1 text-sm text-muted">{row.quote}</p>
+              )}
+            </article>
+          </StaggerItem>
+        ))}
+      </Stagger>
       <form
-        className="space-y-3 rounded-lg bg-card p-4 shadow-soft"
+        className="space-y-3 rounded-theme bg-card p-4 shadow-soft"
         onSubmit={(event) => {
           event.preventDefault();
           setPending(true);
@@ -103,51 +113,43 @@ export function TestimonialBoard({ rows }: { rows: TestimonialRow[] }) {
             {form.id ? "Edit testimonial" : "New testimonial"}
           </h2>
           {form.id ? (
-            <button
+            <Button
               type="button"
-              className="text-xs font-semibold text-muted hover:text-primary"
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setForm(blankForm);
                 setMessage("");
               }}
             >
               Cancel edit
-            </button>
+            </Button>
           ) : null}
         </div>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Name</span>
-          <input
-            value={form.name}
-            onChange={(event) => setForm({ ...form, name: event.target.value })}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Quote</span>
-          <textarea
-            value={form.quote}
-            onChange={(event) => setForm({ ...form, quote: event.target.value })}
-            placeholder="Leave blank if you're uploading a screenshot instead"
-            className={`${fieldClass} h-24 py-2`}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Rating</span>
-          <select
-            value={form.rating}
-            onChange={(event) => setForm({ ...form, rating: event.target.value })}
-            className={fieldClass}
-          >
-            <option value="5">5</option>
-            <option value="4">4</option>
-            <option value="3">3</option>
-            <option value="2">2</option>
-            <option value="1">1</option>
-          </select>
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">
+        <Input
+          label="Name"
+          value={form.name}
+          onChange={(event) => setForm({ ...form, name: event.target.value })}
+        />
+        <Textarea
+          label="Quote"
+          value={form.quote}
+          onChange={(event) => setForm({ ...form, quote: event.target.value })}
+          placeholder="Leave blank if you're uploading a screenshot instead"
+        />
+        <Select
+          label="Rating"
+          value={form.rating}
+          onChange={(event) => setForm({ ...form, rating: event.target.value })}
+        >
+          <option value="5">5</option>
+          <option value="4">4</option>
+          <option value="3">3</option>
+          <option value="2">2</option>
+          <option value="1">1</option>
+        </Select>
+        <div className="space-y-1.5">
+          <span className="block text-sm font-medium text-foreground">
             Screenshot (optional, from your inbox)
           </span>
           <input
@@ -167,29 +169,43 @@ export function TestimonialBoard({ rows }: { rows: TestimonialRow[] }) {
                 }
               });
             }}
-            className={fieldClass}
+            className={cn(
+              controlBase,
+              "h-11 cursor-pointer px-3 py-2 file:mr-3 file:rounded-theme file:border-0",
+              "file:bg-ink/5 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+            )}
           />
           {uploading ? (
-            <span className="mt-1 block text-xs text-muted">Uploading…</span>
+            <span className="block text-xs text-muted">Uploading…</span>
           ) : null}
           {form.imageUrl ? (
-            <div className="mt-2 flex items-center gap-2">
+            <div className="flex items-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={form.imageUrl} alt="" className="h-20 rounded object-cover" />
-              <button
+              <img
+                src={form.imageUrl}
+                alt=""
+                className="h-20 rounded-theme object-cover"
+              />
+              <Button
                 type="button"
-                className="text-xs font-semibold text-red-700"
+                variant="ghost"
+                size="sm"
                 onClick={() => setForm((current) => ({ ...current, imageUrl: "" }))}
               >
                 Remove image
-              </button>
+              </Button>
             </div>
           ) : null}
-        </label>
-        <button type="submit" className={buttonClass()} disabled={pending || uploading}>
+        </div>
+        <Button type="submit" isLoading={pending || uploading} loadingLabel="Saving…">
           {form.id ? "Save changes" : "Save testimonial"}
-        </button>
-        {message ? <p className="text-sm text-ink">{message}</p> : null}
+        </Button>
+        {message ? (
+          <p role="status" className="text-sm text-foreground">
+            {message}
+          </p>
+        ) : null}
       </form>
     </div>
   );

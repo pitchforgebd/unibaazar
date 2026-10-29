@@ -7,7 +7,9 @@ import {
   homeVideoAction,
 } from "@/app/(admin)/admin/content-actions";
 import { DeleteButton } from "@/components/admin/common/DeleteButton";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Stagger, StaggerItem } from "@/components/motion";
 
 type HomeVideoRow = { id: string; title: string; youtubeUrl: string; isActive: boolean };
 
@@ -34,32 +36,29 @@ export function HomeVideoBoard({ rows }: { rows: HomeVideoRow[] }) {
         </p>
       </div>
       {rows.length === 0 ? <p className="text-sm text-muted">No videos yet.</p> : null}
-      {rows.map((row) => (
-        <div
-          key={row.id}
-          className="flex items-center justify-between gap-3 rounded-lg bg-card p-4 shadow-soft"
-        >
-          <div>
-            <p className="font-semibold text-ink">{row.title}</p>
-            <p className="text-xs text-muted">{row.youtubeUrl}</p>
-          </div>
-          <div className="flex shrink-0 items-center gap-3">
-            <button
-              type="button"
-              className="text-xs font-semibold text-primary"
-              onClick={() => edit(row)}
-            >
-              Edit
-            </button>
-            <DeleteButton
-              action={() => deleteHomeVideoAction({ id: row.id })}
-              confirmText={`Delete video ${row.title}?`}
-            />
-          </div>
-        </div>
-      ))}
+      <Stagger as="ul" className="space-y-3">
+        {rows.map((row) => (
+          <StaggerItem as="li" key={row.id}>
+            <div className="flex items-center justify-between gap-3 rounded-theme bg-card p-4 shadow-soft">
+              <div>
+                <p className="font-semibold text-ink">{row.title}</p>
+                <p className="text-xs text-muted">{row.youtubeUrl}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <Button variant="ghost" size="sm" onClick={() => edit(row)}>
+                  Edit
+                </Button>
+                <DeleteButton
+                  action={() => deleteHomeVideoAction({ id: row.id })}
+                  confirmText={`Delete video ${row.title}?`}
+                />
+              </div>
+            </div>
+          </StaggerItem>
+        ))}
+      </Stagger>
       <form
-        className="space-y-3 rounded-lg bg-card p-4 shadow-soft"
+        className="space-y-3 rounded-theme bg-card p-4 shadow-soft"
         onSubmit={(event) => {
           event.preventDefault();
           setPending(true);
@@ -78,39 +77,38 @@ export function HomeVideoBoard({ rows }: { rows: HomeVideoRow[] }) {
             {form.id ? "Edit video" : "New video"}
           </h2>
           {form.id ? (
-            <button
+            <Button
               type="button"
-              className="text-xs font-semibold text-muted hover:text-primary"
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setForm(blankForm);
                 setMessage("");
               }}
             >
               Cancel edit
-            </button>
+            </Button>
           ) : null}
         </div>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Title</span>
-          <input
-            value={form.title}
-            onChange={(event) => setForm({ ...form, title: event.target.value })}
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">YouTube link</span>
-          <input
-            value={form.youtubeUrl}
-            onChange={(event) => setForm({ ...form, youtubeUrl: event.target.value })}
-            placeholder="https://www.youtube.com/watch?v=..."
-            className={fieldClass}
-          />
-        </label>
-        <button type="submit" className={buttonClass()} disabled={pending}>
+        <Input
+          label="Title"
+          value={form.title}
+          onChange={(event) => setForm({ ...form, title: event.target.value })}
+        />
+        <Input
+          label="YouTube link"
+          value={form.youtubeUrl}
+          onChange={(event) => setForm({ ...form, youtubeUrl: event.target.value })}
+          placeholder="https://www.youtube.com/watch?v=..."
+        />
+        <Button type="submit" isLoading={pending} loadingLabel="Saving…">
           {form.id ? "Save changes" : "Save video"}
-        </button>
-        {message ? <p className="text-sm text-ink">{message}</p> : null}
+        </Button>
+        {message ? (
+          <p role="status" className="text-sm text-foreground">
+            {message}
+          </p>
+        ) : null}
       </form>
     </div>
   );

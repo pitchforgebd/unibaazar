@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     );
   }
   try {
-    await guardWrite(request, "newsletter", parsed.data.captchaToken);
+    await guardWrite(request, "newsletter", parsed.data.captchaToken, parsed.data.email);
     const email = parsed.data.email.trim().toLowerCase();
     await prisma.subscriber.upsert({ where: { email }, update: {}, create: { email } });
     return NextResponse.json({ data: { ok: true } });

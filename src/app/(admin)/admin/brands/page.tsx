@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { CatalogDenied } from "@/components/admin/catalog/CatalogDenied";
-import { BrandManager } from "@/components/admin/catalog/CatalogRecords";
+import { BrandManager } from "@/components/admin/catalog/BrandManager";
 import type { BrandFormValues } from "@/lib/validation/admin-catalog";
 import { catalogAccess } from "@/server/admin/access";
 import { listBrands, loadBrand } from "@/server/admin/taxonomy";

@@ -90,6 +90,7 @@ export async function assertCheckoutAllowed(input: {
     cancelledOrders,
     deliveredOrders,
     ordersFromIpToday,
+    ordersFromPhoneToday,
     blockedPhones,
     blockedIps,
     courier,
@@ -107,6 +108,9 @@ export async function assertCheckoutAllowed(input: {
     prisma.order.count({
       where: { ipAddress: input.ip, placedAt: { gte: startOfDhakaDay() } },
     }),
+    prisma.order.count({
+      where: { phone: input.phone, placedAt: { gte: startOfDhakaDay() } },
+    }),
     blocked("security.blockedPhones"),
     blocked("security.blockedIps"),
     courierRatio(input.phone),
@@ -119,6 +123,7 @@ export async function assertCheckoutAllowed(input: {
     deliveredOrders,
     ordersFromIpToday,
     ordersFromDeviceToday: deviceOrdersToday(input.device),
+    ordersFromPhoneToday,
     courier,
   });
   if (message) {

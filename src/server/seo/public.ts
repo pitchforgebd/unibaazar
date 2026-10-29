@@ -22,8 +22,11 @@ export function defaultRobots(origin = siteOrigin()): string {
     "Disallow: /checkout",
     "Disallow: /search",
     "",
+    // /sitemap.xml is now an index (Phase 11) covering every per-type
+    // sitemap, image-sitemap.xml included — one line is enough, and
+    // search engines expect to be pointed at the top index, not every
+    // leaf.
     `Sitemap: ${origin}/sitemap.xml`,
-    `Sitemap: ${origin}/image-sitemap.xml`,
     "",
   ].join("\n");
 }

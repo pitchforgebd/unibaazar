@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type CSSProperties } from "react";
+import { Button } from "@/components/ui/Button";
 import { buttonClass } from "@/components/ui/controls";
 import { THEME_PRESET_IDS, THEME_PRESETS, type ThemePresetId } from "@/lib/theme/presets";
 import { themeCssVars } from "@/lib/theme/styleTag";
@@ -65,7 +66,7 @@ export function ThemePresetPicker({
   }
 
   return (
-    <div className="space-y-4 rounded-lg bg-card p-4 shadow-soft">
+    <div className="space-y-4 rounded-theme bg-card p-4 shadow-soft">
       <div>
         <h2 className="font-semibold text-ink">Theme preset</h2>
         <p className="text-sm text-muted">
@@ -83,8 +84,8 @@ export function ThemePresetPicker({
               type="button"
               onClick={() => setPreviewId(id)}
               aria-pressed={selected}
-              className={`rounded-md border p-3 text-left transition-colors ${
-                selected ? "border-primary ring-2 ring-primary/30" : "border-black/10"
+              className={`rounded-theme border p-3 text-left transition-colors duration-fast ease-standard focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                selected ? "border-primary ring-2 ring-primary/30" : "border-muted"
               }`}
             >
               <span className="flex gap-1">
@@ -97,7 +98,7 @@ export function ThemePresetPicker({
                   style={{ backgroundColor: tokens.accent }}
                 />
                 <span
-                  className="h-5 w-5 rounded-full border border-black/10"
+                  className="h-5 w-5 rounded-full border border-muted"
                   style={{ backgroundColor: tokens.page }}
                 />
               </span>
@@ -114,11 +115,11 @@ export function ThemePresetPicker({
 
       <div
         style={previewStyle}
-        className="rounded-md border border-black/10 p-4"
+        className="rounded-theme border border-muted p-4"
         data-testid="theme-preview"
       >
         <div
-          className="rounded-md bg-card p-4"
+          className="rounded-theme bg-card p-4"
           style={{ backgroundColor: previewTokens.card }}
         >
           <p
@@ -157,15 +158,19 @@ export function ThemePresetPicker({
       </div>
 
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          className={buttonClass("primary")}
+        <Button
+          isLoading={pending}
+          loadingLabel="Applying…"
           onClick={() => void apply()}
-          disabled={pending || previewId === appliedId}
+          disabled={previewId === appliedId}
         >
           {previewId === appliedId ? "Already live" : "Apply this theme"}
-        </button>
-        {message ? <p className="text-sm text-ink">{message}</p> : null}
+        </Button>
+        {message ? (
+          <p role="status" className="text-sm text-foreground">
+            {message}
+          </p>
+        ) : null}
       </div>
     </div>
   );

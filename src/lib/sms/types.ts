@@ -4,7 +4,14 @@ export type SmsSendResult = {
   errorMessage?: string;
 };
 
+export type SmsBalance = {
+  amount: number;
+  raw: unknown;
+};
+
 export interface SmsProvider {
   readonly id: string;
   send(to: string, body: string): Promise<SmsSendResult>;
+  /** Optional: not every provider exposes this. */
+  balance?(): Promise<SmsBalance>;
 }

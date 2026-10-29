@@ -30,6 +30,14 @@ function money(value: number): Prisma.Decimal {
 }
 
 async function main(): Promise<void> {
+  // Phase 12 made the login/OTP/checkout/contact limits DB-backed so they
+  // survive a restart (src/server/security/rate-limit-db.ts). That is the
+  // point in production, but it also means a dev/test database accumulates
+  // them across runs — and restarting the server no longer clears a limit
+  // that a long QA session has already exhausted. Seeding is the natural
+  // "give me a clean slate" step, so it resets them here.
+  await prisma.rateLimitHit.deleteMany({});
+
   for (const role of roles) {
     await prisma.role.upsert({
       where: { slug: role.slug },
@@ -476,6 +484,36 @@ async function main(): Promise<void> {
       passwordHash: adminPassword,
     },
   });
+
+  // One account per non-admin staff role, same password as the admin
+  // account above — used by the RBAC E2E suite (e2e/rbac/admin-roles.spec.ts)
+  // to log in as each role and confirm it sees only what roleGrants (see
+  // src/server/security/permissions.ts) says it should.
+  const staffRoleAccounts = [
+    { slug: "manager", phone: "01700000001", name: "Manager" },
+    { slug: "staff", phone: "01700000002", name: "Staff" },
+    { slug: "content-editor", phone: "01700000003", name: "Content Editor" },
+    { slug: "accountant", phone: "01700000004", name: "Accountant" },
+  ] as const;
+  for (const account of staffRoleAccounts) {
+    const role = await prisma.role.findUniqueOrThrow({ where: { slug: account.slug } });
+    await prisma.user.upsert({
+      where: { phone: account.phone },
+      update: {
+        name: account.name,
+        email: `${account.slug}@unibaazar.com`,
+        passwordHash: adminPassword,
+        roleId: role.id,
+      },
+      create: {
+        roleId: role.id,
+        name: account.name,
+        phone: account.phone,
+        email: `${account.slug}@unibaazar.com`,
+        passwordHash: adminPassword,
+      },
+    });
+  }
 
   const customerRole = await prisma.role.findUniqueOrThrow({
     where: { slug: "customer" },

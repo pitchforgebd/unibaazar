@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { PasswordForm } from "@/components/store/account/AccountForms";
+import { PasswordForm } from "@/components/store/account/PasswordForm";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("account");

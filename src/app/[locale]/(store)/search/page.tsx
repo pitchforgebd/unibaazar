@@ -42,12 +42,17 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           <SearchBar id="search-page" initialQuery={query.q} />
         </div>
         {query.q && results.length === 0 ? (
-          <p className="rounded-lg bg-card p-6 text-sm shadow-soft">
+          <p className="rounded-theme bg-card p-6 text-sm shadow-soft">
             {t("noSearchMatches")}
           </p>
         ) : null}
-        {query.q ? <TrackOnce name="Search" payload={{ query: query.q }} /> : null}
-        {results.length > 0 ? <ProductGrid products={results} /> : null}
+        {query.q ? (
+          <TrackOnce
+            name="Search"
+            payload={{ query: query.q, resultCount: results.length }}
+          />
+        ) : null}
+        {results.length > 0 ? <ProductGrid products={results} reveal /> : null}
       </Container>
     </>
   );

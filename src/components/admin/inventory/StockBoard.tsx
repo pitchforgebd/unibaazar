@@ -3,12 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import {
-  adjustStockAction,
-  barcodesAction,
-  warehouseAction,
-} from "@/app/(admin)/admin/inventory-actions";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { barcodesAction } from "@/app/(admin)/admin/inventory-actions";
+import { StockAdjustForms } from "@/components/admin/inventory/StockAdjustForms";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { buttonStyles } from "@/components/ui/buttonStyles";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { useToastStore } from "@/store/toast";
 import type { StockQuery, StockRow, WarehouseRow } from "@/server/admin/inventory";
 
 function listHref(query: StockQuery, page: number): string {
@@ -40,31 +43,9 @@ export function StockBoard({
   warehouses: WarehouseRow[];
 }) {
   const router = useRouter();
+  const push = useToastStore((state) => state.push);
   const [selected, setSelected] = useState<string[]>([]);
-  const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
-  const [sku, setSku] = useState("");
-  const [change, setChange] = useState("");
-  const [reason, setReason] = useState("ADJUSTMENT");
-  const [note, setNote] = useState("");
-  const [warehouseId, setWarehouseId] = useState(
-    warehouses.find((row) => row.isDefault)?.id ?? "",
-  );
-  const [code, setCode] = useState("");
-  const [warehouseName, setWarehouseName] = useState("");
-
-  async function run(
-    task: () => Promise<{ ok: boolean; message: string }>,
-    refresh: boolean,
-  ): Promise<void> {
-    setPending(true);
-    const result = await task();
-    setMessage(result.message);
-    setPending(false);
-    if (result.ok && refresh) {
-      router.refresh();
-    }
-  }
 
   return (
     <div className="space-y-4">
@@ -77,74 +58,68 @@ export function StockBoard({
 
       <form
         method="get"
-        className="grid gap-3 rounded-lg bg-card p-4 shadow-soft sm:grid-cols-2 lg:grid-cols-4"
+        className="grid gap-3 rounded-theme bg-card p-4 shadow-soft sm:grid-cols-2 lg:grid-cols-4"
       >
-        <label className="block text-sm sm:col-span-2">
-          <span className="mb-1 block font-semibold text-ink">Search</span>
-          <input
-            name="q"
-            defaultValue={query.q}
-            placeholder="Product or SKU"
-            className={fieldClass}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-ink">Alert</span>
-          <select name="level" defaultValue={query.level} className={fieldClass}>
-            <option value="">All stock</option>
-            <option value="low">Low stock</option>
-            <option value="out">Out of stock</option>
-          </select>
-        </label>
+        <Input
+          label="Search"
+          containerClassName="sm:col-span-2"
+          name="q"
+          defaultValue={query.q}
+          placeholder="Product or SKU"
+        />
+        <Select label="Alert" name="level" defaultValue={query.level}>
+          <option value="">All stock</option>
+          <option value="low">Low stock</option>
+          <option value="out">Out of stock</option>
+        </Select>
         <div className="flex items-end gap-2">
-          <button type="submit" className={buttonClass()}>
-            Apply
-          </button>
-          <Link href="/admin/inventory" className={buttonClass("outline")}>
+          <Button type="submit">Apply</Button>
+          <Link href="/admin/inventory" className={buttonStyles({ variant: "outline" })}>
             Clear
           </Link>
         </div>
       </form>
 
       <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          className={buttonClass("outline")}
-          disabled={pending}
+        <Button
+          variant="outline"
+          isLoading={pending}
           onClick={() => {
             if (selected.length === 0) {
-              setMessage("Select at least one variant.");
+              push({ message: "Select at least one variant.", type: "error" });
               return;
             }
-            void run(() => barcodesAction({ ids: selected }), true);
+            setPending(true);
+            void barcodesAction({ ids: selected }).then((result) => {
+              setPending(false);
+              push({ message: result.message, type: result.ok ? "success" : "error" });
+              if (result.ok) router.refresh();
+            });
           }}
         >
           Assign barcodes
-        </button>
-        <button
-          type="button"
-          className={buttonClass("outline")}
+        </Button>
+        <Button
+          variant="outline"
           onClick={() => {
             if (selected.length === 0) {
-              setMessage("Select at least one variant.");
+              push({ message: "Select at least one variant.", type: "error" });
               return;
             }
             router.push(`/admin/inventory/labels?ids=${selected.join(",")}`);
           }}
         >
           Print labels
-        </button>
+        </Button>
       </div>
-      {message ? <p className="text-sm text-ink">{message}</p> : null}
 
-      <div className="overflow-x-auto rounded-lg bg-card shadow-soft">
+      <div className="overflow-x-auto rounded-theme bg-card shadow-soft">
         <table className="min-w-[720px] w-full text-left text-sm">
           <thead className="border-b border-black/5 text-muted">
             <tr>
               <th className="px-3 py-3">
-                <input
-                  type="checkbox"
-                  aria-label="Select all variants"
+                <Checkbox
+                  label={<span className="sr-only">Select all variants</span>}
                   checked={
                     rows.length > 0 && rows.every((row) => selected.includes(row.id))
                   }
@@ -173,9 +148,8 @@ export function StockBoard({
               rows.map((row) => (
                 <tr key={row.id} className="border-b border-black/5 last:border-0">
                   <td className="px-3 py-3">
-                    <input
-                      type="checkbox"
-                      aria-label={`Select ${row.sku}`}
+                    <Checkbox
+                      label={<span className="sr-only">Select {row.sku}</span>}
                       checked={selected.includes(row.id)}
                       onChange={() =>
                         setSelected((current) =>
@@ -195,11 +169,13 @@ export function StockBoard({
                   </td>
                   <td className="px-3 py-3">{row.stock}</td>
                   <td className="px-3 py-3">
-                    {row.level === "out"
-                      ? "Out of stock"
-                      : row.level === "low"
-                        ? `Low · threshold ${row.threshold}`
-                        : "In stock"}
+                    {row.level === "out" ? (
+                      <Badge variant="primary">Out of stock</Badge>
+                    ) : row.level === "low" ? (
+                      <Badge variant="outline">Low · threshold {row.threshold}</Badge>
+                    ) : (
+                      <Badge variant="success">In stock</Badge>
+                    )}
                   </td>
                 </tr>
               ))
@@ -214,129 +190,25 @@ export function StockBoard({
         </p>
         <div className="flex gap-2">
           {page > 1 ? (
-            <Link href={listHref(query, page - 1)} className={buttonClass("outline")}>
+            <Link
+              href={listHref(query, page - 1)}
+              className={buttonStyles({ variant: "outline" })}
+            >
               Previous
             </Link>
           ) : null}
           {page < pages ? (
-            <Link href={listHref(query, page + 1)} className={buttonClass("outline")}>
+            <Link
+              href={listHref(query, page + 1)}
+              className={buttonStyles({ variant: "outline" })}
+            >
               Next
             </Link>
           ) : null}
         </div>
       </div>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <form
-          className="space-y-3 rounded-lg bg-card p-4 shadow-soft"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void run(
-              () => adjustStockAction({ sku, change, reason, note, warehouseId }),
-              true,
-            );
-          }}
-        >
-          <h2 className="font-semibold text-ink">Adjust stock</h2>
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-ink">SKU</span>
-            <input
-              value={sku}
-              onChange={(event) => setSku(event.target.value)}
-              className={fieldClass}
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-ink">Change</span>
-            <input
-              value={change}
-              onChange={(event) => setChange(event.target.value)}
-              placeholder="5 or -2"
-              className={fieldClass}
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-ink">Reason</span>
-            <select
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              className={fieldClass}
-            >
-              <option value="ADJUSTMENT">Adjustment</option>
-              <option value="PURCHASE">Purchase</option>
-              <option value="RETURN">Return</option>
-              <option value="SALE">Sale</option>
-            </select>
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-ink">Warehouse</span>
-            <select
-              value={warehouseId}
-              onChange={(event) => setWarehouseId(event.target.value)}
-              className={fieldClass}
-            >
-              <option value="">No warehouse</option>
-              {warehouses.map((row) => (
-                <option key={row.id} value={row.id}>
-                  {row.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-ink">Note</span>
-            <input
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              className={fieldClass}
-            />
-          </label>
-          <button type="submit" className={buttonClass()} disabled={pending}>
-            Save adjustment
-          </button>
-        </form>
-        <form
-          className="space-y-3 rounded-lg bg-card p-4 shadow-soft"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void run(() => warehouseAction({ code, name: warehouseName }), true);
-          }}
-        >
-          <h2 className="font-semibold text-ink">Warehouses</h2>
-          {warehouses.length === 0 ? (
-            <p className="text-sm text-muted">
-              No warehouse yet. The first one becomes the default for received purchases.
-            </p>
-          ) : (
-            <ul className="space-y-1 text-sm">
-              {warehouses.map((row) => (
-                <li key={row.id}>
-                  {row.name} ({row.code}){row.isDefault ? " · Default" : ""}
-                </li>
-              ))}
-            </ul>
-          )}
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-ink">Code</span>
-            <input
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-              className={fieldClass}
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-ink">Name</span>
-            <input
-              value={warehouseName}
-              onChange={(event) => setWarehouseName(event.target.value)}
-              className={fieldClass}
-            />
-          </label>
-          <button type="submit" className={buttonClass("outline")} disabled={pending}>
-            Save warehouse
-          </button>
-        </form>
-      </section>
+      <StockAdjustForms warehouses={warehouses} />
     </div>
   );
 }

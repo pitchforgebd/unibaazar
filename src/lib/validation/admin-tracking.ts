@@ -30,6 +30,7 @@ export const trackEventSchema = z.object({
     "PageView",
     "ViewContent",
     "AddToCart",
+    "AddToWishlist",
     "InitiateCheckout",
     "AddPaymentInfo",
     "Purchase",

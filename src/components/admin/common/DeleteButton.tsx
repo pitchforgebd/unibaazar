@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AlertDialog } from "@/components/ui/AlertDialog";
+import { useToastStore } from "@/store/toast";
 import type { ActionResult } from "@/server/admin/result";
 
 export function DeleteButton({
@@ -14,29 +16,41 @@ export function DeleteButton({
   confirmText?: string;
 }) {
   const router = useRouter();
+  const push = useToastStore((state) => state.push);
+  const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
 
   return (
-    <button
-      type="button"
-      className="text-xs font-semibold text-red-700 disabled:opacity-50"
-      disabled={pending}
-      onClick={() => {
-        if (!window.confirm(confirmText)) {
-          return;
-        }
-        setPending(true);
-        void action().then((result) => {
-          setPending(false);
-          if (result.ok) {
-            router.refresh();
-          } else {
-            window.alert(result.message);
-          }
-        });
-      }}
-    >
-      {pending ? "Removing…" : label}
-    </button>
+    <>
+      <button
+        type="button"
+        className="text-xs font-semibold text-red-700 hover:underline"
+        onClick={() => setOpen(true)}
+      >
+        {label}
+      </button>
+      <AlertDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={label}
+        description={confirmText}
+        confirmLabel={label}
+        cancelLabel="Cancel"
+        isLoading={pending}
+        loadingLabel="Removing…"
+        onConfirm={() => {
+          setPending(true);
+          void action().then((result) => {
+            setPending(false);
+            if (result.ok) {
+              setOpen(false);
+              router.refresh();
+            } else {
+              push({ message: result.message, type: "error" });
+            }
+          });
+        }}
+      />
+    </>
   );
 }

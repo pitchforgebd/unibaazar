@@ -4,6 +4,374 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Phase 14 — Deploy readiness (2026-10-30)
+
+Was planned as the Phase 12 migration rehearsal. Waived: the production
+database holds only demo/test data and v1 is being replaced rather than
+upgraded, so there was nothing to preserve and a rehearsal would have
+proved nothing. Verified the path that will actually run instead — a
+first deploy onto an empty database (ADR 0025). The CI/CD pipeline had
+never executed end to end, because deploys have been deliberately
+deferred since ADR 0007.
+
+### Fixed
+
+- **The release artifact omitted `scripts/`.** `deploy.yml`'s last step
+  is `bash .../scripts/deploy/deploy-release.sh`, and that script calls
+  `backup-db.mjs` and `apply-migrations.sh`. The first real deploy would
+  have failed on its first command.
+- **`--exclude='.next/cache'` was written after tar's path list**, where
+  tar treats it as positional and it matched nothing, so every release
+  carried **710MB of webpack cache** — and the invocation exits non-zero,
+  so depending on the runner's tar version the step either shipped
+  ~718MB or failed outright. Moving the flag ahead of the paths takes
+  the artifact to 7.5MB and tar to exit 0.
+- **`apply-migrations.sh` could not parse a DB password containing
+  symbols** — it split credentials on the first `@` and never decoded
+  percent-escapes, so a cPanel-generated password broke it two ways: a
+  raw `@` put the rest of the password into the hostname, and the
+  percent-encoded form Prisma requires reached `MYSQL_PWD` literally.
+  Both aborted the first deploy to a fresh host, which is the only time
+  this code runs.
+
+- **A parity assertion had been verifying nothing since Phase 9.** Every
+  parity test waited on `getByText("saved", { exact: false })`, which
+  also matches page body copy — the social settings page's intro ends
+  "keep the saved value". On that page it either resolved to two
+  elements and failed strict mode, or matched the intro and passed
+  without the save having happened. Replaced with one `expectSaved()`
+  helper scoped to `role="status"`. Both saves had in fact succeeded:
+  the test database held the exact values the failing tests submitted.
+  Parity is 8/8 on two consecutive runs.
+
+### Changed
+
+- `docs/launch-checklist.md` §1 is now the fresh-install sequence rather
+  than the rehearsal. It leads with the two steps that are the whole
+  recovery plan for deploy #1: copy `shared/uploads` off the host
+  (product images live only there — not in git, not in the artifact) and
+  keep a final pre-wipe dump outside the repo.
+- The backups/rollback section now states plainly that deploy #1 has no
+  rollback target, which `deploy-release.sh` already handled correctly.
+
+## Phase 13 — Pre-launch correctness fixes (2026-10-29)
+
+First phase past the master plan's Phase 12 — see
+`docs/post-launch-plan.md`.
+
+### Fixed
+
+- **Rate limits and daily order caps were keyed on IP alone, which is
+  the wrong key for this market.** Bangladesh's mobile carriers put
+  huge numbers of subscribers behind one CGNAT IPv4, so
+  `ordersFromIpToday >= 5` would have refused the **6th order of the
+  day from an entire carrier's NAT pool** — with a fraud message, so it
+  would have read as an attack rather than lost sales — and
+  `5 OTPs/15min/IP` would have throttled real logins at peak. The tight
+  limit now keys on the phone/email being acted on (hashed, so no raw
+  PII in the limiter table); IP stays as a loose flood backstop. Daily
+  order caps: phone 5, device 5, IP 40. Verified behaviourally: same
+  phone throttles at 5, twelve different phones on one IP all pass, and
+  a single-IP flood still trips at 60 (ADR 0024).
+- **`clientIp()` trusted the client-supplied `X-Forwarded-For` entry**,
+  letting anyone choose their own rate-limit key — to evade a limit, or
+  to spend someone else's budget and lock them out. It now counts
+  `TRUSTED_PROXY_HOPS` (default 1) from the right.
+
+### Added
+
+- `docs/post-launch-plan.md` — Phases 13–18: the launch path and every
+  deferred item, since the master plan stops at 12.
+
+## Phase 12 — Hardening, full QA, and launch prep (2026-10-29)
+
+### Security
+
+- **Rate limiting is now DB-backed** for login, OTP, checkout, contact
+  and newsletter (§5.6). The in-memory limiter reset on every restart,
+  so a deploy or crash handed an attacker a fresh budget. The in-memory
+  one is kept for high-volume telemetry routes only.
+- **A critical `next` advisory fixed** (15.5.27 → 15.5.28), plus a
+  `postcss` high and `markdown-it`. Production advisories 40 → 35,
+  critical 1 → 0. Three remaining `high`s need major upgrades
+  (prisma 7, zod 4, next 16) and are catalogued in ADR 0023.
+- **`npm audit` gates CI** at critical on production dependencies.
+- **CSRF defence-in-depth**: `assertSameOrigin` on the
+  session-authenticated mutations that lacked it (password, profile,
+  addresses, reviews, questions, order cancel/return, admin
+  notifications).
+
+### Fixed
+
+- **Authenticated flows were untestable in WebKit** — a production build
+  served over http marked the session cookie `Secure`, which WebKit
+  stores but never sends. The flag now follows the site URL's scheme.
+  Not user-facing (production is https), but it blinded the test suite
+  to the admin panel and account area in Safari.
+- **The parity theme test never restored the colour it set**, failing
+  every later a11y run. This was the real cause of the "stale test-DB
+  theme colour" artifact that the Phase 9, 10 and 11 QA reports wrote
+  off as environmental.
+- **Playwright's `globalSetup` pointed at the dev database**, because
+  the playwright scripts never loaded `.env.test`.
+
+### Added
+
+- **Cross-browser regression**: WebKit, iOS Safari and Firefox projects,
+  `npm run test:e2e:cross`, a slot in `verify:full`, and a CI job. The
+  full matrix now runs clean twice back to back with no manual
+  intervention.
+- **k6 load test** for listing and checkout
+  (`scripts/load/checkout-and-listing.js`), sized for this host's
+  thread ceiling.
+- **`docs/launch-checklist.md`** and ADR 0023.
+
+### Deferred
+
+- **CSP nonces** — needs `'strict-dynamic'`, and whether each
+  third-party pixel survives it can't be verified without real pixel
+  credentials. Exact steps recorded in ADR 0023.
+- **The data-migration rehearsal** — needs a production dump from the
+  human. This is the phase's "done when", so Phase 12 stays open.
+
+## Phase 11 — SEO module (2026-10-24)
+
+### Fixed
+
+- **The admin redirect manager did nothing** — `findActiveRedirect()`
+  existed and worked correctly, but nothing in the real request path
+  ever called it. `middleware.ts` now checks it before next-intl's own
+  routing and returns a genuine 301/302, which needed opting the file
+  into the Node.js middleware runtime (stable since Next 15.5).
+- **No JSON-LD builder had unit tests** — `lib/seo/urls.ts`'s
+  `absoluteUrl()` shared a file with `localeAlternates()`, which needs
+  next-intl's navigation module and made every importer (including the
+  JSON-LD builders) unresolvable under `vitest`. Split into
+  `urls.ts`/`alternates.ts`.
+
+### Added
+
+- **`ProductGroup`, `ItemList`, `VideoObject` JSON-LD**, plus
+  individual `Review` objects and real `shippingDetails` on
+  `productJsonLd()` — all missing entirely before this phase.
+- **A product's Open Graph image now falls back to its own photo**
+  when no custom SEO image is set.
+- **A "Create redirect" shortcut** on Admin → SEO's 404 log.
+- **The sitemap is now a real index** split by type (pages, products,
+  categories, brands, blog, videos, images), both locale variants,
+  real `lastmod` — the video sitemap uses Google's proper extension.
+- ADR 0022 (Phase 11 scope — most of the SEO wishlist already built;
+  the redirect-manager bug was the headline finding).
+
+## Phase 10 — Analytics module (2026-10-24)
+
+### Fixed
+
+- **`dashboard.ts`'s "purchase events this week" metric was silently
+  broken** — queried the event name in the wrong case and always
+  returned zero, regardless of real purchase volume.
+- **`Search` events never recorded whether they matched anything** —
+  now carry `resultCount`, enabling a zero-result-searches report.
+- **`PageView` undercounted UTM attribution** — now carries the
+  persisted last-touch UTM set, not just the current page's own URL
+  params.
+
+### Added
+
+- **Categorized cookie consent** (necessary/analytics/marketing,
+  replacing the old binary accept/reject) **+ Google Consent Mode v2**
+  — both named explicitly in the master plan, neither existed before.
+  `StorePixels` now loads analytics and marketing scripts under their
+  own category independently.
+- **A real Google Ads conversion event** on `Purchase`, distinct from
+  GA4's own `purchase` event, when `adsId`/`adsLabel` are configured.
+- **A lightweight visitor-id cookie** + real-time-visitor count.
+- **New Admin → Analytics section** (`/admin/analytics`): traffic,
+  sources/UTM, conversion funnel, product performance, search terms,
+  real-time visitors — all reading live `TrackingEvent`/`Order` data.
+- ADR 0021 (Phase 10 scope — most groundwork already built from Phase
+  9; real gaps were the items above plus the broken dashboard metric;
+  daily rollup tables reasoned out as premature for this site's
+  current data volume).
+
+## Phase 9 — Facebook/Meta module (2026-10-24)
+
+### Fixed
+
+- **`Purchase` fired before a gateway payment was actually confirmed** —
+  an SSLCommerz/bKash/etc. order abandoned or declined at the gateway
+  still reported a completed conversion to Meta/TikTok, corrupting
+  ROAS/CPA reporting. Now fires at order creation only for COD; every
+  other method fires once its payment reaches `PAID`.
+- **The wishlist store defaulted to a hardcoded product** (`slugs:
+["redmi-buds-4"]`) — every visitor saw it pre-wishlisted on every page
+  load with no way they put it there.
+
+### Added
+
+- **`fbp`/`fbc` capture** (`src/lib/tracking/fbclid.ts`) through checkout
+  into the CAPI `Purchase` payload — previously captured nowhere.
+- **`AddToWishlist` event** — named in the master plan's event list but
+  missing from the client/server/validation-schema trio that define
+  tracked events.
+- **Conversions API send logging + retry** — new `ConversionApiLog`
+  table, a daily `POST /api/v1/cron/retry-conversions` job (capped at 5
+  attempts), surfaced in Admin → Tracking's event list.
+- ADR 0020 (Phase 9 scope — most of the master plan's wishlist already
+  built across earlier phases; real gaps were the Purchase-timing bug
+  above plus the three items listed).
+
+## Phase 8 — Courier, SMS, and email modules (2026-10-24)
+
+### Fixed
+
+- **OTP and password-reset codes were generated and stored correctly but
+  never actually delivered** — a real, live-site bug.
+  `requestOtp()`/`requestReset()` now send via SMS or email through a new
+  `deliverCode()` in `src/server/auth/accounts.ts`.
+- **Bengali-language SMS templates would silently garble on delivery** —
+  `bulksmsbd.ts` always sent GSM-7 `type=text` regardless of body
+  content. New `needsUnicode()` switches to `type=unicode` whenever the
+  message needs it.
+
+### Added
+
+- **Notification idempotency**: new `NotificationDedupe` table +
+  `claimNotification()`, wired into `sendSms`/`sendEmail` via an optional
+  `dedupeKey` and into order-status notices.
+- **Branded, responsive HTML email** (`src/lib/email/template.ts`) —
+  every `sendEmail()` call now renders a shared HTML layout alongside
+  the plain-text body it already sent, not plain text only.
+- **Daily abandoned-cart reminder email** — new
+  `POST /api/v1/cron/abandoned-cart` route and matching Maintenance-board
+  job, finds carts quiet 2h–7d with an email on file.
+- **Courier/SMS balance and fraud-check calls** — `steadfastProvider`
+  gained `balance()`/`fraudCheck()`, `bulkSmsBdProvider` gained
+  `balance()`; Admin → Settings → Integrations' "Test connection"
+  buttons now make a real call instead of logging a no-op.
+- **Admin notification log viewer** — new tab at
+  `/admin/orders/notification-logs` lists `SmsLog`/`EmailLog`, most
+  recent first; no admin screen surfaced these before.
+- ADR 0019 (Phase 8 scope — real gap narrower than, and in the
+  OTP/reset-delivery case more urgent than, the master plan's wishlist).
+
+## Phase 7 — Payment module (2026-10-24)
+
+### Added
+
+- **`src/modules/payments/`**: the payment state machine the master plan
+  asks for. `PaymentStatus` expanded from 4 states to 8 (adds
+  `INITIATED`, `AUTHORIZED`, `CANCELLED`, `PARTIALLY_REFUNDED`), with an
+  explicit transition graph — closes the same ungoverned-status bug
+  class ADR 0012/0013 fixed for orders ahead of Phase 3.
+- **Amount-tracked refunds**: new `Payment.refundedAmount` column, a
+  real "Refund" action/UI (amount field, confirmation, remaining-balance
+  display) on the order payment panel, replacing a path that could set
+  `REFUNDED` with no amount recorded at all.
+- **Webhook idempotency**: a new `PaymentWebhookEvent` table claims each
+  gateway IPN/callback event by its own transaction id before any
+  Payment/Order write, via a DB unique constraint — safe under
+  concurrent delivery of the same event.
+- **SSLCommerz credentials moved into the encrypted admin-settings
+  system** (Admin → Settings → Integrations), reusing Phase 2's
+  encrypted-secrets machinery instead of raw `.env` vars.
+- **A genuinely real "Test payment" connection check** — previously a
+  no-op that always returned the same message regardless of
+  configuration.
+- **Daily payment reconciliation** with mismatch alerts — Admin →
+  Maintenance → "Reconcile payments", or the new
+  `POST /api/v1/cron/payment-reconciliation` route (daily cron).
+- ADR 0018 (Phase 7 scope — survey-first, same approach as ADRs
+  0016/0017; documents what's deferred pending third-party merchant
+  credentials this environment doesn't have).
+
+### Fixed
+
+- `setPaymentStatus` had zero transition-legality checks — any status
+  could move to any other status with no validation.
+- `syncCourier()` updated `Shipment.status` with no audit trail unless
+  the sync happened to also confirm the order.
+- `e2e/a11y/key-pages.spec.ts` raced `Reveal`/`Stagger`'s entrance
+  animation — axe could catch a genuinely in-flight element mid-fade, a
+  real but transient contrast failure, not what a settled page ever
+  shows. Fixed by forcing reduced motion before each scan.
+
+## Phase 6 — Admin panel rebuild (2026-10-24)
+
+### Added
+
+- **`components/ui`/`components/motion` adopted across every admin
+  module**: dashboard, reports, notifications, catalog, inventory, SEO,
+  orders, customers, marketing, content, users, settings — finishing the
+  design system's rollout started in Phase 5. Full breakdown in
+  `docs/qa/phase-06-report.md`.
+- **Order-status funnel** on the dashboard (today/7d/30d counts per
+  status) and a **stock-valuation report** (cost-basis, by category),
+  the one report type from the master plan's list that didn't exist yet.
+- **`e2e/rbac/admin-roles.spec.ts`**: logs in as each staff role and
+  asserts it sees only the modules its permissions grant. New seed
+  accounts per role in `prisma/seed.ts`.
+- **5 new settings-group parity tests** (theme, checkout, social,
+  system, tracking) in the existing parity suite.
+- `DeleteButton` rebuilt on `AlertDialog` instead of native
+  `window.confirm`/`alert`; `ToastStack` now mounted in the admin layout.
+- ADR 0017 (Phase 6 scope — survey-first, same approach as ADR 0016).
+
+### Fixed
+
+- **`Reveal`'s scroll-trigger hid list/detail pages' primary content**
+  until the admin scrolled — removed from 8 files (orders, customers,
+  coupons, banners, sliders, reports) where the data an admin came to
+  see started below the 20%-visible trigger threshold on page load.
+- **Zero-confirmation deletes** on category/brand/unit/label/attribute/
+  tag rows — now gated behind `AlertDialog`.
+- **`(admin)/admin/error.tsx` called `useTranslations()`** with no
+  `NextIntlClientProvider` in admin's tree — the error boundary would
+  itself crash on the exact class of error it exists to catch. Fixed
+  with plain English strings, like every other admin component.
+- **Audit-log completeness**: 16 admin write actions
+  (`catalog-actions.ts`'s taxonomy/question-moderation actions,
+  `syncCourier()`) had no `recordAudit` entry at all. Also deleted a
+  dead, unimported duplicate of `user-actions.ts`.
+
+## Phase 5 — Storefront rebuild (2026-10-23)
+
+### Added
+
+- **`components/ui`/`components/motion` adopted across the real customer
+  journey**: homepage, shop/category/brand listing, product detail, cart,
+  checkout, order success, account, wishlist/compare — going from
+  zero-adopted outside `/_design` (Phase 4) to the primary toolkit on the
+  highest-traffic screens. Full breakdown in `docs/qa/phase-05-report.md`.
+- **Mobile filter bottom sheet** on listing pages (`shop/MobileFilters.tsx`,
+  `Sheet`-based) and a sticky desktop filter sidebar, replacing the plain
+  responsive-grid-only mobile treatment.
+- **Sticky mobile buy bar** on product detail, swipeable product gallery
+  with a full-screen zoom lightbox, fly-to-cart animation.
+- **Cart free-delivery progress bar**, cart drawer rebuilt on `Sheet`.
+- **`/videos` gallery**: a real storefront route (grid + lightbox over
+  every active `HomeVideo`) — previously only an admin content screen
+  existed for the homepage teaser.
+- **404/500 pages reskinned** with the design system's `buttonStyles`.
+- ADR 0016 (Phase 5 scope boundaries — real journey adoption vs. the
+  master plan's full exotic-section-type wishlist, explicitly deferred
+  items tracked there).
+
+### Fixed
+
+- **`Reveal`/`Stagger`'s hidden state was both axe-contrast-visible and
+  keyboard-tab-reachable**: the shared variants only set `opacity: 0`,
+  which leaves not-yet-revealed content in the accessibility tree.
+  Surfaced by turning scroll-reveal on for a long listing grid for the
+  first time (axe flagged a serious contrast violation on an off-screen
+  card). Fixed by adding `visibility: hidden`/`visible` alongside opacity
+  in `src/components/motion/variants.ts` — a latent bug since Phase 4,
+  now fixed at the shared primitive level.
+- **Lighthouse CI's performance/accessibility/best-practices budgets
+  flipped from `warn` to `error`**, per `lighthouserc.js`'s own comment
+  earmarking this moment. SEO stays `warn`: `/checkout`'s 0.63 score is
+  the correct, by-design result of it being `noindex`'d.
+
 ## Phase 4 — Design system and motion system (2026-10-22)
 
 ### Added

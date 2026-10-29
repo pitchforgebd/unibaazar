@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cancelBodySchema } from "@/lib/validation/api";
 import { cancelOrder } from "@/server/orders/orders";
 import { handle, readJson } from "@/server/http";
+import { assertSameOrigin } from "@/server/security/origin";
 
 type Context = { params: Promise<{ number: string }> };
 
@@ -14,5 +15,8 @@ export async function POST(request: Request, context: Context) {
       { status: 400 },
     );
   }
-  return handle(() => cancelOrder(number, parsed.data.phone));
+  return handle(async () => {
+    assertSameOrigin(request);
+    return cancelOrder(number, parsed.data.phone);
+  });
 }

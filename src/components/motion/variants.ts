@@ -52,8 +52,13 @@ export function revealVariants(
         opacity: { ...withDelay, duration: DURATION.slow, ease: EASING.standard },
       };
   return {
-    hidden: { opacity: 0, ...offset },
-    visible: { opacity: 1, x: 0, y: 0, transition },
+    // `visibility: hidden` alongside opacity: 0 keeps not-yet-revealed
+    // content out of the accessibility tree and tab order (otherwise a
+    // keyboard user can tab into, and axe's color-contrast check can flag,
+    // a card that's merely transparent but still "visible" per the DOM) —
+    // see the shop listing grid, the first page long enough to expose this.
+    hidden: { opacity: 0, visibility: "hidden", ...offset },
+    visible: { opacity: 1, visibility: "visible", x: 0, y: 0, transition },
   };
 }
 

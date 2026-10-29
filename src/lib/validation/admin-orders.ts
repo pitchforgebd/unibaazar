@@ -58,9 +58,19 @@ export const itemsSchema = z
     path: ["items"],
   });
 
+// REFUNDED/PARTIALLY_REFUNDED are deliberately excluded — reaching them
+// bypasses refundedAmount bookkeeping (see refundSchema/refundPayment,
+// src/modules/payments/server/refund.ts), which this generic status
+// override doesn't track.
 export const paymentSchema = z.object({
   orderId: z.string().trim().min(1),
-  status: z.enum(["PENDING", "PAID", "FAILED", "REFUNDED"]),
+  status: z.enum(["INITIATED", "PENDING", "AUTHORIZED", "PAID", "FAILED", "CANCELLED"]),
+});
+
+export const refundSchema = z.object({
+  orderId: z.string().trim().min(1),
+  amount: z.coerce.number().positive("Enter a refund amount greater than zero"),
+  note: z.string().trim().max(500).optional(),
 });
 
 export const manualOrderSchema = z.object({

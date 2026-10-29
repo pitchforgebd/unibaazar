@@ -1,9 +1,15 @@
 import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { Container } from "@/components/ui/Container";
-import { buttonClass } from "@/components/ui/controls";
+import { Button } from "@/components/ui/Button";
+import { buttonStyles } from "@/components/ui/buttonStyles";
 import { PageTitle, type Crumb } from "@/components/store/common/PageTitle";
 import { ProductGrid } from "@/components/store/product/ProductCard";
+import { itemListJsonLd } from "@/lib/seo/schema";
+import { activeFilterCount } from "@/components/store/shop/activeFilters";
+import { FilterForm, type ShopTranslator } from "@/components/store/shop/FilterForm";
+import { MobileFilters } from "@/components/store/shop/MobileFilters";
 import { SortSelect } from "@/components/store/shop/SortSelect";
 import { sanitizeRichText } from "@/lib/security/sanitizeHtml";
 import {
@@ -33,6 +39,8 @@ type ProductListingProps = {
   hideBrand?: boolean;
 };
 
+const MOBILE_FORM_ID = "listing-filters-mobile";
+
 export async function ProductListing({
   title,
   subtitle,
@@ -56,21 +64,50 @@ export async function ProductListing({
   const facets = facetValues(catalog);
   const start = page.total === 0 ? 0 : (page.page - 1) * pageSize + 1;
   const end = Math.min(page.page * pageSize, page.total);
+  // The filter inputs are uncontrolled (defaultChecked/defaultValue), so a
+  // client-side navigation — "Clear", a sort change — would otherwise leave
+  // them (and an open mobile sheet) showing the previous URL's state.
+  // Keying on the current URL remounts them whenever it changes.
+  const urlKey = shopHref(basePath, query);
+  const formProps = {
+    t,
+    basePath,
+    query,
+    categories,
+    brands,
+    facets,
+    hideCategory,
+    hideBrand,
+  };
 
   return (
     <>
       <PageTitle title={title} subtitle={subtitle} crumbs={crumbs} />
-      <Container className="grid gap-6 py-6 lg:grid-cols-[250px_minmax(0,1fr)]">
-        <FilterForm
-          t={t}
-          basePath={basePath}
-          query={query}
-          categories={categories}
-          brands={brands}
-          facets={facets}
-          hideCategory={hideCategory}
-          hideBrand={hideBrand}
+      {page.items.length > 0 ? (
+        <JsonLd
+          data={itemListJsonLd(
+            page.items.map((product) => ({
+              name: product.name,
+              path: `/product/${product.slug}`,
+            })),
+          )}
         />
+      ) : null}
+      <Container className="grid gap-6 py-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start">
+        {/* Desktop: a sidebar that stays in view below the sticky header
+         * while the grid scrolls. Below lg it's display:none and the same
+         * form opens in MobileFilters' bottom sheet instead. */}
+        <div className="hidden rounded-theme bg-card p-5 shadow-soft lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto">
+          <h2 className="mb-4 font-heading text-base font-semibold text-ink">
+            {t("filtersTitle")}
+          </h2>
+          <FilterForm
+            key={urlKey}
+            id="listing-filters-desktop"
+            withActions
+            {...formProps}
+          />
+        </div>
         <div>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted">
@@ -78,17 +115,41 @@ export async function ProductListing({
                 ? t("noProducts")
                 : t("showingRange", { start, end, total: page.total })}
             </p>
-            <SortSelect basePath={basePath} query={query} />
+            <div className="flex items-center gap-2">
+              <MobileFilters
+                key={urlKey}
+                activeCount={activeFilterCount(query)}
+                footer={
+                  <>
+                    <Link
+                      href={basePath}
+                      className={buttonStyles({ variant: "outline" })}
+                    >
+                      {t("clear")}
+                    </Link>
+                    <Button type="submit" form={MOBILE_FORM_ID}>
+                      {t("apply")}
+                    </Button>
+                  </>
+                }
+              >
+                <FilterForm id={MOBILE_FORM_ID} withActions={false} {...formProps} />
+              </MobileFilters>
+              <SortSelect basePath={basePath} query={query} />
+            </div>
           </div>
           {page.items.length === 0 ? (
-            <div className="rounded-lg bg-card p-8 text-center shadow-soft">
+            <div className="rounded-theme bg-card p-8 text-center shadow-soft">
               <p className="font-semibold text-ink">{t("noMatches")}</p>
-              <Link href={basePath} className={`${buttonClass("outline")} mt-4`}>
+              <Link
+                href={basePath}
+                className={buttonStyles({ variant: "outline", className: "mt-4" })}
+              >
                 {t("clearFilters")}
               </Link>
             </div>
           ) : (
-            <ProductGrid products={page.items} />
+            <ProductGrid products={page.items} reveal />
           )}
           <Pagination
             t={t}
@@ -98,8 +159,10 @@ export async function ProductListing({
             pageCount={page.pageCount}
           />
           {seoText ? (
-            <section className="mt-8 rounded-lg bg-card p-5 shadow-soft">
-              <h2 className="text-lg font-semibold text-ink">{t("aboutCategory")}</h2>
+            <section className="mt-8 rounded-theme bg-card p-5 shadow-soft">
+              <h2 className="font-heading text-lg font-semibold text-ink">
+                {t("aboutCategory")}
+              </h2>
               <div
                 className="prose-sm mt-2 max-w-none text-sm leading-6 text-muted [&_a]:text-primary [&_a]:underline [&_strong]:text-ink"
                 dangerouslySetInnerHTML={{ __html: sanitizeRichText(seoText) }}
@@ -109,190 +172,6 @@ export async function ProductListing({
         </div>
       </Container>
     </>
-  );
-}
-
-type ShopTranslator = Awaited<ReturnType<typeof getTranslations>>;
-
-function FilterForm({
-  t,
-  basePath,
-  query,
-  categories,
-  brands,
-  facets,
-  hideCategory,
-  hideBrand,
-}: {
-  t: ShopTranslator;
-  basePath: string;
-  query: ShopQuery;
-  categories: { slug: string; name: string }[];
-  brands: { slug: string; name: string }[];
-  facets: { sizes: string[]; colors: string[] };
-  hideCategory: boolean;
-  hideBrand: boolean;
-}) {
-  return (
-    <form
-      action={basePath}
-      method="get"
-      className="h-fit space-y-5 rounded-lg bg-card p-4 shadow-soft"
-    >
-      {query.q ? <input type="hidden" name="q" value={query.q} /> : null}
-      {query.sort !== "newest" ? (
-        <input type="hidden" name="sort" value={query.sort} />
-      ) : null}
-
-      {hideCategory ? null : (
-        <CheckGroup
-          legend={t("category")}
-          name="category"
-          selected={query.categories}
-          options={categories.map((category) => ({
-            value: category.slug,
-            label: category.name,
-          }))}
-        />
-      )}
-      {hideBrand ? null : (
-        <CheckGroup
-          legend={t("brand")}
-          name="brand"
-          selected={query.brands}
-          options={brands.map((brand) => ({ value: brand.slug, label: brand.name }))}
-        />
-      )}
-      <fieldset>
-        <legend className="text-sm font-semibold text-ink">{t("price")}</legend>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <input
-            type="number"
-            name="min"
-            min={0}
-            placeholder={t("min")}
-            defaultValue={query.minPrice ?? ""}
-            aria-label={t("minPriceAria")}
-            className="h-10 rounded-md border border-black/10 px-2 text-sm"
-          />
-          <input
-            type="number"
-            name="max"
-            min={0}
-            placeholder={t("max")}
-            defaultValue={query.maxPrice ?? ""}
-            aria-label={t("maxPriceAria")}
-            className="h-10 rounded-md border border-black/10 px-2 text-sm"
-          />
-        </div>
-      </fieldset>
-      <CheckGroup
-        legend={t("size")}
-        name="size"
-        selected={query.sizes}
-        options={facets.sizes.map((size) => ({ value: size, label: size }))}
-      />
-      <CheckGroup
-        legend={t("color")}
-        name="color"
-        selected={query.colors}
-        options={facets.colors.map((color) => ({ value: color, label: color }))}
-      />
-      <fieldset>
-        <legend className="text-sm font-semibold text-ink">{t("rating")}</legend>
-        <div className="mt-2 space-y-1 text-sm">
-          {[4, 3].map((rating) => (
-            <label key={rating} className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="rating"
-                value={rating}
-                defaultChecked={query.rating === rating}
-              />
-              {t("starsAndUp", { rating })}
-            </label>
-          ))}
-          <label className="flex items-center gap-2">
-            <input type="radio" name="rating" value="" defaultChecked={!query.rating} />
-            {t("anyRating")}
-          </label>
-        </div>
-      </fieldset>
-      <fieldset>
-        <legend className="text-sm font-semibold text-ink">{t("availability")}</legend>
-        <div className="mt-2 space-y-1 text-sm">
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="availability"
-              value="in"
-              defaultChecked={query.availability === "in"}
-            />
-            {t("inStock")}
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="availability"
-              value="out"
-              defaultChecked={query.availability === "out"}
-            />
-            {t("outOfStock")}
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="availability"
-              value=""
-              defaultChecked={!query.availability}
-            />
-            {t("allAvailability")}
-          </label>
-        </div>
-      </fieldset>
-      <div className="flex gap-2">
-        <button type="submit" className={buttonClass("primary")}>
-          {t("apply")}
-        </button>
-        <Link href={basePath} className={buttonClass("outline")}>
-          {t("clear")}
-        </Link>
-      </div>
-    </form>
-  );
-}
-
-function CheckGroup({
-  legend,
-  name,
-  options,
-  selected,
-}: {
-  legend: string;
-  name: string;
-  options: { value: string; label: string }[];
-  selected: string[];
-}) {
-  if (options.length === 0) {
-    return null;
-  }
-  return (
-    <fieldset>
-      <legend className="text-sm font-semibold text-ink">{legend}</legend>
-      <div className="mt-2 space-y-1 text-sm">
-        {options.map((option) => (
-          <label key={option.value} className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              name={name}
-              value={option.value}
-              defaultChecked={selected.includes(option.value)}
-            />
-            {option.label}
-          </label>
-        ))}
-      </div>
-    </fieldset>
   );
 }
 
@@ -314,15 +193,16 @@ function Pagination({
   }
   const pages = Array.from({ length: pageCount }, (_, index) => index + 1);
   return (
-    <nav aria-label={t("paginationAria")} className="mt-6 flex flex-wrap gap-2">
+    <nav aria-label={t("paginationAria")} className="mt-8 flex flex-wrap gap-2">
       {pages.map((number) => (
         <Link
           key={number}
           href={shopHref(basePath, query, { page: number })}
           aria-current={number === page ? "page" : undefined}
-          className={`grid h-10 w-10 place-items-center rounded-md text-sm font-semibold ${
-            number === page ? "bg-primary text-white" : "bg-card text-ink shadow-soft"
-          }`}
+          className={buttonStyles({
+            variant: number === page ? "primary" : "outline",
+            iconOnly: true,
+          })}
         >
           {number}
         </Link>

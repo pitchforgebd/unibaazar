@@ -4,6 +4,7 @@ import { sendEmail } from "@/lib/email/mailer";
 import { sendSms } from "@/lib/sms/send";
 import { templateSchema } from "@/lib/validation/admin-orders";
 import { formatTaka } from "@/lib/utils/currency";
+import { siteOrigin } from "@/server/tracking/config";
 
 const settingKey = "notify.orderStatus";
 
@@ -13,7 +14,7 @@ export type NotifyTemplates = {
   emailBody: string;
 };
 
-const defaults: NotifyTemplates = {
+export const defaults: NotifyTemplates = {
   sms: "Hi {name}, UniBaazar order {order_id} is {status}. Total {total}. Tracking {tracking}.",
   emailSubject: "Order {order_id} is {status}",
   emailBody:
@@ -50,6 +51,55 @@ export function fillTemplate(template: string, values: Record<string, string>): 
   return template.replace(/\{([a-z_]+)\}/g, (_match, key: string) => values[key] ?? "");
 }
 
+export type SmsLogRow = {
+  id: string;
+  to: string;
+  body: string;
+  provider: string;
+  status: string;
+  createdAt: string;
+};
+
+export type EmailLogRow = {
+  id: string;
+  to: string;
+  subject: string;
+  status: string;
+  createdAt: string;
+};
+
+/** No admin screen surfaced these before Phase 8 — every send/skip was
+ * written to SmsLog/EmailLog but only usable via a raw DB query. */
+export async function listSmsLogs(limit = 100): Promise<SmsLogRow[]> {
+  const rows = await prisma.smsLog.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    to: row.to,
+    body: row.body,
+    provider: row.provider,
+    status: row.status,
+    createdAt: row.createdAt.toISOString(),
+  }));
+}
+
+export async function listEmailLogs(limit = 100): Promise<EmailLogRow[]> {
+  const rows = await prisma.emailLog.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: { id: true, to: true, subject: true, status: true, createdAt: true },
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    to: row.to,
+    subject: row.subject,
+    status: row.status,
+    createdAt: row.createdAt.toISOString(),
+  }));
+}
+
 export async function queueStatusNotice(order: {
   id: string;
   number: string;
@@ -68,13 +118,22 @@ export async function queueStatusNotice(order: {
     total: formatTaka(order.total.toNumber()),
     tracking: order.trackingId ?? "",
   };
+  // Keyed on (order, status): a genuine race between two concurrent
+  // status-change requests landing on the same order before either
+  // commits could otherwise both pass transition-legality checks and
+  // both notify — this is the backstop, not the primary guard (that's
+  // transitionOrder()'s own same-status no-op in the common case).
+  const dedupeKey = `order-status:${order.id}:${order.status}`;
   const sms = fillTemplate(templates.sms, values);
-  await sendSms(order.phone, sms, { orderId: order.id });
+  await sendSms(order.phone, sms, { orderId: order.id }, dedupeKey);
   if (order.email) {
+    const trackUrl = `${siteOrigin()}/track-order?order=${encodeURIComponent(order.number)}&phone=${encodeURIComponent(order.phone)}`;
     await sendEmail(
       order.email,
       fillTemplate(templates.emailSubject, values),
       fillTemplate(templates.emailBody, values),
+      dedupeKey,
+      { label: "Track your order", href: trackUrl },
     );
   }
 }

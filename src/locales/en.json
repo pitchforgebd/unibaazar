@@ -132,7 +132,6 @@
     "sortPriceDesc": "Price: high to low",
     "sortTopRated": "Top rated",
     "sortName": "Name",
-    "sortLabel": "Sort",
     "sortProductsAria": "Sort products",
     "categoryFallback": "Category",
     "brandFallback": "Brand",
@@ -146,14 +145,26 @@
     "flashDealsTitle": "Flash deals",
     "flashDealsSubtitle": "Prices and stock on these deals can change when the countdown ends.",
     "noFlashDeals": "No flash deals are running right now.",
-    "browseProducts": "Browse products"
+    "browseProducts": "Browse products",
+    "filtersTitle": "Filters",
+    "filtersClose": "Close filters",
+    "filtersOpenAria": "{count, plural, =0 {Open filters} other {Open filters, # active}}"
   },
   "wishlist": {
-    "empty": "Your wishlist is empty."
+    "empty": "Your wishlist is empty.",
+    "pageTitle": "Wishlist",
+    "emptyHint": "Tap the heart on any product to save it here for later.",
+    "count": "{count, plural, one {# saved item} other {# saved items}}"
   },
   "compare": {
     "needMore": "Add at least two products to compare.",
-    "hint": "Open a product and choose Add to compare. Up to three items."
+    "hint": "Open a product and choose Add to compare. Up to three items.",
+    "pageTitle": "Compare",
+    "tableLabel": "Product comparison",
+    "featureColumn": "Feature",
+    "actionsRow": "Actions",
+    "swipeHint": "Swipe sideways to see every product",
+    "removeProduct": "Remove {name}"
   },
   "cart": {
     "title": "Your cart",
@@ -175,7 +186,13 @@
     "pageTitle": "Cart",
     "crumb": "Cart",
     "delivery": "Delivery",
-    "deliveryAtCheckout": "At checkout"
+    "deliveryAtCheckout": "At checkout",
+    "itemCount": "{count, plural, one {# item} other {# items}}",
+    "freeDelivery": {
+      "label": "Progress toward free delivery",
+      "remaining": "Add <strong>{amount}</strong> more for free delivery",
+      "unlocked": "You've unlocked free delivery!"
+    }
   },
   "toast": {
     "added": "Added to cart",
@@ -186,8 +203,16 @@
   },
   "cookie": {
     "text": "Cookies are used for analytics and ads only after you allow them.",
-    "accept": "Accept",
-    "reject": "Reject"
+    "acceptAll": "Accept all",
+    "rejectAll": "Reject all",
+    "customize": "Customize",
+    "necessary": "Necessary",
+    "necessaryDesc": "Always on — required for the site to work (cart, login, checkout).",
+    "analytics": "Analytics",
+    "analyticsDesc": "Helps us see which pages and products get used, so we can improve them.",
+    "marketing": "Marketing",
+    "marketingDesc": "Lets ad platforms (Meta, TikTok) measure and improve ad performance.",
+    "savePreferences": "Save preferences"
   },
   "product": {
     "add": "Add to cart",
@@ -216,7 +241,8 @@
     "tabs": {
       "description": "Description",
       "reviews": "Reviews",
-      "qa": "Q&A"
+      "qa": "Q&A",
+      "label": "Product information"
     },
     "reviews": {
       "empty": "No reviews yet.",
@@ -252,6 +278,15 @@
       "warrantyLabel": "Warranty: ",
       "returnsLabel": "Returns: ",
       "whatsappMessage": "Hello UniBaazar, I want to order {name} (SKU: {sku})."
+    },
+    "badgeNew": "New",
+    "gallery": {
+      "label": "Product images",
+      "previous": "Previous image",
+      "next": "Next image",
+      "position": "{current} / {total}",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out"
     }
   },
   "chat": {
@@ -287,7 +322,11 @@
     "delivery": "Delivery",
     "deliveryFree": "Free",
     "total": "Total",
-    "submit": "Place order"
+    "submit": "Place order",
+    "paymentCodHint": "Pay in cash when your order arrives",
+    "paymentWalletHint": "Pay from your {name} account",
+    "paymentCardHint": "Debit or credit card",
+    "submitting": "Placing order…"
   },
   "orders": {
     "metaTitle": "Order {id}",
@@ -319,7 +358,32 @@
     "detailLoading": "Loading order…",
     "notOnAccount": "That order is not on this account.",
     "trackingLabel": "Tracking",
-    "totalLabel": "Total "
+    "totalLabel": "Total ",
+    "successHeading": "Thank you, {name}!",
+    "successIntro": "We've received your order. Keep your order ID handy to track it.",
+    "orderIdLabel": "Order ID",
+    "continueShopping": "Continue shopping",
+    "timelineHeading": "Order progress",
+    "itemsHeading": "Items",
+    "placedOn": "Placed {date}",
+    "backToOrders": "Back to orders",
+    "status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "processing": "Processing",
+      "readyToShip": "Ready to ship",
+      "sentToCourier": "Sent to courier",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "returnRequested": "Return requested",
+      "returned": "Returned",
+      "failed": "Failed",
+      "onHold": "On hold",
+      "partialDelivered": "Partially delivered",
+      "refunded": "Refunded"
+    }
   },
   "auth": {
     "errorVerifyCode": "Could not verify the code",
@@ -421,13 +485,22 @@
     "fieldConfirmPassword": "Confirm password",
     "updatingPassword": "Updating…",
     "updatePassword": "Update password",
-    "passwordUpdated": "Password updated."
+    "passwordUpdated": "Password updated.",
+    "viewAllOrders": "View all",
+    "addAddressHeading": "Add an address"
   },
   "blog": {
     "metaTitle": "Blog",
     "pageTitle": "Blog",
     "empty": "No posts yet. Check back soon.",
     "backToList": "Back to blog"
+  },
+  "videos": {
+    "metaTitle": "Videos",
+    "pageTitle": "Videos",
+    "empty": "No videos yet. Check back soon.",
+    "playLabel": "Play video: {title}",
+    "closeLabel": "Close video"
   },
   "cms": {
     "contact": {
@@ -470,12 +543,6 @@
       "referencePrefix": "Reference ",
       "retry": "Try again",
       "homeButton": "Home"
-    },
-    "boundaryAdmin": {
-      "title": "This panel hit an error",
-      "body": "Something broke while rendering this admin screen. You can try again, or come back later.",
-      "referencePrefix": "Reference ",
-      "retry": "Try again"
     }
   },
   "validation": {

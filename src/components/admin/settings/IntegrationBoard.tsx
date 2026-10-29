@@ -9,7 +9,7 @@ import {
   smsTestAction,
 } from "@/app/(admin)/admin/settings-actions";
 import { SettingsForm } from "@/components/admin/settings/SettingsForm";
-import { buttonClass } from "@/components/ui/controls";
+import { Button } from "@/components/ui/Button";
 import type { IntegrationSettings } from "@/server/settings/store";
 
 export function IntegrationBoard({ values }: { values: IntegrationSettings }) {
@@ -32,6 +32,7 @@ export function IntegrationBoard({ values }: { values: IntegrationSettings }) {
         ...values,
         bkashSecret: "",
         nagadSecret: "",
+        sslcommerzStorePass: "",
         smsSecret: "",
         emailSecret: "",
         courierSecret: "",
@@ -70,6 +71,30 @@ export function IntegrationBoard({ values }: { values: IntegrationSettings }) {
           label: "Nagad API secret",
           kind: "password",
           hint: "Private/secret key from the Nagad Merchant Portal.",
+        },
+        {
+          name: "sslcommerzEnabled",
+          label: "SSLCommerz enabled",
+          kind: "checkbox",
+          hint: "Aggregator checkout covering bKash/Nagad/Rocket/card — bKash/Nagad above are merchant-info-only today and route through this.",
+        },
+        {
+          name: "sslcommerzStoreId",
+          label: "SSLCommerz store ID",
+          kind: "text",
+          hint: "The Store ID from your SSLCommerz merchant panel.",
+        },
+        {
+          name: "sslcommerzStorePass",
+          label: "SSLCommerz store password",
+          kind: "password",
+          hint: "The Store Password (API credential) from your SSLCommerz merchant panel.",
+        },
+        {
+          name: "sslcommerzSandbox",
+          label: "Sandbox mode",
+          kind: "checkbox",
+          hint: "On: sandbox.sslcommerz.com (test payments only). Off: the live gateway — only turn off with real, verified store credentials.",
         },
         {
           name: "smsSender",
@@ -136,39 +161,35 @@ export function IntegrationBoard({ values }: { values: IntegrationSettings }) {
       ]}
       extra={
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className={buttonClass("outline")}
-            disabled={pending}
-            onClick={() => run(smsTestAction)}
-          >
+          <Button variant="outline" disabled={pending} onClick={() => run(smsTestAction)}>
             Test SMS
-          </button>
-          <button
-            type="button"
-            className={buttonClass("outline")}
+          </Button>
+          <Button
+            variant="outline"
             disabled={pending}
             onClick={() => run(emailTestAction)}
           >
             Test email
-          </button>
-          <button
-            type="button"
-            className={buttonClass("outline")}
+          </Button>
+          <Button
+            variant="outline"
             disabled={pending}
             onClick={() => run(paymentTestAction)}
           >
             Test payment
-          </button>
-          <button
-            type="button"
-            className={buttonClass("outline")}
+          </Button>
+          <Button
+            variant="outline"
             disabled={pending}
             onClick={() => run(courierTestAction)}
           >
             Test Steadfast courier
-          </button>
-          {message ? <p className="w-full text-sm text-ink">{message}</p> : null}
+          </Button>
+          {message ? (
+            <p role="status" className="w-full text-sm text-foreground">
+              {message}
+            </p>
+          ) : null}
         </div>
       }
     />

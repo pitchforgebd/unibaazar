@@ -16,6 +16,12 @@ import { recordAudit } from "@/server/security/audit";
 import { loadInvoice } from "@/server/settings/store";
 import { adjustStock } from "@/modules/inventory";
 import { canTransition, holdsStock, transitionOrder } from "@/modules/orders";
+import {
+  canTransition as canTransitionPayment,
+  refundPayment,
+  transitionPayment,
+} from "@/modules/payments";
+import { signalPurchaseOnConfirmedPayment } from "@/server/tracking/signals";
 
 const pageSize = 20;
 
@@ -77,6 +83,8 @@ export type AdminOrderDetail = {
   items: { id: string; name: string; sku: string; qty: number; unitPrice: number }[];
   history: { id: string; status: string; note: string; at: string }[];
   paymentStatus: PaymentStatus;
+  paymentAmount: number;
+  paymentRefundedAmount: number;
   shipment: { courier: string; consignmentId: string; status: string } | null;
   invoiceNumber: string;
   returns: { id: string; status: string; reason: string; refundAmount: number | null }[];
@@ -221,10 +229,14 @@ export async function listAdminOrders(query: OrderListQuery): Promise<{
     where.paymentMethod = query.payment;
   }
   if (
+    query.paymentStatus === "INITIATED" ||
     query.paymentStatus === "PENDING" ||
+    query.paymentStatus === "AUTHORIZED" ||
     query.paymentStatus === "PAID" ||
     query.paymentStatus === "FAILED" ||
-    query.paymentStatus === "REFUNDED"
+    query.paymentStatus === "CANCELLED" ||
+    query.paymentStatus === "REFUNDED" ||
+    query.paymentStatus === "PARTIALLY_REFUNDED"
   ) {
     where.payments = { some: { status: query.paymentStatus } };
   }
@@ -401,6 +413,8 @@ export async function getAdminOrder(id: string): Promise<AdminOrderDetail | null
       at: stamp(row.createdAt),
     })),
     paymentStatus: order.payments[0]?.status ?? "PENDING",
+    paymentAmount: order.payments[0]?.amount.toNumber() ?? 0,
+    paymentRefundedAmount: order.payments[0]?.refundedAmount.toNumber() ?? 0,
     shipment: order.shipment
       ? {
           courier: order.shipment.courier,
@@ -660,7 +674,22 @@ export async function setPaymentStatus(
   if (!payment) {
     throw new Error("This order has no payment");
   }
-  await prisma.payment.update({ where: { id: payment.id }, data: { status } });
+  if (payment.status === status) {
+    return "Status is already set.";
+  }
+  if (!canTransitionPayment(payment.status, status)) {
+    await recordAudit({
+      actorId,
+      action: "order.payment.rejected",
+      entityType: "Order",
+      entityId: orderId,
+      metadata: { from: payment.status, attempted: status },
+    });
+    return `Cannot move a payment from ${payment.status} to ${status}.`;
+  }
+  await prisma.$transaction((tx) =>
+    transitionPayment(tx, payment, status, "Set by admin"),
+  );
   await recordAudit({
     actorId,
     action: "order.payment",
@@ -668,10 +697,54 @@ export async function setPaymentStatus(
     entityId: orderId,
     metadata: { status },
   });
+  if (status === "PAID") {
+    await signalPurchaseOnConfirmedPayment(orderId).catch(() => undefined);
+  }
   if (status === "REFUNDED") {
     return setOrderStatus(actorId, orderId, "REFUNDED", "Payment marked refunded");
   }
   return "Payment status saved.";
+}
+
+/** Refunds (fully or partially) the order's current payment, through
+ * modules/payments' refundedAmount-tracked path — see refundPayment()'s
+ * own docs for why a second partial refund is a plain amount update, not
+ * a status transition. Only a full refund (the running total reaching
+ * the payment's amount) moves the order itself to REFUNDED, matching
+ * setPaymentStatus's existing behavior for a manual full-refund override. */
+export async function refundOrderPayment(
+  actorId: string,
+  orderId: string,
+  amount: number,
+  note: string | null,
+): Promise<string> {
+  const payment = await prisma.payment.findFirst({
+    where: { orderId },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!payment) {
+    throw new Error("This order has no payment");
+  }
+  const updated = await prisma.$transaction((tx) =>
+    refundPayment(tx, payment, amount, note),
+  );
+  await recordAudit({
+    actorId,
+    action: "order.payment.refund",
+    entityType: "Order",
+    entityId: orderId,
+    metadata: {
+      amount,
+      status: updated.status,
+      refundedAmount: updated.refundedAmount.toNumber(),
+    },
+  });
+  if (updated.status === "REFUNDED") {
+    await setOrderStatus(actorId, orderId, "REFUNDED", `Refunded ${amount} in full`);
+  }
+  return updated.status === "REFUNDED"
+    ? `Refunded ${amount} — payment fully refunded.`
+    : `Refunded ${amount} — ${updated.refundedAmount.toNumber()} of ${updated.amount.toNumber()} refunded so far.`;
 }
 
 export async function createManualOrder(
@@ -883,6 +956,13 @@ export async function syncCourier(actorId: string, orderId: string): Promise<str
     await prisma.shipment.update({
       where: { orderId },
       data: { status: mapped },
+    });
+    await recordAudit({
+      actorId,
+      action: "order.courier-sync",
+      entityType: "Order",
+      entityId: orderId,
+      metadata: { mapped, remote },
     });
   }
   if (

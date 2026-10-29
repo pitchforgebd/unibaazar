@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   }
   const identity = parsed.data.identity;
   try {
-    const guard = await guardWrite(request, "login", parsed.data.captchaToken);
+    const guard = await guardWrite(request, "login", parsed.data.captchaToken, identity);
     const userAgent = request.headers.get("user-agent") ?? undefined;
     const result = await loginAccount(identity, parsed.data.password);
     if (result.kind === "2fa") {

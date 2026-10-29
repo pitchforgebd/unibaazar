@@ -1,4 +1,6 @@
 import { absoluteUrl } from "@/lib/seo/urls";
+import { loadSecret } from "@/server/settings/secret";
+import { loadIntegrations } from "@/server/settings/store";
 import type {
   PaymentInitResult,
   PaymentIpnResult,
@@ -26,7 +28,29 @@ type ValidatorResponse = {
   val_id?: string;
 };
 
-function config(): SslcommerzConfig | null {
+/**
+ * Admin → Settings → Integrations (encrypted, `secret.sslcommerz`) is the
+ * primary source now — `.env` stays as a local-dev fallback for when
+ * nothing's been saved in admin yet. Picking a credential source is
+ * all-or-nothing per field pair: if admin has a store ID saved, its
+ * (possibly empty) store password wins over `.env`, rather than mixing
+ * one field from each source.
+ */
+async function config(): Promise<SslcommerzConfig | null> {
+  const integrations = await loadIntegrations();
+  if (integrations.sslcommerzEnabled && integrations.sslcommerzStoreId) {
+    const storePass = await loadSecret("secret.sslcommerz");
+    if (!storePass) {
+      return null;
+    }
+    return {
+      storeId: integrations.sslcommerzStoreId,
+      storePass,
+      baseUrl: integrations.sslcommerzSandbox
+        ? "https://sandbox.sslcommerz.com"
+        : "https://securepay.sslcommerz.com",
+    };
+  }
   const storeId = process.env.SSLCOMMERZ_STORE_ID;
   const storePass = process.env.SSLCOMMERZ_STORE_PASS;
   if (!storeId || !storePass) {
@@ -43,7 +67,7 @@ function config(): SslcommerzConfig | null {
 }
 
 async function initiate(order: PaymentOrderInput): Promise<PaymentInitResult> {
-  const configured = config();
+  const configured = await config();
   if (!configured) {
     return {
       kind: "instructions",
@@ -91,7 +115,7 @@ async function initiate(order: PaymentOrderInput): Promise<PaymentInitResult> {
 }
 
 async function verifyIPN(fields: Record<string, string>): Promise<PaymentIpnResult> {
-  const configured = config();
+  const configured = await config();
   const transactionId = fields.tran_id ?? "";
   if (!configured || !fields.val_id) {
     return {

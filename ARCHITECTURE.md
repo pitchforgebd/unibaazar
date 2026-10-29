@@ -154,7 +154,7 @@ database on each request.
   `HomeSection`, `Subscriber`
 - **Platform**: `Setting` (key/value store backing every admin settings screen),
   `SeoMeta`, `NotFoundHit`, `Redirect`, `SmsLog`, `EmailLog`, `Notification`,
-  `AuditLog`, `TrackingEvent`
+  `NotificationDedupe`, `AuditLog`, `TrackingEvent`, `ConversionApiLog`
 
 `Setting` is the generic persistence mechanism for everything configured in
 Admin → Settings (general/branding, theme, social links, checkout, invoice,
@@ -236,10 +236,16 @@ own research found:
   `Toaster` — both read the same `src/store/toast.ts` queue; only one
   should be mounted on a given screen). Dialog/AlertDialog/Sheet share one
   native-`<dialog>`-based engine (`ModalRoot`/`useModalDialog`) with
-  ref-counted scroll lock and focus return. Purely additive so far —
-  nothing under `src/app/` or `src/components/store|admin` has been
-  migrated to use these yet; that's Phase 5 (storefront) and Phase 6
-  (admin) work.
+  ref-counted scroll lock and focus return. Adopted across the storefront's
+  real customer journey in Phase 5 (homepage, listing, product, cart,
+  checkout, account, order success, wishlist/compare — see
+  `docs/decisions/0016-phase-5-scope-storefront-rebuild.md` and
+  `docs/qa/phase-05-report.md`). Adopted across every admin module in
+  Phase 6 (see `docs/decisions/0017-phase-6-scope-admin-rebuild.md` and
+  `docs/qa/phase-06-report.md`) — `components/ui`/`components/motion` are
+  now the primary toolkit everywhere in the app except the handful of
+  legacy `buttonClass`/`fieldClass` (`src/components/ui/controls.ts`)
+  call sites intentionally left outside both phases' scope.
 - **`src/components/motion`**: `Reveal`, `Stagger`/`StaggerItem`,
   `PressScale`, `flyToCart`/`useFlyToCart`, `CountUp`, `Marquee`,
   `Shimmer`, `ShakeOnError`, `PageTransition` — built on the `motion`
@@ -247,7 +253,10 @@ own research found:
   duration/easing/spring tokens (`tokens.ts`). Every primitive degrades
   under `prefers-reduced-motion` (checked via `usePrefersReducedMotion()`,
   or handled in plain CSS for `Marquee`/`Shimmer` so it's correct before
-  any JavaScript runs).
+  any JavaScript runs). `Reveal`/`Stagger`'s shared hidden/visible variants
+  set `visibility` alongside `opacity` (Phase 5 fix) so not-yet-revealed
+  content is excluded from the accessibility tree and tab order, not just
+  invisible — the same convention `StickyBuyBar` uses via `inert`.
 - **`/_design`** (`src/app/[locale]/%5Fdesign/page.tsx` — the `%5F`
   escapes Next.js's "folders starting with `_` are excluded from
   routing" convention, since the literal URL needs to start with `_`):
@@ -338,6 +347,23 @@ domain" — it's a registry of idempotent one-off jobs (cache clear, demo-catalo
 seed, admin bootstrap, resumable media-variant backfill) rather than a CRUD
 module; see §9.
 
+Admin → Analytics (Phase 10, `reportsAccess()`-gated — same audience as
+Admin → Reports) reads `TrackingEvent`/`Order` live rather than through a
+pre-aggregated rollup table: traffic, UTM-attributed sources/revenue, a
+ViewContent→AddToCart→InitiateCheckout→Purchase funnel, per-product
+performance, top/zero-result search terms, and a polled real-time-visitor
+count (`src/server/admin/analytics.ts`).
+
+Access control is role/permission based (`src/server/security/permissions.ts`'s
+`roleGrants`, backed by `Role`/`Permission`/`RolePermission` in the schema), with
+one `*Access()`/`require*()` pair per domain in `src/server/admin/access.ts`.
+Covered end-to-end by `e2e/rbac/admin-roles.spec.ts` (Phase 6) — logs in as each
+staff role and asserts it sees only the modules its permissions grant. Every
+mutating action calls `recordAudit()`, either inside its `src/server/admin/*`
+function or its `*-actions.ts` wrapper (the codebase uses both patterns
+depending on the module — check the specific file before assuming which); swept
+for completeness in Phase 6 (`docs/qa/phase-06-report.md`).
+
 ## 8. API layer
 
 `src/app/api/v1/*` is the one REST-ish surface consumed by both storefront client
@@ -349,18 +375,76 @@ components and (for a few endpoints) external systems:
   `banners` — public read endpoints backing the storefront
 - `cart/quote` — the single source of truth for authoritative pricing
 - `orders`, `orders/track` — order creation and guest tracking
-- `payments/*` — gateway initiate/verify/callback/webhooks (bKash/Nagad/
-  SSLCommerz/Aamarpay, configured via `.env` or Admin → Settings)
+- `payments/*` — gateway initiate/verify/callback/webhooks. COD and
+  SSLCommerz are real, working providers (`src/lib/payment/`);
+  SSLCommerz acts as an aggregator for bKash/Nagad/Rocket/card today,
+  not 4 separate direct integrations — see
+  `docs/decisions/0018-phase-7-scope-payment-module.md`. SSLCommerz
+  credentials come from Admin → Settings → Integrations (encrypted),
+  falling back to `.env` for local dev. `modules/payments/` (Phase 7)
+  governs every payment-status change through an explicit transition
+  graph, the same shape `modules/orders` already uses for order status.
 - `contact`, `newsletter` — public lead-capture forms
+- `tracking` — browser-side pixel events (`src/lib/tracking/browser.ts`'s
+  `track()`), logged to `TrackingEvent`. Meta/TikTok Conversions API
+  `Purchase` events are sent server-side, not through this route — see
+  `src/server/tracking/signals.ts` and
+  `docs/decisions/0020-phase-9-scope-facebook-meta-module.md`. `Purchase`
+  fires at order creation only for COD; every other payment method fires
+  once its payment actually reaches `PAID` (Phase 9 fixed a real bug
+  where it previously fired for every method at creation, reporting
+  unpaid gateway orders as completed conversions).
 - `cron/*` — `CRON_SECRET`-gated **scheduled** maintenance endpoints (see §9)
 - `webhooks/steadfast` — inbound courier status updates
+- `admin/analytics/live` — polled by Admin → Analytics' real-time-visitor
+  widget; the only admin API route gated by `reports.view` rather than a page
+
+Cookie consent (Phase 10) is three categories — necessary (implicit),
+analytics, marketing — stored as JSON under the same `localStorage` key
+the old binary accept/reject banner used (`parseConsentValue()` in
+`src/lib/tracking/browser.ts` still reads a legacy bare `"accept"`/
+`"reject"` value from before this phase). `StorePixels.tsx` loads GA4/
+GTM/Clarity/Hotjar under analytics consent and Meta/TikTok/Pinterest/
+Snap under marketing consent independently, and pushes Google Consent
+Mode v2 signals (`gtag("consent", ...)`) on load and on every later
+consent change.
+
+Outbound notifications (`src/lib/sms/`, `src/lib/email/`) are consumed by
+server code, not exposed as their own API routes. Every `sendSms`/`sendEmail`
+call logs to `SmsLog`/`EmailLog` (browsable at Admin → Orders →
+"Notification logs", Phase 8) and renders a shared branded HTML layout
+(`src/lib/email/template.ts`) alongside the plain-text body it always sent.
+An optional `dedupeKey` makes a send idempotent via `src/lib/notify/dedupe.ts`'s
+`NotificationDedupe` table (same unique-constraint-claim shape
+`modules/payments`' webhook idempotency uses) — used by order-status notices
+and the abandoned-cart reminder so a cron re-run or a raced request can't
+double-send. `src/lib/sms/bulksmsbd.ts` picks GSM-7 `text` vs `unicode` mode
+per-message (`needsUnicode()`) instead of always sending `text`, which
+silently garbled any Bengali-language template before Phase 8.
+
+**SEO** (Phase 11): `/sitemap.xml` is a `<sitemapindex>`
+(`src/app/sitemap.xml/route.ts`) pointing at seven per-type children under
+`src/app/sitemaps/*.xml` (pages, products, categories, brands, blog,
+videos — the last using Google's real video-sitemap extension, not a
+plain URL list — plus the pre-existing `image-sitemap.xml`), each entry
+carrying both locale variants and real `lastmod`; the shared XML builders
+live in `src/server/seo/sitemap.ts`. JSON-LD (`src/lib/seo/schema.ts`):
+`WebSite`/`Organization` (global, in `StoreShell`), `BreadcrumbList`,
+`Product` (with `Review`/`shippingDetails`) or `ProductGroup` once a
+product has more than one variant, `ItemList` (every `ProductListing`-
+backed page), `VideoObject`, `FAQPage`, `Article`. `src/middleware.ts`
+checks the admin-managed `Redirect` table before anything else runs,
+issuing a real 301/302 — see §11 for why that needed the Node.js
+middleware runtime.
 
 ## 9. The `cron/*` pattern (specific to this host) and Admin → Maintenance
 
 `src/app/api/v1/cron/*` are POST routes gated by `assertCronSecret()`
 (`src/server/cron/auth.ts`, compares a bearer token against `CRON_SECRET`). They
-exist for recurring scheduled maintenance only — `low-stock-sweep` and
-`cancel-unpaid-orders` — invoked by a real cron entry (see `DEPLOYMENT.md`).
+exist for recurring scheduled maintenance only — `low-stock-sweep`,
+`cancel-unpaid-orders`, (Phase 7) `payment-reconciliation`, (Phase 8)
+`abandoned-cart`, and (Phase 9) `retry-conversions` — invoked by a real
+cron entry (see `DEPLOYMENT.md`).
 
 Two routes used to live here for a different reason: **one-off database bootstrap
 operations** (`bootstrap-admin`, `seed-catalog`) that would normally be a CLI script
@@ -381,6 +465,41 @@ artifact to rebuild on this codebase — see the module's own code comments for
 why).
 
 ## 10. Security measures
+
+Rate limiting is keyed on **identity first, IP second** (Phase 13, ADR
+0024). The tight limit keys on the phone/email a request acts on
+(SHA-256 hashed, so the limiter table holds no raw PII); the per-IP
+limit is a loose flood backstop set about an order of magnitude higher.
+The reason is local: Bangladesh's mobile carriers put huge numbers of
+subscribers behind one CGNAT IPv4, so an IP-keyed counter measures NAT
+pool busyness, not one person — the previous flat `5 orders/day/IP`
+would have refused the 6th order of the day from an entire carrier, and
+`5 OTPs/15min/IP` would have throttled real logins at peak. Daily order
+caps follow the same shape: phone 5, device 5, IP 40. `clientIp()`
+counts `TRUSTED_PROXY_HOPS` (default 1) from the **right** of
+`X-Forwarded-For`, because the leftmost entry is client-supplied and
+previously let anyone choose their own rate-limit key.
+
+Storage runs in two tiers (Phase 12). The security-sensitive write
+buckets §5.6 names — login, OTP, checkout, contact, newsletter, all
+funnelled through `guardWrite()` — are **DB-backed**
+(`src/server/security/rate-limit-db.ts`, `RateLimitHit`), so a limit
+survives a restart; the in-memory limiter
+(`src/server/security/rate-limit.ts`) is kept only for the high-volume
+telemetry routes (`/api/v1/tracking`, `/api/v1/seo/miss`), where a DB
+write per page view would cost more than the limit is worth. Because the
+limits now persist, `e2e/global-setup.ts` clears them before each
+Playwright run — the parity suite alone performs exactly the login
+limit's worth of logins.
+
+CSRF: auth cookies are `sameSite: "lax"`, and every session-authenticated
+mutating API route additionally calls `assertSameOrigin` inside
+`handle()` (so a cross-site attempt returns 403, not 500). The `Secure`
+flag on auth cookies follows `NEXT_PUBLIC_SITE_URL`'s scheme rather than
+`NODE_ENV` (`src/server/security/cookies.ts`) — a production build served
+over plain http for local/CI testing must not set `Secure`, because
+WebKit stores but never sends such a cookie, which made every
+authenticated flow untestable in Safari.
 
 - Rich text and any other user-supplied HTML is passed through
   `sanitizeRichText()` (`src/lib/security/sanitizeHtml.ts`) — an explicit tag/
@@ -411,6 +530,17 @@ path) and redirects an unprefixed path to its `/bn/...` form when the cookie
 names Bengali — this is what makes the existing `LanguageToggle` component work
 unchanged (it just sets the cookie and calls `router.refresh()`).
 
+As of Phase 11, `middleware.ts` checks `findActiveRedirect()` against the
+admin-managed `Redirect` table _before_ any of the above runs, returning a
+real 301/302 when a path matches — the admin redirect manager existed since
+an earlier phase but nothing had ever called that lookup function until
+then (`docs/decisions/0022-phase-11-scope-seo-module.md`). A genuine
+301/302 needs Prisma, which the default Edge middleware runtime can't run,
+so the file opts into `runtime: "nodejs"` (stable since Next 15.5) —
+meaning this middleware now runs in the Node.js runtime, not Edge; every
+matched request pays one indexed-primary-key lookup before next-intl's own
+routing runs.
+
 The entire `(store)` route group lives under `src/app/[locale]/(store)/`.
 `src/app/[locale]/layout.tsx` is the real root layout for the storefront
 (`<html lang={locale}>`, `NextIntlClientProvider`, fonts, header/footer scripts);
@@ -430,8 +560,11 @@ in-app navigation stays within the current locale.
 
 `hreflang`/`x-default`: two mechanisms, both active. next-intl's middleware
 sets an HTTP `Link` response header (`alternateLinks: true`, the default) on
-every storefront response. On top of that, `src/lib/seo/urls.ts`'s
-`localeAlternates(path)` (built on next-intl's `getPathname`) feeds
+every storefront response. On top of that, `src/lib/seo/alternates.ts`'s
+`localeAlternates(path)` (built on next-intl's `getPathname` — split out of
+`urls.ts` in Phase 11, since that one function's next-intl import made every
+importer of `urls.ts`'s `absoluteUrl()`, including the JSON-LD builders in
+`lib/seo/schema.ts`, unable to run under `vitest`) feeds
 per-page HTML `<link rel="alternate" hreflang="...">` tags via
 `generateMetadata` — wired into every page using `src/lib/seo/metadata.ts`'s
 `buildMetadata()` (product, category, brand, blog post, CMS, search) plus
@@ -483,6 +616,19 @@ process cold-starting the query engine, on the host at all. See
 `DEPLOYMENT.md`. (As of Phase 1, the deploy workflow is a manual trigger
 rather than automatic on merge — see `docs/decisions/0007-manual-deploy-trigger.md`
 — but the mechanism itself replaces the manual zip/upload flow either way.)
+
+**That pipeline had never run end to end until Phase 14**, which is the
+direct consequence of deferring deploys: nothing proves a deploy script
+works except deploying. Verifying it before the first real deploy found
+that the release tarball omitted `scripts/` — the directory holding the
+three scripts `deploy.yml` actually invokes — that `--exclude='.next/cache'`
+sat after tar's path list where it matched nothing (710MB of webpack cache
+per release), and that `apply-migrations.sh` could not parse a DB password
+containing symbols, which is what cPanel generates. All three were
+first-deploy-only failures. See
+`docs/decisions/0025-migration-rehearsal-waived-fresh-install-instead.md`.
+The first admin on a fresh database comes from `scripts/bootstrap-admin.cjs`,
+plain CommonJS for the same thread-ceiling reason as everything else here.
 
 **(Resolved in Phase 2) ISR + cookie-based i18n was incompatible for routes with
 no pre-known params.** The old root layout read the locale cookie on every

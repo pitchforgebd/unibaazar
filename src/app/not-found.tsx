@@ -14,7 +14,7 @@ export default function RootNotFound() {
         <main style={{ maxWidth: 480, margin: "15vh auto", textAlign: "center" }}>
           <h1 style={{ fontSize: 28 }}>Page not found</h1>
           <p style={{ color: "#6B7280" }}>That page is not on UniBaazar.</p>
-          <Link href="/" style={{ color: "#F95B09" }}>
+          <Link href="/" style={{ color: "#AA3B06" }}>
             Go home
           </Link>
         </main>

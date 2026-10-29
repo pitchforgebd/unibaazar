@@ -1,4 +1,5 @@
 import { PrintButton } from "@/components/admin/orders/PrintButton";
+import { Stagger, StaggerItem } from "@/components/motion/Stagger";
 import type { LabelSheet } from "@/server/admin/inventory";
 
 export function LabelSheets({ labels }: { labels: LabelSheet[] }) {
@@ -13,19 +14,18 @@ export function LabelSheets({ labels }: { labels: LabelSheet[] }) {
           Select variants on the stock page, then print labels.
         </p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <Stagger as="div" className="grid gap-4 sm:grid-cols-2">
           {labels.map((label) => (
-            <article
-              key={label.sku}
-              className="rounded-lg border border-black/10 bg-card p-4"
-            >
-              <p className="font-semibold text-ink">{label.name}</p>
-              <p className="text-sm text-muted">{label.sku}</p>
-              <div className="mt-3" dangerouslySetInnerHTML={{ __html: label.svg }} />
-              <p className="mt-2 text-sm font-semibold text-ink">৳{label.price}</p>
-            </article>
+            <StaggerItem key={label.sku}>
+              <article className="rounded-theme border border-black/10 bg-card p-4">
+                <p className="font-semibold text-ink">{label.name}</p>
+                <p className="text-sm text-muted">{label.sku}</p>
+                <div className="mt-3" dangerouslySetInnerHTML={{ __html: label.svg }} />
+                <p className="mt-2 text-sm font-semibold text-ink">৳{label.price}</p>
+              </article>
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
       )}
     </div>
   );

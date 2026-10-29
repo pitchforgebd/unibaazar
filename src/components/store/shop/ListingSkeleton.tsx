@@ -4,12 +4,18 @@ import { Skeleton } from "@/components/ui/Skeleton";
 export function ListingSkeleton() {
   return (
     <Container className="py-6">
-      <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <Skeleton className="h-80" />
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-          {Array.from({ length: 6 }, (_, index) => (
-            <Skeleton key={index} className="h-64" />
-          ))}
+      <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <Skeleton className="hidden h-96 lg:block" />
+        <div>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-11 w-44 sm:w-52" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+            {Array.from({ length: 8 }, (_, index) => (
+              <Skeleton key={index} className="h-64" />
+            ))}
+          </div>
         </div>
       </div>
     </Container>

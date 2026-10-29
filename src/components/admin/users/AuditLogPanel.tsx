@@ -1,3 +1,5 @@
+import { Badge } from "@/components/ui/Badge";
+
 export function AuditLogPanel({
   rows,
 }: {
@@ -17,9 +19,9 @@ export function AuditLogPanel({
         <h1 className="text-2xl font-bold text-ink">Audit log</h1>
         <p className="text-sm text-muted">Recent admin and auth actions.</p>
       </div>
-      <div className="overflow-x-auto rounded-lg bg-card shadow-soft">
+      <div className="overflow-x-auto rounded-theme bg-card shadow-soft">
         <table className="min-w-full text-left text-sm">
-          <thead className="border-b border-black/5 text-muted">
+          <thead className="border-b border-ink/5 text-muted">
             <tr>
               <th className="px-3 py-2 font-semibold">When</th>
               <th className="px-3 py-2 font-semibold">Actor</th>
@@ -30,14 +32,16 @@ export function AuditLogPanel({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className="border-b border-black/5">
+              <tr key={row.id} className="border-b border-ink/5">
                 <td className="px-3 py-2 whitespace-nowrap">
                   {new Date(row.createdAt).toLocaleString("en-GB", {
                     timeZone: "Asia/Dhaka",
                   })}
                 </td>
                 <td className="px-3 py-2">{row.actor}</td>
-                <td className="px-3 py-2 font-semibold text-ink">{row.action}</td>
+                <td className="px-3 py-2">
+                  <Badge variant="outline">{row.action}</Badge>
+                </td>
                 <td className="px-3 py-2">
                   {row.entityType}
                   {row.entityId ? ` · ${row.entityId.slice(0, 8)}` : ""}

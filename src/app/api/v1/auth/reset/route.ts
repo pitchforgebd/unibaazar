@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     );
   }
   return handle(async () => {
-    await guardWrite(request, "otp", parsed.data.captchaToken);
+    await guardWrite(request, "otp", parsed.data.captchaToken, parsed.data.identity);
     await resetPassword(parsed.data.identity, parsed.data.code, parsed.data.password);
     return { reset: true };
   });

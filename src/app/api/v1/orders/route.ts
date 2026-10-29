@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   }
   return handle(async () => {
     const { captchaToken, ...order } = parsed.data;
-    const guard = await guardWrite(request, "checkout", captchaToken);
+    const guard = await guardWrite(request, "checkout", captchaToken, order.phone);
     return placeOrder(order, guard);
   });
 }

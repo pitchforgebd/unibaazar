@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     );
   }
   try {
-    await guardWrite(request, "contact", parsed.data.captchaToken);
+    await guardWrite(request, "contact", parsed.data.captchaToken, parsed.data.phone);
     await alertContactMessage(parsed.data);
     return NextResponse.json({ data: { ok: true } });
   } catch (error) {

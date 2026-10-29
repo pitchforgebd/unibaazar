@@ -6,6 +6,8 @@ import { setOrderStatus } from "@/server/admin/orders-admin";
 import { recordAudit } from "@/server/security/audit";
 import { signaturesMatch } from "@/server/security/signature";
 import { ApiError } from "@/server/http";
+import { canTransition, claimWebhookEvent, transitionPayment } from "@/modules/payments";
+import { signalPurchaseOnConfirmedPayment } from "@/server/tracking/signals";
 import type { Prisma } from "@prisma/client";
 
 function webhookSecret(): string {
@@ -59,6 +61,55 @@ export async function initiatePayment(orderNumber: string, phoneInput: string) {
   };
 }
 
+/** Applies a status to the order's current payment, going through the
+ * governed state machine. If the move isn't legal from the payment's
+ * current status (e.g. a second IPN arrives after the order's already
+ * PAID, or after an admin already marked it REFUNDED), this is a no-op
+ * that records why rather than silently overwriting a later, more
+ * authoritative status — the same graceful-rejection shape
+ * `setOrderStatus`/`setPaymentStatus` already use. */
+async function applyPaymentResult(
+  orderId: string,
+  paymentId: string,
+  to: "PAID" | "FAILED",
+  gatewayRef: string,
+  payload: unknown,
+  auditAction: string,
+  auditMetadata: Record<string, unknown>,
+): Promise<"PAID" | "FAILED" | string> {
+  return prisma
+    .$transaction(async (tx) => {
+      const payment = await tx.payment.findUniqueOrThrow({ where: { id: paymentId } });
+      if (!canTransition(payment.status, to)) {
+        await recordAudit({
+          action: `${auditAction}.rejected`,
+          entityType: "Order",
+          entityId: orderId,
+          metadata: { ...auditMetadata, from: payment.status, attempted: to },
+        });
+        return payment.status;
+      }
+      const withGatewayData = await tx.payment.update({
+        where: { id: paymentId },
+        data: { gatewayRef, payload: payload as Prisma.InputJsonValue },
+      });
+      await transitionPayment(tx, withGatewayData, to, `Gateway reported: ${to}`);
+      await recordAudit({
+        action: auditAction,
+        entityType: "Order",
+        entityId: orderId,
+        metadata: { ...auditMetadata, status: to },
+      });
+      return to;
+    })
+    .then(async (status) => {
+      if (status === "PAID") {
+        await signalPurchaseOnConfirmedPayment(orderId).catch(() => undefined);
+      }
+      return status;
+    });
+}
+
 export async function applySslcommerzIpn(fields: Record<string, string>) {
   const order = await prisma.order.findUnique({
     where: { number: fields.tran_id },
@@ -71,40 +122,49 @@ export async function applySslcommerzIpn(fields: Record<string, string>) {
   if (payment.status === "PAID") {
     return { orderNumber: order.number, status: payment.status };
   }
+  // Idempotency guard: a duplicate delivery of the same val_id (gateway
+  // retry, or a replayed request) is rejected here, before the live
+  // validator-API round-trip below, and before any Payment/Order write —
+  // the per-status "already PAID" check above can't by itself guarantee
+  // that under two concurrent deliveries of the same event.
+  const eventKey = fields.val_id || fields.tran_id;
+  const firstDelivery = await claimWebhookEvent(prisma, "sslcommerz", eventKey);
+  if (!firstDelivery) {
+    return { orderNumber: order.number, status: payment.status };
+  }
   const verified = await sslcommerzProvider.verifyIPN(fields);
   const amountMatches =
     verified.amount === undefined ||
     Math.abs(verified.amount - order.total.toNumber()) <= 0.5;
   const transactionMatches = verified.transactionId === order.number;
   if (verified.valid && !(amountMatches && transactionMatches)) {
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: { status: "FAILED", payload: verified.raw as Prisma.InputJsonValue },
-    });
-    await recordAudit({
-      action: "payment.ipn.mismatch",
-      entityType: "Order",
-      entityId: order.id,
-      metadata: {
-        gatewayRef: verified.gatewayRef,
+    const status = await applyPaymentResult(
+      order.id,
+      payment.id,
+      "FAILED",
+      verified.gatewayRef,
+      verified.raw,
+      "payment.ipn.mismatch",
+      {
         claimedTransactionId: verified.transactionId,
         claimedAmount: verified.amount ?? null,
         orderNumber: order.number,
         orderTotal: order.total.toNumber(),
       },
-    });
-    return { orderNumber: order.number, status: "FAILED" };
+    );
+    return { orderNumber: order.number, status };
   }
   if (verified.valid) {
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: "PAID",
-        gatewayRef: verified.gatewayRef,
-        payload: verified.raw as Prisma.InputJsonValue,
-      },
-    });
-    if (order.status === "PENDING") {
+    const status = await applyPaymentResult(
+      order.id,
+      payment.id,
+      "PAID",
+      verified.gatewayRef,
+      verified.raw,
+      "payment.ipn",
+      { gatewayRef: verified.gatewayRef },
+    );
+    if (status === "PAID" && order.status === "PENDING") {
       await setOrderStatus(
         null,
         order.id,
@@ -112,25 +172,18 @@ export async function applySslcommerzIpn(fields: Record<string, string>) {
         `SSLCommerz: payment verified (val_id ${verified.gatewayRef})`,
       );
     }
-    await recordAudit({
-      action: "payment.ipn",
-      entityType: "Order",
-      entityId: order.id,
-      metadata: { gatewayRef: verified.gatewayRef, status: "PAID" },
-    });
-    return { orderNumber: order.number, status: "PAID" };
+    return { orderNumber: order.number, status };
   }
-  await prisma.payment.update({
-    where: { id: payment.id },
-    data: { status: "FAILED", payload: verified.raw as Prisma.InputJsonValue },
-  });
-  await recordAudit({
-    action: "payment.ipn",
-    entityType: "Order",
-    entityId: order.id,
-    metadata: { gatewayRef: verified.gatewayRef, status: "FAILED" },
-  });
-  return { orderNumber: order.number, status: "FAILED" };
+  const status = await applyPaymentResult(
+    order.id,
+    payment.id,
+    "FAILED",
+    verified.gatewayRef,
+    verified.raw,
+    "payment.ipn",
+    { gatewayRef: verified.gatewayRef },
+  );
+  return { orderNumber: order.number, status };
 }
 
 export async function applyPaymentCallback(input: {
@@ -149,23 +202,23 @@ export async function applyPaymentCallback(input: {
   if (!order || !order.payments[0]) {
     throw new ApiError(404, "Payment not found");
   }
-  const payment = await prisma.payment.update({
-    where: { id: order.payments[0].id },
-    data: {
-      status: input.status,
-      gatewayRef: input.gatewayRef,
-    },
-  });
-  await recordAudit({
-    action: "payment.callback",
-    entityType: "Order",
-    entityId: order.id,
-    metadata: { gatewayRef: input.gatewayRef, status: input.status },
-  });
+  const firstDelivery = await claimWebhookEvent(prisma, "generic", input.gatewayRef);
+  if (!firstDelivery) {
+    return { orderNumber: order.number, status: order.payments[0].status };
+  }
+  const status = await applyPaymentResult(
+    order.id,
+    order.payments[0].id,
+    input.status,
+    input.gatewayRef,
+    null,
+    "payment.callback",
+    { gatewayRef: input.gatewayRef },
+  );
   return {
     orderNumber: order.number,
-    status: payment.status,
-    gatewayRef: payment.gatewayRef,
+    status,
+    gatewayRef: input.gatewayRef,
   };
 }
 

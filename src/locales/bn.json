@@ -132,7 +132,6 @@
     "sortPriceDesc": "দাম: বেশি থেকে কম",
     "sortTopRated": "টপ রেটেড",
     "sortName": "নাম",
-    "sortLabel": "সাজান",
     "sortProductsAria": "পণ্য সাজান",
     "categoryFallback": "ক্যাটাগরি",
     "brandFallback": "ব্র্যান্ড",
@@ -146,14 +145,26 @@
     "flashDealsTitle": "ফ্ল্যাশ ডিল",
     "flashDealsSubtitle": "কাউন্টডাউন শেষ হলে এই ডিলের দাম ও স্টক পরিবর্তন হতে পারে।",
     "noFlashDeals": "এখন কোনো ফ্ল্যাশ ডিল চলছে না।",
-    "browseProducts": "পণ্য দেখুন"
+    "browseProducts": "পণ্য দেখুন",
+    "filtersTitle": "ফিল্টার",
+    "filtersClose": "ফিল্টার বন্ধ করুন",
+    "filtersOpenAria": "{count, plural, =0 {ফিল্টার খুলুন} other {ফিল্টার খুলুন, #টি চালু}}"
   },
   "wishlist": {
-    "empty": "আপনার উইশলিস্ট খালি।"
+    "empty": "আপনার উইশলিস্ট খালি।",
+    "pageTitle": "উইশলিস্ট",
+    "emptyHint": "যেকোনো পণ্যের হার্ট আইকনে চাপ দিয়ে পরে দেখার জন্য এখানে সংরক্ষণ করুন।",
+    "count": "{count}টি পণ্য সংরক্ষিত"
   },
   "compare": {
     "needMore": "তুলনা করতে অন্তত দুটি পণ্য যুক্ত করুন।",
-    "hint": "একটি পণ্য খুলে \"তুলনায় যুক্ত করুন\" বেছে নিন। সর্বোচ্চ তিনটি পণ্য।"
+    "hint": "একটি পণ্য খুলে \"তুলনায় যুক্ত করুন\" বেছে নিন। সর্বোচ্চ তিনটি পণ্য।",
+    "pageTitle": "তুলনা",
+    "tableLabel": "পণ্যের তুলনা",
+    "featureColumn": "বৈশিষ্ট্য",
+    "actionsRow": "অ্যাকশন",
+    "swipeHint": "সব পণ্য দেখতে পাশে স্ক্রল করুন",
+    "removeProduct": "{name} সরান"
   },
   "cart": {
     "title": "আপনার কার্ট",
@@ -175,7 +186,13 @@
     "pageTitle": "কার্ট",
     "crumb": "কার্ট",
     "delivery": "ডেলিভারি",
-    "deliveryAtCheckout": "চেকআউটে দেখানো হবে"
+    "deliveryAtCheckout": "চেকআউটে দেখানো হবে",
+    "itemCount": "{count}টি পণ্য",
+    "freeDelivery": {
+      "label": "ফ্রি ডেলিভারির অগ্রগতি",
+      "remaining": "ফ্রি ডেলিভারির জন্য আরও <strong>{amount}</strong> কেনাকাটা করুন",
+      "unlocked": "আপনি ফ্রি ডেলিভারি পাচ্ছেন!"
+    }
   },
   "toast": {
     "added": "কার্টে যোগ হয়েছে",
@@ -186,8 +203,16 @@
   },
   "cookie": {
     "text": "অ্যানালিটিক্স ও বিজ্ঞাপনের কুকি শুধু আপনার অনুমতির পরেই চলবে।",
-    "accept": "গ্রহণ",
-    "reject": "প্রত্যাখ্যান"
+    "acceptAll": "সব গ্রহণ করুন",
+    "rejectAll": "সব প্রত্যাখ্যান করুন",
+    "customize": "কাস্টমাইজ করুন",
+    "necessary": "প্রয়োজনীয়",
+    "necessaryDesc": "সবসময় চালু — সাইট চালাতে প্রয়োজন (কার্ট, লগইন, চেকআউট)।",
+    "analytics": "অ্যানালিটিক্স",
+    "analyticsDesc": "কোন পেজ ও পণ্য বেশি দেখা হচ্ছে বুঝতে সাহায্য করে, যাতে আমরা উন্নত করতে পারি।",
+    "marketing": "মার্কেটিং",
+    "marketingDesc": "বিজ্ঞাপন প্ল্যাটফর্ম (Meta, TikTok) বিজ্ঞাপনের কার্যকারিতা মাপতে ও উন্নত করতে সহায়তা করে।",
+    "savePreferences": "পছন্দ সংরক্ষণ করুন"
   },
   "product": {
     "add": "কার্টে যোগ",
@@ -216,7 +241,8 @@
     "tabs": {
       "description": "বিবরণ",
       "reviews": "রিভিউ",
-      "qa": "প্রশ্নোত্তর"
+      "qa": "প্রশ্নোত্তর",
+      "label": "পণ্যের তথ্য"
     },
     "reviews": {
       "empty": "এখনো কোনো রিভিউ নেই।",
@@ -252,6 +278,15 @@
       "warrantyLabel": "ওয়ারেন্টি: ",
       "returnsLabel": "রিটার্ন: ",
       "whatsappMessage": "হ্যালো ইউনিবাজার, আমি {name} (এসকেইউ: {sku}) অর্ডার করতে চাই।"
+    },
+    "badgeNew": "নতুন",
+    "gallery": {
+      "label": "পণ্যের ছবি",
+      "previous": "আগের ছবি",
+      "next": "পরের ছবি",
+      "position": "{current} / {total}",
+      "zoomIn": "বড় করুন",
+      "zoomOut": "ছোট করুন"
     }
   },
   "chat": {
@@ -287,7 +322,11 @@
     "delivery": "ডেলিভারি",
     "deliveryFree": "ফ্রি",
     "total": "মোট",
-    "submit": "অর্ডার করুন"
+    "submit": "অর্ডার করুন",
+    "paymentCodHint": "পণ্য হাতে পেয়ে নগদে পরিশোধ করুন",
+    "paymentWalletHint": "আপনার {name} অ্যাকাউন্ট থেকে পেমেন্ট করুন",
+    "paymentCardHint": "ডেবিট বা ক্রেডিট কার্ড",
+    "submitting": "অর্ডার করা হচ্ছে…"
   },
   "orders": {
     "metaTitle": "অর্ডার {id}",
@@ -319,7 +358,32 @@
     "detailLoading": "অর্ডার লোড হচ্ছে…",
     "notOnAccount": "এই অর্ডারটি আপনার অ্যাকাউন্টে নেই।",
     "trackingLabel": "ট্র্যাকিং",
-    "totalLabel": "মোট "
+    "totalLabel": "মোট ",
+    "successHeading": "ধন্যবাদ, {name}!",
+    "successIntro": "আমরা আপনার অর্ডার পেয়েছি। ট্র্যাক করার জন্য অর্ডার আইডিটি সংরক্ষণ করে রাখুন।",
+    "orderIdLabel": "অর্ডার আইডি",
+    "continueShopping": "কেনাকাটা চালিয়ে যান",
+    "timelineHeading": "অর্ডারের অগ্রগতি",
+    "itemsHeading": "পণ্যসমূহ",
+    "placedOn": "অর্ডারের তারিখ {date}",
+    "backToOrders": "অর্ডারে ফিরে যান",
+    "status": {
+      "pending": "অপেক্ষমাণ",
+      "confirmed": "নিশ্চিত",
+      "processing": "প্রস্তুত হচ্ছে",
+      "readyToShip": "পাঠানোর জন্য প্রস্তুত",
+      "sentToCourier": "কুরিয়ারে পাঠানো হয়েছে",
+      "shipped": "পথে আছে",
+      "delivered": "ডেলিভারি হয়েছে",
+      "completed": "সম্পন্ন",
+      "cancelled": "বাতিল",
+      "returnRequested": "রিটার্নের অনুরোধ",
+      "returned": "ফেরত এসেছে",
+      "failed": "ব্যর্থ",
+      "onHold": "স্থগিত",
+      "partialDelivered": "আংশিক ডেলিভারি",
+      "refunded": "রিফান্ড হয়েছে"
+    }
   },
   "auth": {
     "errorVerifyCode": "কোড যাচাই করা যায়নি",
@@ -421,13 +485,22 @@
     "fieldConfirmPassword": "পাসওয়ার্ড নিশ্চিত করুন",
     "updatingPassword": "আপডেট হচ্ছে…",
     "updatePassword": "পাসওয়ার্ড আপডেট করুন",
-    "passwordUpdated": "পাসওয়ার্ড আপডেট হয়েছে।"
+    "passwordUpdated": "পাসওয়ার্ড আপডেট হয়েছে।",
+    "viewAllOrders": "সব দেখুন",
+    "addAddressHeading": "নতুন ঠিকানা যোগ করুন"
   },
   "blog": {
     "metaTitle": "ব্লগ",
     "pageTitle": "ব্লগ",
     "empty": "এখনো কোনো পোস্ট নেই। পরে আবার দেখুন।",
     "backToList": "ব্লগে ফিরে যান"
+  },
+  "videos": {
+    "metaTitle": "ভিডিও",
+    "pageTitle": "ভিডিও",
+    "empty": "এখনো কোনো ভিডিও নেই। পরে আবার দেখুন।",
+    "playLabel": "ভিডিও দেখুন: {title}",
+    "closeLabel": "ভিডিও বন্ধ করুন"
   },
   "cms": {
     "contact": {
@@ -470,12 +543,6 @@
       "referencePrefix": "রেফারেন্স ",
       "retry": "আবার চেষ্টা করুন",
       "homeButton": "হোম"
-    },
-    "boundaryAdmin": {
-      "title": "এই প্যানেলে একটি সমস্যা হয়েছে",
-      "body": "এই অ্যাডমিন স্ক্রিন লোড করার সময় কিছু ভেঙে গেছে। আবার চেষ্টা করুন, বা পরে ফিরে আসুন।",
-      "referencePrefix": "রেফারেন্স ",
-      "retry": "আবার চেষ্টা করুন"
     }
   },
   "validation": {

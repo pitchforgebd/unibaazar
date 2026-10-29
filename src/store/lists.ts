@@ -9,7 +9,7 @@ type WishlistState = {
 };
 
 export const useWishlistStore = create<WishlistState>((set, get) => ({
-  slugs: ["redmi-buds-4"],
+  slugs: [],
   toggle: (slug) => {
     set((state) => ({
       slugs: state.slugs.includes(slug)

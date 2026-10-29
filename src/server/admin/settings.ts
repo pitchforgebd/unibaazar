@@ -96,6 +96,7 @@ export async function saveIntegrations(
   input: IntegrationSettings & {
     bkashSecret: string;
     nagadSecret: string;
+    sslcommerzStorePass: string;
     smsSecret: string;
     emailSecret: string;
     courierSecret: string;
@@ -106,6 +107,9 @@ export async function saveIntegrations(
     bkashMerchant: input.bkashMerchant,
     nagadEnabled: input.nagadEnabled,
     nagadMerchant: input.nagadMerchant,
+    sslcommerzEnabled: input.sslcommerzEnabled,
+    sslcommerzStoreId: input.sslcommerzStoreId,
+    sslcommerzSandbox: input.sslcommerzSandbox,
     smsSender: input.smsSender,
     emailHost: input.emailHost,
     emailPort: input.emailPort,
@@ -116,6 +120,7 @@ export async function saveIntegrations(
   await saveSetting("integrations", publicRow as unknown as Prisma.InputJsonValue);
   await keepSecret("secret.bkash", input.bkashSecret);
   await keepSecret("secret.nagad", input.nagadSecret);
+  await keepSecret("secret.sslcommerz", input.sslcommerzStorePass);
   await keepSecret("secret.sms", input.smsSecret);
   await keepSecret("secret.email", input.emailSecret);
   await keepSecret("secret.courier", input.courierSecret);
@@ -205,13 +210,24 @@ export async function queueSmsTest(actorId: string): Promise<string> {
     throw new Error("Save an SMS sender name first");
   }
   await sendSms("01700000000", "UniBaazar settings test");
+  const balanceNote = await smsBalanceNote();
   await recordAudit({
     actorId,
     action: "settings.sms.test",
     entityType: "Setting",
     entityId: "integrations",
   });
-  return "Test SMS sent to 01700000000";
+  return `Test SMS sent to 01700000000.${balanceNote}`;
+}
+
+async function smsBalanceNote(): Promise<string> {
+  const { bulkSmsBdProvider } = await import("@/lib/sms/bulksmsbd");
+  try {
+    const { amount } = await bulkSmsBdProvider.balance!();
+    return ` Balance: ৳${amount.toFixed(2)}.`;
+  } catch {
+    return "";
+  }
 }
 
 export async function queueEmailTest(actorId: string): Promise<string> {
@@ -238,21 +254,77 @@ export async function noteGatewayTest(
   kind: "payment" | "courier",
 ): Promise<string> {
   const settings = await loadIntegrations();
-  if (kind === "payment" && !settings.bkashEnabled && !settings.nagadEnabled) {
-    throw new Error("Turn on bKash or Nagad and save first");
+  if (kind === "payment") {
+    // A genuine connection attempt only for SSLCommerz — it's the one
+    // provider actually implemented (src/lib/payment/sslcommerz.ts).
+    // bKash/Nagad settings here are merchant-info-only today (they route
+    // through the SSLCommerz aggregator, see ADR 0018), so there's no
+    // separate gateway to test for them yet.
+    if (settings.sslcommerzEnabled) {
+      const message = await testSslcommerzConnection();
+      await recordAudit({
+        actorId,
+        action: "settings.payment.test",
+        entityType: "Setting",
+        entityId: "integrations",
+        metadata: { provider: "sslcommerz", result: message },
+      });
+      return message;
+    }
+    if (!settings.bkashEnabled && !settings.nagadEnabled) {
+      throw new Error("Turn on SSLCommerz, bKash, or Nagad and save first");
+    }
+    await recordAudit({
+      actorId,
+      action: "settings.payment.test",
+      entityType: "Setting",
+      entityId: "integrations",
+      metadata: { provider: "bkash/nagad", result: "not independently testable" },
+    });
+    return "bKash/Nagad route through SSLCommerz today — enable and configure SSLCommerz above to test a real connection.";
   }
-  if (kind === "courier" && !settings.courierUser) {
+  if (!settings.courierUser) {
     throw new Error("Save a Steadfast API key first");
   }
+  const message = await testSteadfastConnection();
   await recordAudit({
     actorId,
-    action: kind === "payment" ? "settings.payment.test" : "settings.courier.test",
+    action: "settings.courier.test",
     entityType: "Setting",
     entityId: "integrations",
+    metadata: { provider: "steadfast", result: message },
   });
-  return kind === "payment"
-    ? "Payment test recorded. No charge was sent."
-    : "Steadfast courier test recorded. No parcel was booked.";
+  return message;
+}
+
+async function testSteadfastConnection(): Promise<string> {
+  const { steadfastProvider } = await import("@/lib/courier/steadfast");
+  try {
+    const { amount } = await steadfastProvider.balance!();
+    return `Connected — Steadfast balance is ৳${amount.toFixed(2)}.`;
+  } catch (error) {
+    return `Connection failed: ${error instanceof Error ? error.message : "Unknown error"}`;
+  }
+}
+
+async function testSslcommerzConnection(): Promise<string> {
+  const { sslcommerzProvider } = await import("@/lib/payment/sslcommerz");
+  try {
+    const result = await sslcommerzProvider.initiate({
+      orderNumber: `TEST-CONN-${Date.now()}`,
+      amount: 10,
+      customerName: "Connection Test",
+      customerPhone: "01700000000",
+      customerEmail: null,
+      customerAddress: "Admin settings test",
+    });
+    if (result.kind === "redirect") {
+      return "Connected — SSLCommerz accepted a test session. No charge was made.";
+    }
+    return `Not connected: ${result.message}`;
+  } catch (error) {
+    return `Connection failed: ${error instanceof Error ? error.message : "Unknown error"}`;
+  }
 }
 
 export function listBackups(): string[] {

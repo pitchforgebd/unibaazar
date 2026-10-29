@@ -9,7 +9,10 @@ import {
   systemAction,
 } from "@/app/(admin)/admin/settings-actions";
 import { SettingsForm } from "@/components/admin/settings/SettingsForm";
-import { buttonClass, fieldClass } from "@/components/ui/controls";
+import { AlertDialog } from "@/components/ui/AlertDialog";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import type { SystemSettings } from "@/server/settings/store";
 
 export function SystemBoard({
@@ -24,6 +27,7 @@ export function SystemBoard({
   const [confirm, setConfirm] = useState("");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
+  const [restoreOpen, setRestoreOpen] = useState(false);
 
   return (
     <SettingsForm
@@ -38,13 +42,12 @@ export function SystemBoard({
         { name: "footerScript", label: "Footer script", kind: "textarea" },
       ]}
       extra={
-        <div className="space-y-3 rounded-lg bg-card p-4 shadow-soft">
+        <div className="space-y-3 rounded-theme bg-card p-4 shadow-soft">
           <h2 className="font-semibold text-ink">Backup and cache</h2>
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className={buttonClass()}
-              disabled={pending}
+            <Button
+              isLoading={pending}
+              loadingLabel="Exporting…"
               onClick={() => {
                 setPending(true);
                 void backupAction().then((result) => {
@@ -57,10 +60,9 @@ export function SystemBoard({
               }}
             >
               Export database
-            </button>
-            <button
-              type="button"
-              className={buttonClass("outline")}
+            </Button>
+            <Button
+              variant="outline"
               disabled={pending}
               onClick={() => {
                 setPending(true);
@@ -71,48 +73,55 @@ export function SystemBoard({
               }}
             >
               Clear cache
-            </button>
+            </Button>
           </div>
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-ink">Restore file</span>
-            <select
-              value={file}
-              onChange={(event) => setFile(event.target.value)}
-              className={fieldClass}
-            >
-              {backups.length === 0 ? <option value="">No backups yet</option> : null}
-              {backups.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block font-semibold text-ink">
-              Type RESTORE to replace the database
-            </span>
-            <input
-              value={confirm}
-              onChange={(event) => setConfirm(event.target.value)}
-              className={fieldClass}
-            />
-          </label>
-          <button
-            type="button"
-            className={buttonClass("ink")}
-            disabled={pending || !file}
-            onClick={() => {
+          <Select
+            label="Restore file"
+            value={file}
+            onChange={(event) => setFile(event.target.value)}
+          >
+            {backups.length === 0 ? <option value="">No backups yet</option> : null}
+            {backups.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </Select>
+          <Input
+            label="Type RESTORE to replace the database"
+            value={confirm}
+            onChange={(event) => setConfirm(event.target.value)}
+          />
+          <Button
+            variant="destructive"
+            disabled={!file || confirm !== "RESTORE"}
+            onClick={() => setRestoreOpen(true)}
+          >
+            Restore backup
+          </Button>
+          {message ? (
+            <p role="status" className="text-sm text-foreground">
+              {message}
+            </p>
+          ) : null}
+          <AlertDialog
+            open={restoreOpen}
+            onOpenChange={setRestoreOpen}
+            title="Restore backup"
+            description={`This replaces the live database with "${file}". Orders and changes made since this backup are lost. This cannot be undone.`}
+            confirmLabel="Restore backup"
+            cancelLabel="Cancel"
+            isLoading={pending}
+            loadingLabel="Restoring…"
+            onConfirm={() => {
               setPending(true);
               void restoreAction({ file, confirm }).then((result) => {
                 setMessage(result.message);
                 setPending(false);
+                setRestoreOpen(false);
               });
             }}
-          >
-            Restore backup
-          </button>
-          {message ? <p className="text-sm text-ink">{message}</p> : null}
+          />
         </div>
       }
     />

@@ -2,6 +2,8 @@ import { randomInt } from "node:crypto";
 import bcrypt from "bcryptjs";
 import type { AuthCodePurpose } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { sendEmail } from "@/lib/email/mailer";
+import { sendSms } from "@/lib/sms/send";
 import { normalizeBdPhone } from "@/lib/validation/customer";
 import { ApiError } from "@/server/http";
 import { signSession, type Session } from "@/server/auth/session";
@@ -126,7 +128,49 @@ async function findUserByIdentity(identity: string) {
   });
 }
 
-async function issueCode(userId: string, purpose: AuthCodePurpose): Promise<string> {
+const CODE_MESSAGES: Record<
+  AuthCodePurpose,
+  { sms: string; subject: string; body: string }
+> = {
+  OTP: {
+    sms: "Your UniBaazar login code is {code}. It expires in 15 minutes.",
+    subject: "Your UniBaazar login code",
+    body: "Your login code is {code}. It expires in 15 minutes.\n\nIf you didn't request this, you can ignore this email.",
+  },
+  RESET: {
+    sms: "Your UniBaazar password reset code is {code}. It expires in 15 minutes.",
+    subject: "Reset your UniBaazar password",
+    body: "Your password reset code is {code}. It expires in 15 minutes.\n\nIf you didn't request this, you can ignore this email — your password won't change.",
+  },
+};
+
+/** Delivers the code via whichever channel the caller resolved the user
+ * through — SMS for a phone-based flow (OTP always; RESET when the
+ * customer typed their phone), email for a RESET requested by email.
+ * The underlying SmsProvider/mailer (src/lib/sms, src/lib/email) already
+ * logs every attempt and degrades to a no-op "not configured" result
+ * rather than throwing, so a misconfigured gateway can't block issuing
+ * the code itself — see docs/decisions/0019-phase-8-scope-courier-sms-email.md
+ * for why this delivery was missing before (a real, live-site bug: the
+ * code was generated and stored correctly but never actually sent). */
+async function deliverCode(
+  purpose: AuthCodePurpose,
+  code: string,
+  channel: { phone?: string; email?: string | null },
+): Promise<void> {
+  const message = CODE_MESSAGES[purpose];
+  if (channel.phone) {
+    await sendSms(channel.phone, message.sms.replace("{code}", code), { purpose });
+  } else if (channel.email) {
+    await sendEmail(channel.email, message.subject, message.body.replace("{code}", code));
+  }
+}
+
+async function issueCode(
+  userId: string,
+  purpose: AuthCodePurpose,
+  channel: { phone?: string; email?: string | null },
+): Promise<string> {
   const code = String(randomInt(100000, 1000000));
   const codeHash = await bcrypt.hash(code, 10);
   await prisma.authCode.updateMany({
@@ -141,6 +185,7 @@ async function issueCode(userId: string, purpose: AuthCodePurpose): Promise<stri
       expiresAt: new Date(Date.now() + 15 * 60 * 1000),
     },
   });
+  await deliverCode(purpose, code, channel);
   return code;
 }
 
@@ -153,7 +198,7 @@ export async function requestOtp(phoneInput: string): Promise<string | null> {
   if (!user) {
     return null;
   }
-  return issueCode(user.id, "OTP");
+  return issueCode(user.id, "OTP", { phone });
 }
 
 export async function verifyOtp(phoneInput: string, code: string): Promise<Session> {
@@ -177,7 +222,15 @@ export async function requestReset(identity: string): Promise<string | null> {
   if (!user) {
     return null;
   }
-  return issueCode(user.id, "RESET");
+  // Deliver through whichever channel the customer actually typed, not
+  // just whatever the account happens to have on file — a phone-based
+  // identity gets SMS, an email-based identity gets email.
+  const viaPhone = identityPhone(identity) !== null;
+  return issueCode(
+    user.id,
+    "RESET",
+    viaPhone ? { phone: user.phone } : { email: user.email },
+  );
 }
 
 export async function resetPassword(

@@ -30,9 +30,20 @@ export type DashboardOrder = {
   placedAt: string;
 };
 
+/** One status's order counts across the three dashboard windows — the
+ * order-status funnel (master plan §4.5's "today/7d/30d counts per
+ * status"), distinct from `statuses` below which is an all-time count. */
+export type StatusFunnelRow = {
+  status: OrderStatus;
+  today: number;
+  week: number;
+  month: number;
+};
+
 export type DashboardData = {
   sales: { label: string; total: number; orders: number }[];
   statuses: { status: string; count: number }[];
+  statusFunnel: StatusFunnelRow[];
   chart: { label: string; total: number }[];
   topProducts: { name: string; sku: string; qty: number; total: number }[];
   lowStock: { name: string; sku: string; stock: number }[];
@@ -42,6 +53,37 @@ export type DashboardData = {
   courierRate: number | null;
   purchaseEvents: number;
 };
+
+/** Pure bucketing so this is unit-testable without a database — given every
+ * order placed within the last 30 days plus the `today`/`week` window
+ * starts, counts how many of each status fall in each window. `month`
+ * always receives every row passed in (callers already filter to the last
+ * 30 days at the query level). */
+export function bucketStatusFunnel(
+  orders: { status: OrderStatus; placedAt: Date }[],
+  boundaries: { today: Date; week: Date },
+): StatusFunnelRow[] {
+  const counts = new Map<OrderStatus, { today: number; week: number; month: number }>(
+    statuses.map((status) => [status, { today: 0, week: 0, month: 0 }]),
+  );
+  for (const order of orders) {
+    const bucket = counts.get(order.status);
+    if (!bucket) {
+      continue;
+    }
+    bucket.month += 1;
+    if (order.placedAt >= boundaries.week) {
+      bucket.week += 1;
+    }
+    if (order.placedAt >= boundaries.today) {
+      bucket.today += 1;
+    }
+  }
+  return statuses.map((status) => ({
+    status,
+    ...(counts.get(status) ?? { today: 0, week: 0, month: 0 }),
+  }));
+}
 
 function dayKey(date: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -105,6 +147,7 @@ export async function loadDashboard(): Promise<DashboardData> {
     monthSales,
     statusRows,
     weekOrders,
+    monthStatusOrders,
     topRows,
     variants,
     customers,
@@ -119,6 +162,10 @@ export async function loadDashboard(): Promise<DashboardData> {
     prisma.order.findMany({
       where: { placedAt: { gte: week }, status: { not: "CANCELLED" } },
       select: { placedAt: true, total: true },
+    }),
+    prisma.order.findMany({
+      where: { placedAt: { gte: month } },
+      select: { status: true, placedAt: true },
     }),
     prisma.orderItem.groupBy({
       by: ["sku"],
@@ -146,7 +193,7 @@ export async function loadDashboard(): Promise<DashboardData> {
       take: 5,
     }),
     prisma.order.findMany({ orderBy: { placedAt: "desc" }, take: 8 }),
-    prisma.trackingEvent.count({ where: { name: "purchase", createdAt: { gte: week } } }),
+    prisma.trackingEvent.count({ where: { name: "Purchase", createdAt: { gte: week } } }),
   ]);
 
   const counts = new Map(statusRows.map((row) => [row.status, row._count._all]));
@@ -179,6 +226,7 @@ export async function loadDashboard(): Promise<DashboardData> {
       { label: "30 days", ...monthSales },
     ],
     statuses: statuses.map((status) => ({ status, count: counts.get(status) ?? 0 })),
+    statusFunnel: bucketStatusFunnel(monthStatusOrders, { today, week }),
     chart: keys.map((key) => ({
       label: dayLabel(key),
       total: Math.round(totals.get(key) ?? 0),

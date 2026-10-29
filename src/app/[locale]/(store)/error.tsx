@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { Container } from "@/components/ui/Container";
-import { buttonClass } from "@/components/ui/controls";
+import { buttonStyles } from "@/components/ui/buttonStyles";
 import { reportError } from "@/lib/logger";
 
 export default function StoreError({
@@ -30,14 +30,18 @@ export default function StoreError({
           {error.digest}
         </p>
       ) : null}
-      <div className="mt-4 flex gap-3">
-        <button type="button" className={buttonClass("primary")} onClick={reset}>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button
+          type="button"
+          className={buttonStyles({ variant: "primary" })}
+          onClick={reset}
+        >
           {t("boundary.retry")}
         </button>
-        <Link href="/" className={buttonClass("outline")}>
+        <Link href="/" className={buttonStyles({ variant: "outline" })}>
           {t("boundary.homeButton")}
         </Link>
-        <Link href="/shop" className={buttonClass("outline")}>
+        <Link href="/shop" className={buttonStyles({ variant: "outline" })}>
           {t("notFound.shopButton")}
         </Link>
       </div>
