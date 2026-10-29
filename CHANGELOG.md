@@ -4,6 +4,35 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Phase 13 — Pre-launch correctness fixes (2026-10-29)
+
+First phase past the master plan's Phase 12 — see
+`docs/post-launch-plan.md`.
+
+### Fixed
+
+- **Rate limits and daily order caps were keyed on IP alone, which is
+  the wrong key for this market.** Bangladesh's mobile carriers put
+  huge numbers of subscribers behind one CGNAT IPv4, so
+  `ordersFromIpToday >= 5` would have refused the **6th order of the
+  day from an entire carrier's NAT pool** — with a fraud message, so it
+  would have read as an attack rather than lost sales — and
+  `5 OTPs/15min/IP` would have throttled real logins at peak. The tight
+  limit now keys on the phone/email being acted on (hashed, so no raw
+  PII in the limiter table); IP stays as a loose flood backstop. Daily
+  order caps: phone 5, device 5, IP 40. Verified behaviourally: same
+  phone throttles at 5, twelve different phones on one IP all pass, and
+  a single-IP flood still trips at 60 (ADR 0024).
+- **`clientIp()` trusted the client-supplied `X-Forwarded-For` entry**,
+  letting anyone choose their own rate-limit key — to evade a limit, or
+  to spend someone else's budget and lock them out. It now counts
+  `TRUSTED_PROXY_HOPS` (default 1) from the right.
+
+### Added
+
+- `docs/post-launch-plan.md` — Phases 13–18: the launch path and every
+  deferred item, since the master plan stops at 12.
+
 ## Phase 12 — Hardening, full QA, and launch prep (2026-10-29)
 
 ### Security

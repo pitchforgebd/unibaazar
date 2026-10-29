@@ -22,7 +22,12 @@ export async function POST(request: Request) {
     );
   }
   try {
-    const guard = await guardWrite(request, "otp", parsed.data.captchaToken);
+    const guard = await guardWrite(
+      request,
+      "otp",
+      parsed.data.captchaToken,
+      parsed.data.phone,
+    );
     const base = await verifyOtp(parsed.data.phone, parsed.data.code);
     const session = await createAuthSession({
       userId: base.userId,

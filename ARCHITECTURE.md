@@ -466,7 +466,21 @@ why).
 
 ## 10. Security measures
 
-Rate limiting runs in two tiers (Phase 12). The security-sensitive write
+Rate limiting is keyed on **identity first, IP second** (Phase 13, ADR
+0024). The tight limit keys on the phone/email a request acts on
+(SHA-256 hashed, so the limiter table holds no raw PII); the per-IP
+limit is a loose flood backstop set about an order of magnitude higher.
+The reason is local: Bangladesh's mobile carriers put huge numbers of
+subscribers behind one CGNAT IPv4, so an IP-keyed counter measures NAT
+pool busyness, not one person — the previous flat `5 orders/day/IP`
+would have refused the 6th order of the day from an entire carrier, and
+`5 OTPs/15min/IP` would have throttled real logins at peak. Daily order
+caps follow the same shape: phone 5, device 5, IP 40. `clientIp()`
+counts `TRUSTED_PROXY_HOPS` (default 1) from the **right** of
+`X-Forwarded-For`, because the leftmost entry is client-supplied and
+previously let anyone choose their own rate-limit key.
+
+Storage runs in two tiers (Phase 12). The security-sensitive write
 buckets §5.6 names — login, OTP, checkout, contact, newsletter, all
 funnelled through `guardWrite()` — are **DB-backed**
 (`src/server/security/rate-limit-db.ts`, `RateLimitHit`), so a limit
