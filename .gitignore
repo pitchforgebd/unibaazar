@@ -28,6 +28,16 @@
 /release-info.json
 /artifact
 
+# Phase 14's migration rehearsal works on a copy of the production
+# database. That file holds real customer names, phones, addresses and
+# order history — it must never reach git. Belt and braces: the folder
+# is ignored, and so is every .sql/.sql.gz/.dump anywhere in the repo.
+/.rehearsal
+*.sql
+*.sql.gz
+*.dump
+!prisma/migrations/**/*.sql
+
 # misc
 .DS_Store
 *.pem
