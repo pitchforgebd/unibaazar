@@ -34,6 +34,16 @@ deferred since ADR 0007.
   Both aborted the first deploy to a fresh host, which is the only time
   this code runs.
 
+- **A parity assertion had been verifying nothing since Phase 9.** Every
+  parity test waited on `getByText("saved", { exact: false })`, which
+  also matches page body copy — the social settings page's intro ends
+  "keep the saved value". On that page it either resolved to two
+  elements and failed strict mode, or matched the intro and passed
+  without the save having happened. Replaced with one `expectSaved()`
+  helper scoped to `role="status"`. Both saves had in fact succeeded:
+  the test database held the exact values the failing tests submitted.
+  Parity is 8/8 on two consecutive runs.
+
 ### Changed
 
 - `docs/launch-checklist.md` §1 is now the fresh-install sequence rather

@@ -101,23 +101,24 @@ and failed on the host, or the reverse.
 
 ## Test matrix and results
 
-| Check                                           | Result                                                              |
-| ----------------------------------------------- | ------------------------------------------------------------------- |
-| Typecheck                                       | ✅ pass                                                             |
-| Lint                                            | ✅ pass                                                             |
-| Unit tests                                      | ✅ 325/325 (38 files)                                               |
-| Integration tests                               | ✅ 42/42 (11 files)                                                 |
-| `build:test`                                    | ✅ pass                                                             |
-| E2E critical path — Chromium desktop + mobile   | ✅ 1/1 each                                                         |
-| E2E critical path — WebKit, iOS Safari, Firefox | ✅ 3/3                                                              |
-| a11y (axe)                                      | ✅ 6/6                                                              |
-| Lighthouse CI (4 URLs)                          | ✅ pass, with the documented `/checkout` SEO warning                |
-| Parity                                          | ⚠️ 6/8 — two test defects found and fixed, **re-run not completed** |
+| Check                                           | Result                                                |
+| ----------------------------------------------- | ----------------------------------------------------- |
+| Typecheck                                       | ✅ pass                                               |
+| Lint                                            | ✅ pass                                               |
+| Unit tests                                      | ✅ 325/325 (38 files)                                 |
+| Integration tests                               | ✅ 42/42 (11 files)                                   |
+| `build:test`                                    | ✅ pass                                               |
+| E2E critical path — Chromium desktop + mobile   | ✅ 1/1 each                                           |
+| E2E critical path — WebKit, iOS Safari, Firefox | ✅ 3/3                                                |
+| a11y (axe)                                      | ✅ 6/6                                                |
+| Lighthouse CI (4 URLs)                          | ✅ pass, with the documented `/checkout` SEO warning  |
+| Parity                                          | ✅ 8/8, twice — after fixing two defects in the suite |
 
 No application code changed this phase, so the suites above are
-unchanged from Phase 13 in substance. Two things are worth recording
-anyway, because both cost real time and one is a genuine defect that had
-been hiding.
+unchanged from Phase 13 in substance. Three things are worth recording
+anyway: two environment traps that each produced a convincing but wrong
+diagnosis, and one genuine defect in the parity suite that had been
+hiding behind a loose locator since Phase 9.
 
 ### The e2e failure that wasn't
 
@@ -171,29 +172,29 @@ Fixed by replacing all nine copies of that assertion with one
 `/saved/i`, with a 20s budget. Scoping excludes body copy; the filter
 excludes the submit button's own "Saving…" spinner label.
 
-### Why the parity re-run is not in the table
+### A running `next dev` breaks `next build`
 
-The re-run could not be completed here. After the fix, `build:test`
-began failing in "Collecting page data" with a different missing webpack
-chunk each time (`./chunks/vendor-chunks/next.js`, then
+Verifying the parity fix took three attempts, because `build:test`
+started failing in "Collecting page data" with a _different_ missing
+webpack chunk each time (`./chunks/vendor-chunks/next.js`, then
 `../../../../../webpack-runtime.js`). Wiping `.next` did not help, which
-ruled out the stale-cache explanation this repo has hit before.
+ruled out the stale-cache explanation this repo has hit before — and
+ruled out the first guess.
 
-The cause is a `npm run dev` process started at 02:07 that this session
-did not start: `next dev` and `next build` write the same `.next`
-directory, so the build's page-data pass kept reading files the dev
-server had replaced. The 01:43 build, before that process existed,
-succeeded. Stopping someone else's dev server is not this session's call
-to make, and the two alternatives were both worse — overriding `distDir`
-means changing committed production config for a local convenience, and
-pointing `E2E_BASE_URL` at the running dev server would have let the
-parity tests write settings into the **dev** database.
+The cause was an `npm run dev` process started at 02:07 that this
+session did not start. `next dev` and `next build` write the same
+`.next` directory, so the build's page-data pass kept reading files the
+dev server had already replaced. The 01:43 build, before that process
+existed, had succeeded. With the dev server stopped (the user's call,
+since it was their process), the build went green and parity passed
+**8/8 on two consecutive runs**.
 
-So: the fix is committed and is typechecked and lint-clean, and the
-reasoning behind it is written into the helper. It has not been observed
-passing. **Phase 15 must run `npm run test:parity` with no `next dev`
-running, and confirm 8/8, before the merge.** The two defects it fixes
-were both diagnosed from recorded evidence, not inferred.
+Worth knowing for next time: a local production build and a dev server
+cannot share this working tree. The two alternatives considered were
+both worse — overriding `distDir` means changing committed production
+config for a local convenience, and pointing `E2E_BASE_URL` at the
+running dev server would have let the parity tests write settings into
+the **dev** database.
 
 ### Environment notes
 
@@ -228,10 +229,11 @@ directly:
   new tool in the toolchain immediately before a launch. It was verified
   behaviourally across the five password shapes above, and the reasoning
   lives in the script's own comments. Recorded as debt in Phase 18.
-- **The parity fix has not been observed passing**, because a `next dev`
-  process outside this session's control was corrupting every production
-  build. Phase 15 must run `npm run test:parity` cleanly and confirm 8/8
-  before the merge. Details above.
+- **One parity assertion had been passing hollow since Phase 9.** It is
+  fixed and now verified twice, but it means the "8/8 parity" line in
+  the Phase 9, 10, 11 and 13 reports overstated what was actually
+  checked for the social settings group. Those reports are not being
+  rewritten; this note is the correction.
 - **The deploy itself still has not run.** This phase proves the
   artifact contains what the deploy invokes, and that those scripts are
   syntactically sound and parse their input correctly. It cannot prove

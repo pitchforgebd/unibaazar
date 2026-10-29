@@ -55,6 +55,10 @@ been deliberately deferred since ADR 0007:
 - [x] `apply-migrations.sh` **could not parse a DB password containing
       symbols** — exactly what cPanel generates for a fresh install
 - [x] every deploy script syntax-checked (`bash -n`, `node --check`)
+- [x] two defects fixed in the parity suite, one of which had been
+      asserting nothing since Phase 9 — `getByText("saved")` was
+      matching page body copy instead of the save status. Now 8/8 on two
+      consecutive runs.
 - [x] `docs/launch-checklist.md` §1 rewritten as the fresh-install
       sequence, including the two steps that are the whole recovery plan
       for deploy #1: copy `shared/uploads` off the host, and keep a final
@@ -72,10 +76,6 @@ return window in days (from Phase 13).
 
 ## Phase 15 — Merge and first deploy
 
-- [ ] **first**, with no `next dev` running, `npm run test:parity` and
-      confirm **8/8**. Phase 14 fixed two defects in that suite but could
-      not observe the fix pass — a stray dev server was corrupting every
-      production build (`docs/qa/phase-14-report.md`).
 - [ ] merge the Phase 4–14 branch chain into `main` (one merge, per the
       standing no-per-phase-PR decision)
 - [ ] work `docs/launch-checklist.md` §1 first — the uploads copy, the
