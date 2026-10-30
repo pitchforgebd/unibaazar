@@ -25,7 +25,18 @@
 
   html {
     color-scheme: light;
-    scroll-behavior: smooth;
+  }
+
+  /* Unguarded `scroll-behavior: smooth` was both a real a11y gap (it
+   * ignored `prefers-reduced-motion`, which vestibular-disorder users
+   * rely on to turn scroll animation off) and the cause of a flaky e2e
+   * failure: a click's auto-scroll animates instead of jumping, so the
+   * target passes under a different fixed/sticky element on each
+   * animation frame — see docs/decisions/0028-reduced-motion-in-e2e.md. */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
   }
 
   body {

@@ -18,6 +18,15 @@ export default defineConfig({
     screenshot: "only-on-failure",
     navigationTimeout: 45_000,
     actionTimeout: 15_000,
+    // CLAUDE.md's end-of-phase checklist already calls for testing under
+    // prefers-reduced-motion by hand; running every e2e project under it
+    // too means that's covered automatically, and removes a real source
+    // of flakiness: an element mid-`scroll-behavior: smooth` animation
+    // (the auto-scroll before a click, in particular) can pass under a
+    // different fixed/sticky element on each frame, so a click intercept
+    // error can point at a different element on every retry. See
+    // docs/decisions/0028-reduced-motion-in-e2e.md.
+    reducedMotion: "reduce",
   },
   projects: [
     {
