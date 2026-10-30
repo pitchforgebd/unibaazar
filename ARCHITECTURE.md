@@ -630,6 +630,22 @@ first-deploy-only failures. See
 The first admin on a fresh database comes from `scripts/bootstrap-admin.cjs`,
 plain CommonJS for the same thread-ceiling reason as everything else here.
 
+**`build-artifact` (the job that produces that tarball) had the same
+problem, found the same way, the same day.** It's gated to pushes on
+`main`, so it had never run against real content either until the phase
+branches were finally merged. It assumed — stated in its own comment —
+that `next build` needs no real database connection, because every
+DB-backed route is dynamic. That assumption was wrong for the actual
+codebase: 63 admin pages were all missing `force-dynamic` (masked at
+runtime by a nested layout's `headers()` call, but not during the
+build's own static-optimization pass), and several storefront pages
+(`[page-slug]`, `blog/[slug]`, `/checkout`) read live data directly
+during prerendering. Rather than patching every such callsite as it
+surfaced, the job now builds against a real, empty, migrated database —
+the same pattern `verify` already runs successfully every push — so any
+query gets a graceful empty result instead of a crash, found or not.
+See `docs/decisions/0031-build-artifact-needs-a-real-database.md`.
+
 **(Resolved in Phase 2) ISR + cookie-based i18n was incompatible for routes with
 no pre-known params.** The old root layout read the locale cookie on every
 request (required for i18n to work at all). For a route configured as

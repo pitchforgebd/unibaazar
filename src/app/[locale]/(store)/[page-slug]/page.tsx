@@ -26,13 +26,35 @@ type CmsPageProps = {
 // changes rarely, so a longer window than product/category pages is fine.
 export const revalidate = 300;
 
+// Build-time DB access is unavailable by design on the release pipeline
+// (ARCHITECTURE.md §12: "no real DB connection is needed at build time" —
+// ci.yml's build-artifact job points DATABASE_URL at a syntactically
+// valid but unreachable address on purpose, see ADR 0031). Falling back
+// to [] here, rather than letting the query throw and crash the build,
+// means no pages are pre-rendered at build time — but `dynamicParams`
+// defaults to true, so every slug still renders (and then ISR-caches per
+// `revalidate` above) on its own first real request instead.
 export async function generateStaticParams() {
-  const pages = await prisma.page.findMany({
-    where: { status: "PUBLISHED" },
-    select: { slug: true },
-  });
-  const slugs = new Set([...pages.map((page) => page.slug), ...extras]);
-  return [...slugs].map((slug) => ({ "page-slug": slug }));
+  try {
+    const pages = await prisma.page.findMany({
+      where: { status: "PUBLISHED" },
+      select: { slug: true },
+    });
+    const slugs = new Set([...pages.map((page) => page.slug), ...extras]);
+    return [...slugs].map((slug) => ({ "page-slug": slug }));
+  } catch (error) {
+    // Return [] rather than `extras` here even though their membership is
+    // hardcoded: the page body and generateMetadata below still call
+    // prisma.page.findFirst() unconditionally for every slug, extras
+    // included (to check for CMS-overridden content), so pre-rendering
+    // any slug — not just the DB-backed ones — would hit the same
+    // unreachable-DB crash during the export step right after this.
+    console.warn(
+      "generateStaticParams for [page-slug]: DB unreachable at build time, falling back to on-demand rendering for every page",
+      error,
+    );
+    return [];
+  }
 }
 
 export async function generateMetadata({ params }: CmsPageProps): Promise<Metadata> {

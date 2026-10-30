@@ -172,6 +172,31 @@ jobs:
     env:
       UV_THREADPOOL_SIZE: "2"
       NEXT_TELEMETRY_DISABLED: "1"
+    # This job had never run against real content before 2026-10-30 (it's
+    # gated to pushes on main, and everything before today developed on
+    # phase branches). The first time it did, `next build` crashed
+    # repeatedly: several pages — not just a couple — read live DB data
+    # (Settings, CMS pages, blog posts) during prerendering, which threw
+    # every time against the unreachable DATABASE_URL this job used to
+    # set. ARCHITECTURE.md §3's claim that "no real DB connection is
+    # needed at build time" turned out not to hold for the actual
+    # codebase. Rather than hunting down and patching every such
+    # callsite under deploy pressure, this job now builds against a real,
+    # empty, migrated database — the same pattern the `verify` job
+    # already runs successfully end-to-end every push. See ADR 0031.
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: unibaazar_build
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - uses: actions/checkout@v4
 
@@ -186,14 +211,15 @@ jobs:
 
       - run: npx prisma generate
 
-      # No real DB connection is needed at build time — every DB-backed route
-      # is dynamic (ARCHITECTURE.md §3) — but PrismaClient's constructor
-      # requires DATABASE_URL to be a syntactically valid URL even though
-      # it's never queried during the build.
+      - name: Apply migrations to the throwaway build database
+        env:
+          DATABASE_URL: mysql://root@127.0.0.1:3306/unibaazar_build
+        run: npx prisma migrate deploy
+
       - name: Build
         env:
           NEXT_PUBLIC_SITE_URL: https://unibaazar.com
-          DATABASE_URL: mysql://build:build@127.0.0.1:3306/build
+          DATABASE_URL: mysql://root@127.0.0.1:3306/unibaazar_build
         run: npm run build
 
       - name: Record the release SHA for /api/health
