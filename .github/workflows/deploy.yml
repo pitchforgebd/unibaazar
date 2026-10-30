@@ -83,6 +83,17 @@ jobs:
           target: ${{ secrets.APP_PATH }}/incoming
           strip_components: 1
 
+      # command_timeout defaults to 10m in appleboy/ssh-action, which the
+      # first real deploy hit: the release artifact includes a full
+      # production node_modules (hundreds of MB, tens of thousands of
+      # small files — output: "standalone" is deliberately not used, see
+      # ARCHITECTURE.md), and extracting that many small files is slow on
+      # this host's I/O even though it isn't short on RAM (confirmed via
+      # `free -h`: 124GB total, 42GB available at the time of the
+      # failure) — drone-ssh killed the remote tar at the 10-minute mark
+      # mid-extraction (1.1GB already unpacked from a 316MB archive, so
+      # it was making real progress, just not fast enough). See
+      # docs/decisions/0034-deploy-ssh-command-timeout.md.
       - name: Unpack the release
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -91,6 +102,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }} # see the first step's comment
           port: ${{ secrets.SSH_PORT }}
+          command_timeout: 30m
           script_stop: true
           script: |
             set -euo pipefail
@@ -113,6 +125,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }} # see the first step's comment
           port: ${{ secrets.SSH_PORT }}
+          command_timeout: 30m # see "Unpack the release" step's comment
           script_stop: true
           envs: SHA,APP_PATH,HEALTH_CHECK_URL
           script: |
