@@ -4,16 +4,19 @@
 
 generator client {
   provider      = "prisma-client-js"
-  // CI generates the client on a GitHub-hosted Ubuntu runner, whose "native"
-  // target is Debian-family — but the production host is CloudLinux 9
-  // (RHEL-family, confirmed via `uname -a` showing an `el9` kernel), with
-  // OpenSSL 3.5.8. Prisma's engine binaries are grouped by OpenSSL major
-  // version, so OpenSSL 3.x on RHEL maps to "rhel-openssl-3.0.x" regardless
-  // of the exact minor (there's no separate 3.5 target). Without this, the
-  // shipped engine binary would be the wrong one and the app would fail on
-  // the host with "Error loading shared library" — see DEPLOYMENT.md's
-  // troubleshooting table and docs/decisions/0026-prisma-binary-target-rhel.md.
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  // CI generates the client on a GitHub-hosted Ubuntu runner ("native" =
+  // Debian-family). `rhel-openssl-3.0.x` was added per ADR 0026, reasoned
+  // from `uname -a`'s `el9` kernel tag and the system `openssl` CLI
+  // reporting 3.5.8 — but the first real deploy's actual runtime error
+  // (inside the live Passenger-spawned Node process, not a shell probe)
+  // asked for `debian-openssl-1.1.x` instead: with `/etc/os-release`
+  // hidden by CageFS, Prisma's own platform detection can't confirm RHEL
+  // and falls back to its generic glibc-Linux ("debian") family, and
+  // whatever libssl the Node process actually links against here is
+  // 1.1.x, not the CLI's 3.5.8. Keeping all three targets rather than
+  // replacing one guess with another — see
+  // docs/decisions/0026-prisma-binary-target-rhel.md's correction.
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-1.1.x"]
 }
 
 datasource db {
