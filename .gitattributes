@@ -1,0 +1,10 @@
+# Font binaries (src/app/fonts/files/, added in ADR 0032) must never go
+# through line-ending conversion — a CRLF rewrite would corrupt them.
+# Git's own content-sniffing already skips binary files in practice, but
+# it still prints a conversion warning for them on Windows without this,
+# and silence here is safer than relying on the sniff every time.
+*.woff2 binary
+*.woff binary
+*.ttf binary
+*.otf binary
+*.eot binary
