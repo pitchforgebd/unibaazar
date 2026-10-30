@@ -268,6 +268,28 @@ directly:
   backs up the database before migrating, and `mysqldump` against a
   schema that does not exist aborts the run.
 
+## Addendum, same day: the first fully green CI run
+
+Everything above was written once the deploy-path fixes looked done.
+Getting `main`'s GitHub Actions pipeline to actually run — the step this
+report calls "the real confirmation" throughout — found six more real
+defects, none of them touched by anything in this phase's original
+scope, all hidden the same way: the jobs that found them had never
+executed to completion before, because deploys (and therefore real CI
+runs on `main`) were deferred from Phase 1 onward.
+
+| ADR                                                                | What it found                                                                                                                                                                        |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [0027](../decisions/0027-migration-table-name-case-sensitivity.md) | A table-name case mismatch had failed `db:migrate:test` on **every CI run since ~Phase 3** — invisible because MySQL on Windows doesn't enforce case sensitivity                     |
+| [0028](../decisions/0028-reduced-motion-in-e2e.md)                 | A real a11y gap (unguarded `scroll-behavior: smooth`) fixed and kept, but recorded as the wrong diagnosis for the e2e failure that prompted it                                       |
+| [0029](../decisions/0029-force-click-known-mobile-overlap.md)      | The real cause of that e2e failure: a known, already-documented short-page/narrow-viewport overlap, fixed by matching an existing pattern in the same test file                      |
+| [0030](../decisions/0030-verify-job-must-not-run-cross-browser.md) | `verify:full`'s own composition contradicted `cross-browser`'s reason for existing — the `verify` job tried to run three browser engines it never installs                           |
+| [0031](../decisions/0031-build-artifact-needs-a-real-database.md)  | 63 admin pages missing `force-dynamic`, plus several storefront pages reading live data during prerendering — `build-artifact`'s "no DB needed at build time" assumption didn't hold |
+| [0032](../decisions/0032-self-host-fonts.md)                       | `next/font/google`'s build-time fetch failed three times from Google's API being unreachable from GitHub's runner IPs; removed by self-hosting                                       |
+
+**2026-10-30, all three jobs (`verify`, `cross-browser`, `build-artifact`)
+went green together for the first time in this project's history.**
+
 ## Summary
 
 Phase 14 was planned as a rehearsal of a migration that is not going to
@@ -275,10 +297,18 @@ happen, and it would have passed while telling us nothing. Pointed at
 the path that is actually going to happen instead, it found that the
 release artifact did not contain the scripts the deploy runs, that every
 release carried 710MB of dead cache, and that a cPanel-generated
-database password would have broken the migration step. The first real
-deploy would have failed at its first command.
+database password would have broken the migration step — and, once the
+pipeline was actually run on `main` rather than just packaged, six more
+defects spanning a migration, a known-but-undocumented test fix, a CI
+job misconfiguration, a missing architectural invariant on 63 admin
+pages, and a third-party network dependency in the build. The first real
+deploy would have failed at its first command; so, separately, would
+every single CI run checking `main`, for reasons that had nothing to do
+with each other.
 
-That is the cost of deferring deploys for fourteen phases, and it is the
-argument for Phase 15 being a real deploy rather than more preparation.
+That is the cost of deferring both deploys and real CI runs for fourteen
+phases, and it is the argument for Phase 15 being a real deploy rather
+than more preparation — there is no more "pipeline that's never
+actually run" left hiding anything.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

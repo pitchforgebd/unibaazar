@@ -44,6 +44,50 @@ deferred since ADR 0007.
   the test database held the exact values the failing tests submitted.
   Parity is 8/8 on two consecutive runs.
 
+- **Prisma's binary target didn't match the production host.** CI
+  generates the client on a Debian-family Ubuntu runner with no
+  `binaryTargets` set; the host is CloudLinux 9 (RHEL-family, confirmed
+  via `uname -a`'s `el9` kernel tag and `/opt/alt/alt-nodejs20`). Would
+  have failed the first deploy with "Error loading shared library".
+  Pinned to `["native", "rhel-openssl-3.0.x"]` (ADR 0026).
+- **GitHub Actions' SSH key required a passphrase** this host's cPanel
+  form wouldn't let be blank. `deploy.yml`'s SSH/SCP steps now pass an
+  optional `SSH_PASSPHRASE` secret through, safely empty when unset.
+- **A table-name case mismatch had failed every CI run on `main` since
+  roughly Phase 3.** `FlashSaleItem` was created with that casing but
+  referenced as lowercase `flashsaleitem` in a later migration — MySQL
+  on Windows doesn't enforce case sensitivity, so it never failed
+  locally; MySQL on Linux (CI, and the production host) does. This had
+  been invisible because local `npm run verify`/`verify:full` was the
+  only thing ever checked — not the actual GitHub Actions logs
+  (ADR 0027).
+- **`verify:full`'s own script composition included `test:e2e:cross`**,
+  which the dedicated `cross-browser` job deliberately exists to run
+  separately (three extra browser engines the common job doesn't
+  install). The `verify` job calling `verify:full` wholesale meant it
+  was always going to fail that step once it got far enough to reach it.
+  Split into `verify:ci` (what CI's `verify` job runs) and `verify:full`
+  (that plus cross-browser, for local use) — ADR 0030.
+- **Lighthouse's Chrome needs `--no-sandbox` on GitHub's runners** — an
+  unflagged launch dies immediately ("No usable sandbox!").
+- **`build-artifact` assumed no real database is needed at build
+  time.** Not true for the actual codebase: all 63 admin pages were
+  missing `force-dynamic` (masked at runtime by a nested layout's
+  `headers()` call, not during the build's own prerender attempt), and
+  several storefront pages read live Settings/CMS data directly during
+  render. Rather than patching every callsite as it surfaced, the job
+  now builds against a real, empty, migrated database — the same
+  pattern `verify` already runs successfully (ADR 0031).
+- **`next/font/google`'s build-time fetch to Google's API failed three
+  separate times in one day**, a different font family each time — the
+  signature of transient network/rate-limiting on GitHub's shared runner
+  IPs, not a config bug. Self-hosted all three families instead
+  (`next/font/local`), removing the network dependency from the build
+  entirely (ADR 0032).
+
+**2026-10-30: `verify`, `cross-browser`, and `build-artifact` all went
+green together for the first time in this project's history.**
+
 ### Changed
 
 - `docs/launch-checklist.md` §1 is now the fresh-install sequence rather
@@ -53,6 +97,10 @@ deferred since ADR 0007.
   keep a final pre-wipe dump outside the repo.
 - The backups/rollback section now states plainly that deploy #1 has no
   rollback target, which `deploy-release.sh` already handled correctly.
+- Admin's root layout is now explicitly `force-dynamic`, matching what
+  was already true at runtime but wasn't declared.
+- Fonts are self-hosted under `src/app/fonts/` instead of fetched from
+  Google at build time; SIL Open Font License text included alongside.
 
 ## Phase 13 — Pre-launch correctness fixes (2026-10-29)
 

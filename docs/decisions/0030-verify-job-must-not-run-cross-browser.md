@@ -55,15 +55,16 @@ regress back if someone "simplifies" it later.
   which one CI's `verify` job runs. The end-of-phase protocol still says
   `verify:full` deliberately — a human running the complete local check
   before ending a phase should still get cross-browser coverage.
-- Not yet verified on CI — this is a config/script fix with no code
-  behavior to diverge between local and CI (unlike ADR 0027's MySQL
-  case-sensitivity, which genuinely could only be proven on Linux), so a
-  local `bash -n`-equivalent sanity check (confirming `npm run verify:ci`
-  resolves and runs its first few steps) is reasonable evidence here, but
-  the next CI run is still the real confirmation that the `verify` job
-  completes.
-- The separate `cross-browser` job's own failure (`next/font`'s Google
-  Fonts loader crashing during `build:test`, unrelated to this fix) is
-  being triaged separately — retry first, since a build-time fetch to
-  Google's font API is a known source of CI flakiness and
-  `src/app/fonts.ts`'s own config has nothing obviously wrong with it.
+- **Confirmed 2026-10-30**: the `verify` job completed in full on the
+  next run. Its remaining steps — e2e, a11y, parity, `lhci` — then
+  surfaced two further issues, fixed separately: Lighthouse's Chrome
+  needing `--no-sandbox` on GitHub's runners (`lighthouserc.js`, commit
+  `3b24dff`), and `build-artifact` needing a real database
+  (`docs/decisions/0031-build-artifact-needs-a-real-database.md`).
+- The separate `cross-browser` job's font loader crash turned out to
+  recur a third time before resolving on its own — the symptom (a
+  different family failing each run) was always more consistent with
+  transient Google Fonts API flakiness than a config bug, and that
+  theory held, but the repeated cost of it blocking a clean run led to
+  removing the dependency entirely rather than continuing to retry —
+  see `docs/decisions/0032-self-host-fonts.md`.

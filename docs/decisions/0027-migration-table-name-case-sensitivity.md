@@ -75,10 +75,12 @@ insensitively. This was the only instance across all 19 migrations.
 
 - `npm run db:migrate:test` now applies all 19 migrations cleanly from
   an empty schema, verified locally by dropping every table and
-  re-running the full chain. **This does not prove the Linux-specific
-  case-sensitivity behavior** — Windows would "pass" this regardless of
-  whether the casing is right, since it doesn't enforce it. The real
-  confirmation is the next `ci` run actually going green on GitHub.
+  re-running the full chain. **This did not prove the Linux-specific
+  case-sensitivity behavior on its own** — Windows would "pass"
+  regardless of whether the casing was right, since it doesn't enforce
+  it. **Confirmed 2026-10-30**: the `verify` and `cross-browser` jobs
+  both went green on GitHub immediately after this fix, the first time
+  either had ever gotten past this step.
 - This was found only because the user happened to open the Actions tab
   and share what they saw. Reading actual CI logs — not just trusting a
   green local `verify:full` — should have caught this far earlier; see
