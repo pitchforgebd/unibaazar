@@ -81,10 +81,17 @@ jobs:
       - run: npm run db:migrate:test
       - run: npm run db:seed:test
 
+      # verify:ci, not verify:full: this job only installs chromium (above).
+      # Cross-browser (webkit/firefox) is the separate `cross-browser` job
+      # below, which installs those engines itself — verify:full's own
+      # composition includes test:e2e:cross, so calling it here would
+      # always fail at that step with "Executable doesn't exist". Hidden
+      # until 2026-10-30 behind two earlier bugs that failed before this
+      # job ever got this far — see ADR 0030.
       - name: Run the full verify suite (typecheck, lint, unit, integration, e2e, a11y, lighthouse)
         env:
           CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
-        run: npm run verify:full
+        run: npm run verify:ci
 
       - name: Upload Playwright report on failure
         if: failure()

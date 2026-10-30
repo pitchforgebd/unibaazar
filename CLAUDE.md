@@ -102,10 +102,12 @@ choices. Record non-obvious decisions as ADRs in `docs/decisions/NNNN-title.md`
 ```
 npm run dev / build / start
 npm run verify            # typecheck + lint + test:unit — run before every commit
-npm run verify:full       # verify + integration + e2e (desktop+mobile) + a11y + lighthouse
+npm run verify:ci         # verify + integration + build + e2e (desktop+mobile) + a11y + parity + lighthouse — what CI's `verify` job runs
+npm run verify:full       # verify:ci + cross-browser (webkit/mobile-safari/firefox) — the complete local check; CI runs cross-browser as its own separate job instead, so don't swap verify:full in for verify:ci in ci.yml's `verify` job
 npm run test:unit         # Vitest, no DB
 npm run test:integration  # Vitest against the test DB (.env.test)
 npm run test:e2e / test:e2e:mobile   # Playwright
+npm run test:e2e:cross    # Playwright on webkit/mobile-safari/firefox
 npm run test:a11y         # Playwright + axe-core
 npm run test:visual       # Playwright visual snapshots
 npm run db:up / db:down   # docker compose test MySQL (docker-compose.test.yml, port 3307)
