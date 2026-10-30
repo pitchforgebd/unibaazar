@@ -3,7 +3,17 @@
 // A simple product still has one default ProductVariant so cart and order lines always point at a variant.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // CI generates the client on a GitHub-hosted Ubuntu runner, whose "native"
+  // target is Debian-family — but the production host is CloudLinux 9
+  // (RHEL-family, confirmed via `uname -a` showing an `el9` kernel), with
+  // OpenSSL 3.5.8. Prisma's engine binaries are grouped by OpenSSL major
+  // version, so OpenSSL 3.x on RHEL maps to "rhel-openssl-3.0.x" regardless
+  // of the exact minor (there's no separate 3.5 target). Without this, the
+  // shipped engine binary would be the wrong one and the app would fail on
+  // the host with "Error loading shared library" — see DEPLOYMENT.md's
+  // troubleshooting table and docs/decisions/0026-prisma-binary-target-rhel.md.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -1240,19 +1250,19 @@ model TrackingEvent {
 // daily sweep (src/server/admin/maintenance/retry-conversions.ts) retries
 // every `failed` row, capped at `maxAttempts` each.
 model ConversionApiLog {
-  id         String   @id @default(cuid())
-  provider   String   @db.VarChar(16)
-  eventName  String   @db.VarChar(64)
-  eventKey   String   @db.VarChar(64)
-  orderId    String?
-  endpoint   String   @db.VarChar(255)
-  payload    Json
-  status     String   @db.VarChar(16)
-  error      String?  @db.Text
-  attempts   Int      @default(1)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  order      Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  id        String   @id @default(cuid())
+  provider  String   @db.VarChar(16)
+  eventName String   @db.VarChar(64)
+  eventKey  String   @db.VarChar(64)
+  orderId   String?
+  endpoint  String   @db.VarChar(255)
+  payload   Json
+  status    String   @db.VarChar(16)
+  error     String?  @db.Text
+  attempts  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  order     Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([provider, eventKey])
