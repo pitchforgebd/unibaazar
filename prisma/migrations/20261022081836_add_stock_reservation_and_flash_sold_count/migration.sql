@@ -1,5 +1,12 @@
 -- AlterTable
-ALTER TABLE `flashsaleitem` ADD COLUMN `soldCount` INTEGER NOT NULL DEFAULT 0;
+-- The table was created as `FlashSaleItem` (20261005180544_init) and later
+-- referenced correctly in that same case (20261005203830_marketing). This
+-- line originally said `flashsaleitem` — MySQL on Windows is
+-- case-insensitive for table names (lower_case_table_names=1, the default),
+-- so it applied there silently; MySQL on Linux defaults to case-sensitive
+-- (lower_case_table_names=0), so this failed every CI run and every real
+-- deploy would have hit it too, with "Table 'flashsaleitem' doesn't exist".
+ALTER TABLE `FlashSaleItem` ADD COLUMN `soldCount` INTEGER NOT NULL DEFAULT 0;
 
 -- CreateTable
 CREATE TABLE `StockReservation` (
