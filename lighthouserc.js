@@ -21,6 +21,15 @@ module.exports = {
       startServerReadyPattern: "Ready on",
       startServerReadyTimeout: 60_000,
       numberOfRuns: 1,
+      // GitHub Actions' runners don't grant the unprivileged user
+      // namespaces Chrome's sandbox needs, so an unflagged launch dies
+      // immediately with "No usable sandbox!" (zygote_host_impl_linux.cc).
+      // --disable-dev-shm-usage avoids a second, separate crash from
+      // /dev/shm being too small in a container — Chrome otherwise tries
+      // to use it for shared memory and runs out of space mid-run.
+      settings: {
+        chromeFlags: "--no-sandbox --disable-dev-shm-usage",
+      },
     },
     assert: {
       assertions: {
