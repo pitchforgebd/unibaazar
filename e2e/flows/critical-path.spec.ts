@@ -24,7 +24,19 @@ test("browse → cart → checkout (COD) → admin sees the order", async ({ pag
 
   await test.step("place a guest COD order at checkout", async () => {
     await page.goto("/cart");
-    await page.getByRole("link", { name: "Checkout" }).click();
+    const checkoutLink = page.getByRole("link", { name: "Checkout" });
+    // Same fixed-element-overlap class as the "Place order" force-click
+    // below: on this short page at a narrow viewport, the sticky header,
+    // the fixed bottom nav, or the link's own parent aside can each
+    // technically overlap its bounding box depending on exactly where
+    // Playwright's scroll-into-view lands, even though the link is fully
+    // visible on screen — confirmed via the trace (2026-10-30): the
+    // intercepting element differs on every retry, which is the signature
+    // of a real-but-harmless overlap rather than something actually
+    // covering the link. Independently confirm visible before forcing
+    // past the intercept check, same as line ~50 below.
+    await expect(checkoutLink).toBeVisible();
+    await checkoutLink.click({ force: true });
     await expect(page).toHaveURL(/\/checkout$/);
 
     await page.locator('input[name="name"]').fill(CUSTOMER_NAME);

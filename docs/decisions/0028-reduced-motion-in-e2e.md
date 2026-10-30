@@ -1,7 +1,17 @@
 # 0028 — Run e2e under `prefers-reduced-motion: reduce`; stop shipping unguarded smooth-scroll
 
 Date: 2026-10-30
-Status: accepted
+Status: accepted, with a correction below
+
+**Correction:** this ADR's original diagnosis — that unguarded
+`scroll-behavior: smooth` caused the mobile e2e click-intercept failure
+below — was wrong. The fix here is still correct and kept (real a11y
+gap, verified no regressions), but it did not fix that failure: the next
+CI run hit the identical error, byte-for-byte, on the same commit this
+shipped in. The actual cause and fix are in
+`docs/decisions/0029-force-click-known-mobile-overlap.md`. Left as a
+record of a wrong-but-reasonable diagnosis, per the same practice as
+ADR 0023.
 
 ## Context
 
@@ -60,15 +70,20 @@ one — gets caught the same way.
 ## Consequences
 
 - Verified locally: the mobile critical-path test passed 3/3 consecutive
-  runs after the fix (it had failed 3/3 — the original attempt plus two
-  retries — before it, on the exact same machine). Desktop e2e, a11y
-  (6/6), and parity (8/8) all stayed green under the new
-  `reducedMotion: "reduce"` default, so nothing in the existing suite
-  relied on an animation actually completing.
-- Unlike ADR 0027's case-sensitivity bug, this one **is** fully
-  verifiable locally — it's a browser-engine behavior, not an
-  OS/MySQL-config difference, so a local pass here is real evidence, not
-  just a hopeful sign pending the next CI run.
+  runs after the fix, on this machine. **This did not transfer to CI** —
+  the very next CI run failed with the exact same error, same
+  intercepting-element sequence, same timings. A local pass here turned
+  out not to be the reliable evidence ADR 0027's note below implied;
+  see the correction at the top and ADR 0029 for what the trace actually
+  showed and why force-clicking (not CSS) is the fix. The lesson: a
+  passing local repro is evidence the mechanism I changed had _some_
+  effect, not evidence it's _the_ cause — especially when a CI-only
+  environmental difference (here: CI's slower/different timing around a
+  known, already-documented short-page overlap) can't be reproduced by
+  the same browser engine running faster, locally, on a different OS.
+- The CSS and Playwright config changes are kept regardless — real a11y
+  gap, matches the codebase's existing pattern, no regressions (desktop
+  e2e, a11y 6/6, parity 8/8 all stayed green).
 - If a future animation is added without a `prefers-reduced-motion`
   guard, e2e now has a chance of catching it (if it's load-bearing
   enough to affect element positioning/timing during a test), but this
