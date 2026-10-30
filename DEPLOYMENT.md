@@ -150,8 +150,37 @@ serving that same first release no matter what. The fix is one-time:
 after a deploy has run with the mv-based script (which converts
 `current` from a symlink to a real directory automatically), open this
 app in cPanel, re-enter `unibaazar/current` as the Application root,
-and **Save** — with `current` now a real directory, there's nothing
-left for cPanel to resolve away.
+and **Save**.
+
+**If that Edit/Save instead fails with "No such application or it's
+broken. Unable to find app venv folder by this path: ..."**: the
+app's `~/nodevenv/.../<old-path>` venv is gone even though cPanel's
+config still references it, and this host's cPanel install has no
+stock `Cpanel::API::NodejsApp` module — Node apps here are actually
+managed by CloudLinux's `cloudlinux-selector` CLI, which hits the same
+error on `set --new-app-root` (a rename also needs the old venv to
+exist). See `docs/decisions/0036-nodejs-selector-registry-recovered-via-cli.md`
+for the full diagnosis. Recovery, via SSH/Terminal:
+
+```bash
+# 1. Remove the broken registry entry (works even with the venv gone —
+#    destroy doesn't need to activate it, only set/rename does).
+/usr/sbin/cloudlinux-selector destroy --json --interpreter nodejs \
+  --domain unibaazar.com --app-root unibaazar/<the broken literal path>
+
+# 2. Create a fresh app straight at the real target — same field
+#    values as the table above.
+/usr/sbin/cloudlinux-selector create --json --interpreter nodejs \
+  --domain unibaazar.com --app-root unibaazar/current --app-uri / \
+  --version 20 --app-mode production --startup-file server.js
+
+/usr/sbin/cloudlinux-selector restart --json --interpreter nodejs \
+  --domain unibaazar.com --app-root unibaazar/current
+```
+
+Then check `https://unibaazar.com/api/health` — with `current` now a
+real directory, there's nothing left for cPanel to resolve away, so
+this is a one-time recovery, not a recurring step.
 
 ## 7. SSL
 

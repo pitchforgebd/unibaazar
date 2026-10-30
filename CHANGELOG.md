@@ -102,6 +102,42 @@ green together for the first time in this project's history.**
 - Fonts are self-hosted under `src/app/fonts/` instead of fetched from
   Google at build time; SIL Open Font License text included alongside.
 
+**2026-10-30, later the same day: the first real production deploy
+succeeded.** `https://unibaazar.com/api/health` returned
+`{"status":"ok","version":"<sha>","db":"ok"}` for the first time. Nine
+more host-specific bugs surfaced only by actually running `deploy.yml`
+end to end for the first time, each fixed from real host evidence:
+
+- **Neither `rsync` nor the Linux `cp -a` directory-copy idiom are
+  installed on this host.** The original symlink-switch design (ADR
+  0035's predecessor) and its documented rsync fallback both assumed
+  tools that turned out not to exist here. Redesigned `current` as a
+  real directory moved into place with `mv` instead — a same-filesystem
+  rename never needs either tool (ADR 0035).
+- **cPanel's "Setup Node.js App" resolved a symlinked Application root
+  to its literal target at creation time**, so every deploy that
+  correctly repointed the `current` symlink was silently ignored by
+  Passenger, which kept serving the very first release forever (the
+  central finding behind ADR 0035).
+- **`tar` extraction was killed (SIGKILL/137) at the default 10-minute
+  SSH command timeout**, and a second time at under 2 minutes — CloudLinux
+  LVE throttling, timing not fixed. Raised `command_timeout: 30m` on the
+  relevant steps (ADR 0034); the second SIGKILL resolved on a plain retry.
+- **The one-time cPanel re-save itself failed**: "No such application
+  or it's broken. Unable to find app venv folder..." — the app's venv
+  directory was gone from disk even though cPanel's config still pointed
+  at it, and this host's cPanel has no stock `Cpanel::API::NodejsApp`
+  module at all. Recovered via CloudLinux's own `cloudlinux-selector`
+  CLI: destroyed the broken registry entry, created a fresh app
+  straight at `unibaazar/current` (ADR 0036).
+
+### Fixed (same day, found after the above)
+
+- `deploy-release.sh`'s failure branch left `current.sha` pointing at a
+  SHA whose content had just been moved back out of `current/` on a
+  first-ever-deploy failure (no previous release to restore `current.sha`
+  to instead) — now cleared in that case.
+
 ## Phase 13 — Pre-launch correctness fixes (2026-10-29)
 
 First phase past the master plan's Phase 12 — see

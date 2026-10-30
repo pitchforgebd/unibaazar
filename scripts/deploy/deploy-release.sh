@@ -109,6 +109,11 @@ if [ -z "$ok" ]; then
     mv "$HOLD_DIR" "$LIVE_DIR"
     echo "$PREVIOUS_SHA" >"$SHA_FILE"
     touch "$LIVE_DIR/tmp/restart.txt"
+  else
+    # First-ever deploy failing: there's no previous release to restore,
+    # so current.sha must not keep pointing at a SHA whose content just
+    # moved out of current/ and back into releases/.
+    rm -f "$SHA_FILE"
   fi
   exit 1
 fi
