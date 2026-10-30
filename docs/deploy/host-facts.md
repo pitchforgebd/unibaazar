@@ -49,14 +49,18 @@ upload the build and run the switch-over script. This needs:
    Access_). Some shared hosting plans disable this — check it's enabled.
 2. A dedicated SSH key pair for GitHub Actions (don't reuse your personal
    key): cPanel → _Security_ → _SSH Access_ → _Manage SSH Keys_ →
-   _Generate a New Key_. Leave the passphrase blank (GitHub Actions can't
-   type one in). Click **Authorize** to add the public key to
-   `~/.ssh/authorized_keys`.
+   _Generate a New Key_. Try leaving the passphrase blank — on this host
+   that form refused it ("Password strength must be at least 65"), so a
+   real passphrase was set instead. Both `deploy.yml`'s actions accept
+   one via the `SSH_PASSPHRASE` secret (added in this phase), so a
+   forced passphrase isn't a blocker, just one more secret to set. Click
+   **Authorize** to add the public key to `~/.ssh/authorized_keys`.
 3. The **private** key's contents (Manage Keys → click the key → _View/Download_
    → copy the private key, `-----BEGIN ... PRIVATE KEY-----` through
-   `-----END ... PRIVATE KEY-----`) go into the GitHub secret `SSH_KEY` —
-   see `docs/deploy/github-secrets.md`. Never paste it into chat with me;
-   add it directly in GitHub's UI.
+   `-----END ... PRIVATE KEY-----`) go into the GitHub secret `SSH_KEY`,
+   and the passphrase (if one was required) into `SSH_PASSPHRASE` — see
+   `docs/deploy/github-secrets.md`. Never paste either into chat with
+   me; add both directly in GitHub's UI.
 4. Confirm: is SSH on the standard port 22, or a non-standard port? (cPanel
    → SSH Access page shows this, or `cat /etc/ssh/sshd_config | grep -i port`
    if you have terminal access to check — may require root, skip if you
