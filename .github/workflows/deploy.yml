@@ -113,10 +113,12 @@ jobs:
             rm -f "incoming/release.tar.gz"
 
       # Everything past this point — shared-dir symlinks, DB backup,
-      # migrations, the current symlink switch, the restart, the smoke
-      # test, and the automatic rollback on failure — lives in
+      # migrations, syncing into the live directory, the restart, the
+      # smoke test, and the automatic rollback on failure — lives in
       # scripts/deploy/deploy-release.sh (shipped inside the release
       # itself), so it's version-controlled and testable outside CI.
+      # `current` is a real directory synced via rsync on every deploy,
+      # not a symlink repointed per deploy — see ADR 0035.
       - name: Migrate, switch, restart, smoke-test (auto-rollback on failure)
         uses: appleboy/ssh-action@v1.2.0
         with:

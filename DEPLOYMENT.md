@@ -63,8 +63,21 @@ The automated pipeline expects this structure under `~/unibaazar`:
     uploads/             # symlinked into every release as public/uploads
     backups/              # mysqldump output, 14 kept automatically
   incoming/              # deploy uploads land here briefly before unpacking
-  current -> releases/<sha>   # symlink, repointed by every deploy
+  current/               # real directory, moved into place from releases/<sha> on every deploy
+  current.previous/      # transient holding spot, only exists mid-switch
+  current.sha            # plain file: which release is currently live
 ```
+
+`current` is a **real directory**, not a symlink — cPanel's Node.js
+Selector resolves a symlinked Application root to its target at
+creation time rather than following it on each request, so a symlink
+repointed per deploy silently kept serving the first release forever.
+Confirmed on the first real deploy, not assumed — see
+`docs/decisions/0035-passenger-does-not-follow-the-current-symlink.md`.
+Every deploy `mv`s the new release into `current` instead — a rename on
+the same filesystem, not a copy, so it costs nothing extra regardless of
+how many files are in `node_modules` (neither `rsync` nor `cp -a` are
+installed on this host, confirmed directly).
 
 Via Terminal:
 
@@ -91,10 +104,11 @@ CRON_SECRET=<openssl rand -hex 32>
 also configurable from Admin → Settings, and features using them simply
 no-op until configured.
 
-This file is **never** touched by a deploy — it's symlinked into every new
-release (`current/.env -> shared/.env`), so updating a secret here and
-restarting is all that's needed to rotate it. It's also never committed, and
-never leaves the server.
+This file is **never** touched by a deploy — each release's `.env` is a
+symlink to it (`shared/.env`), and `mv` moves a symlink as-is (it's a
+rename, not a copy, so there's nothing to dereference), so updating a
+secret here and restarting is all that's needed to rotate it. It's also
+never committed, and never leaves the server.
 
 ## 4. Set up GitHub Actions deployment (one-time)
 
@@ -122,15 +136,22 @@ cPanel → **Setup Node.js App** → **Create Application**.
 | Application URL          | `unibaazar.com`     |
 | Application startup file | `server.js`         |
 
-**This is the one thing I couldn't verify myself**: whether Passenger
-accepts `current` as a symlink and follows it correctly, vs. needing the
-application root to be a real directory. Click **Create**, then **Restart**,
-then check `https://unibaazar.com/api/health`. If it works, you're done —
-every future deploy just updates where the symlink points and touches
-`tmp/restart.txt`, no further cPanel UI steps needed. If Passenger errors
-on a symlinked root, tell me and I'll switch the pipeline to the documented
-fallback (rsync the release into a fixed directory with `--delete-after`,
-excluding `shared/`) — see the ADR this phase records either way.
+Click **Create**, then **Restart**, then check
+`https://unibaazar.com/api/health`. `current` is a real directory
+(`scripts/deploy/deploy-release.sh` `mv`s each release into it), so
+this Application root never needs touching again after this one-time
+setup — no further cPanel UI steps for any future deploy.
+
+**If `current` was ever created as a symlink on this account** (true
+for the first deploy here, before `docs/decisions/0035-passenger-does-not-follow-the-current-symlink.md`
+landed): cPanel silently resolved it to that first release's literal
+path at save time instead of following it, so every later deploy kept
+serving that same first release no matter what. The fix is one-time:
+after a deploy has run with the mv-based script (which converts
+`current` from a symlink to a real directory automatically), open this
+app in cPanel, re-enter `unibaazar/current` as the Application root,
+and **Save** — with `current` now a real directory, there's nothing
+left for cPanel to resolve away.
 
 ## 7. SSL
 
@@ -149,9 +170,9 @@ already issued.
 2. When you're actually ready to ship: **Actions tab → `deploy` → Run
    workflow →** enter the commit SHA to deploy → **Run workflow**. It
    uploads the artifact, backs up the database, applies any new migrations,
-   switches `current`, restarts, and smoke-tests `/api/health`.
-3. If the smoke test fails, it automatically re-points `current` at the
-   previous release and restarts — the bad deploy never stays live.
+   syncs the release into `current`, restarts, and smoke-tests `/api/health`.
+3. If the smoke test fails, it automatically syncs the previous release
+   back into `current` and restarts — the bad deploy never stays live.
 
 Watch progress in the repo's **Actions** tab either way.
 
