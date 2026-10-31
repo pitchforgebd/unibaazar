@@ -108,6 +108,9 @@ jobs:
             set -euo pipefail
             cd "${{ secrets.APP_PATH }}"
             RELEASE_DIR="releases/${{ inputs.sha }}"
+            # A re-run starts clean: a previous attempt killed mid-unpack
+            # would otherwise leave stale or truncated files behind.
+            rm -rf "$RELEASE_DIR"
             mkdir -p "$RELEASE_DIR"
             tar -xzf "incoming/release.tar.gz" -C "$RELEASE_DIR"
             rm -f "incoming/release.tar.gz"

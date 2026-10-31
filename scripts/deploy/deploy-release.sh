@@ -26,8 +26,7 @@
 #
 # Required env vars: APP_PATH (e.g. /home/USER/unibaazar), SHA (the release
 # being deployed), HEALTH_CHECK_URL (the public /api/health URL to poll).
-# Optional: SMOKE_TEST_RETRIES (default 12), SMOKE_TEST_DELAY (default 5s),
-# KEEP_RELEASES (default 5).
+# Optional: SMOKE_TEST_RETRIES (default 12), SMOKE_TEST_DELAY (default 5s).
 set -euo pipefail
 
 # No Node anywhere in this script (backups and migrations use the mysql CLI
@@ -39,7 +38,6 @@ set -euo pipefail
 : "${HEALTH_CHECK_URL:?HEALTH_CHECK_URL is required}"
 RETRIES="${SMOKE_TEST_RETRIES:-12}"
 DELAY="${SMOKE_TEST_DELAY:-5}"
-KEEP="${KEEP_RELEASES:-5}"
 
 RELEASE_DIR="$APP_PATH/releases/$SHA"
 LIVE_DIR="$APP_PATH/current"
@@ -118,6 +116,14 @@ if [ -n "$PREVIOUS_SHA" ] && [ -d "$HOLD_DIR" ]; then
   mv "$HOLD_DIR" "$APP_PATH/releases/$PREVIOUS_SHA"
 fi
 
-# Keep only the most recent $KEEP releases.
+# Keep only the release just replaced — the rollback target — and drop
+# everything else, including releases from failed deploys. Each release is
+# ~38,500 files and the account's inode limit is 500,000, so keeping five
+# (plus every failed attempt, which nothing used to clean up) had already
+# reached 300,000.
 cd "$APP_PATH/releases"
-ls -1t | tail -n "+$((KEEP + 1))" | xargs -r rm -rf
+for entry in *; do
+  if [ "$entry" != "$PREVIOUS_SHA" ]; then
+    rm -rf "$entry"
+  fi
+done
