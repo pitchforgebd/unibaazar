@@ -30,17 +30,9 @@
 # KEEP_RELEASES (default 5).
 set -euo pipefail
 
-# The automated deploy's SSH session is non-interactive, so it doesn't
-# source .bashrc/.bash_profile — on this host that means `node` isn't on
-# PATH at all (confirmed: `which node` exits 1 even in an *interactive*
-# cPanel Terminal session, since no cPanel "Setup Node.js App" has been
-# configured yet — that only happens after the first deploy, per
-# DEPLOYMENT.md's own step order). CloudLinux's Node Selector installs
-# a real, usable Node 20 regardless, just not on PATH by default.
-# Confirmed via `find /opt/alt/alt-nodejs20 -iname node` on this host —
-# if a future Node version bump moves this (matching .nvmrc), this is
-# the line to update.
-export PATH="/opt/alt/alt-nodejs20/root/usr/bin:$PATH"
+# No Node anywhere in this script (backups and migrations use the mysql CLI
+# tools): a Node process started next to the running app could abort on the
+# host's thread limit — see scripts/deploy/backup-db.sh.
 
 : "${APP_PATH:?APP_PATH is required}"
 : "${SHA:?SHA is required}"
@@ -68,7 +60,7 @@ if [ -f "$SHA_FILE" ]; then
 fi
 
 echo "Backing up the database..."
-BACKUP_DIR="$APP_PATH/shared/backups" node scripts/deploy/backup-db.mjs
+BACKUP_DIR="$APP_PATH/shared/backups" bash scripts/deploy/backup-db.sh
 
 echo "Applying migrations..."
 bash scripts/deploy/apply-migrations.sh

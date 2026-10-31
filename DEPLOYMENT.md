@@ -238,7 +238,7 @@ cPanel → **Cron Jobs**. Replace `YOUR_CRON_SECRET` with the real
 0 4 * * * curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://unibaazar.com/api/v1/cron/retry-conversions"
 
 # Daily database backup at 2am (also runs automatically before every deploy)
-0 2 * * * cd ~/unibaazar/current && BACKUP_DIR=~/unibaazar/shared/backups node scripts/deploy/backup-db.mjs
+0 2 * * * cd ~/unibaazar/current && BACKUP_DIR=~/unibaazar/shared/backups bash scripts/deploy/backup-db.sh
 ```
 
 This list grows as later phases add more scheduled routes (stock-reservation

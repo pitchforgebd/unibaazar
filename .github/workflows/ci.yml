@@ -230,7 +230,7 @@ jobs:
 
       # `scripts` is not optional: deploy.yml invokes
       # scripts/deploy/deploy-release.sh *from inside the unpacked
-      # release*, and that script in turn runs scripts/deploy/backup-db.mjs
+      # release*, and that script in turn runs scripts/deploy/backup-db.sh
       # and scripts/deploy/apply-migrations.sh. It was missing from this
       # list until Phase 14, which would have failed the very first real
       # deploy at its first command — nobody caught it because deploys

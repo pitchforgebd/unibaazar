@@ -19,50 +19,8 @@ set -euo pipefail
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 MIGRATIONS_DIR="${2:-$SCRIPT_DIR/../../prisma/migrations}"
 
-if [ -z "${DATABASE_URL:-}" ]; then
-  if [ ! -f .env ]; then
-    echo "DATABASE_URL not set and no .env in the current directory" >&2
-    exit 1
-  fi
-  DATABASE_URL="$(grep -m1 '^DATABASE_URL=' .env | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'\$//")"
-fi
-
-if [ -z "$DATABASE_URL" ]; then
-  echo "DATABASE_URL is empty" >&2
-  exit 1
-fi
-
-# Parse mysql://user:pass@host:port/dbname.
-#
-# Split on the *last* "@", not the first: cPanel generates DB passwords
-# containing symbols, and one containing "@" used to put the remainder
-# of the password into the hostname. Percent-escapes are decoded too,
-# because that is how such a password has to be written in a URL for
-# Prisma to accept it — undecoded, MYSQL_PWD got the literal "Pa%40ss"
-# and authentication failed. Both bugs only ever bit on the *first*
-# deploy to a fresh host, which is the only time this path runs, so
-# neither had been hit before Phase 14.
-# The backslash comes from a variable rather than being written inline:
-# how `${var//%/\\x}` quotes its replacement differs between bash 4 and
-# 5, and on one of them the backslash is dropped and every escape
-# decodes to a literal "x". `${bs}x` means the same thing everywhere.
-bs='\'
-urldecode() { printf '%b' "${1//%/${bs}x}"; }
-
-rest="${DATABASE_URL#mysql://}"
-creds="${rest%@*}"
-hostpart="${rest##*@}"
-hostpart="${hostpart%%\?*}"
-DB_USER="$(urldecode "${creds%%:*}")"
-DB_PASS="$(urldecode "${creds#*:}")"
-hostport="${hostpart%%/*}"
-DB_NAME="${hostpart#*/}"
-DB_HOST="${hostport%%:*}"
-if [ "$hostport" != "$DB_HOST" ]; then
-  DB_PORT="${hostport#*:}"
-else
-  DB_PORT=3306
-fi
+# shellcheck source=db-url.sh
+source "$SCRIPT_DIR/db-url.sh"
 
 MYSQL="mysql -h $DB_HOST -P $DB_PORT -u $DB_USER $DB_NAME"
 export MYSQL_PWD="$DB_PASS"

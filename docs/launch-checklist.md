@@ -85,7 +85,7 @@ target on a first deploy.
 stops rather than pretending otherwise. Until a second release exists,
 recovery means the pre-wipe dump and the `shared/uploads` copy from §1.
 
-- [ ] A pre-deploy DB backup exists (`scripts/deploy/backup-db.mjs` runs
+- [ ] A pre-deploy DB backup exists (`scripts/deploy/backup-db.sh` runs
       automatically, but confirm the file landed in `shared/backups`).
       On deploy #1 this is a dump of an empty schema — it proves the
       backup step works, nothing more.
@@ -117,7 +117,7 @@ Cron Jobs, with the real `CRON_SECRET`:
 - [ ] `payment-reconciliation` — daily 3am
 - [ ] `retry-conversions` — daily 4am
 - [ ] `abandoned-cart` — daily 10am
-- [ ] `backup-db.mjs` — daily 2am
+- [ ] `backup-db.sh` — daily 2am
 - [ ] Confirm each one by running it once by hand and checking the
       response is `{"data":{...}}`, not an auth error.
 
