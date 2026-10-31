@@ -4,7 +4,12 @@ import { focusRing } from "@/components/ui/buttonStyles";
 import { ProductMedia } from "@/components/store/product/ProductMedia";
 import { cn } from "@/lib/utils/cn";
 
-type RibbonCategory = { slug: string; name: string; hue: number };
+type RibbonCategory = {
+  slug: string;
+  name: string;
+  hue: number;
+  imageUrl: string | null;
+};
 
 function CategoryTile({ category }: { category: RibbonCategory }) {
   return (
@@ -19,6 +24,9 @@ function CategoryTile({ category }: { category: RibbonCategory }) {
         <ProductMedia
           hue={category.hue}
           name={category.name}
+          image={
+            category.imageUrl ? { url: category.imageUrl, alt: category.name } : null
+          }
           className="size-20 rounded-full text-lg"
         />
       </span>

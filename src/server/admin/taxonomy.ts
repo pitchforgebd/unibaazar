@@ -96,6 +96,7 @@ export async function loadCategory(id: string): Promise<CategoryFormValues | nul
     description: category.description,
     seoText: category.seoText,
     imageHue: category.imageHue === null ? "" : String(category.imageHue),
+    imageUrl: category.imageUrl ?? "",
     sortOrder: String(category.sortOrder),
     isActive: category.isActive,
     metaTitle: seo?.metaTitle ?? "",
@@ -182,6 +183,7 @@ export async function saveCategory(input: CategoryFormValues): Promise<void> {
     description: parsed.description,
     seoText: parsed.seoText,
     imageHue: parsed.imageHue === "" ? null : Number(parsed.imageHue),
+    imageUrl: parsed.imageUrl || null,
     sortOrder: Number(parsed.sortOrder),
     isActive: parsed.isActive,
   };

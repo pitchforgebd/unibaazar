@@ -1,4 +1,6 @@
-import { expect, test } from "@playwright/test";
+import path from "node:path";
+import { test as base, expect } from "@playwright/test";
+import sharp from "sharp";
 
 // Admin -> storefront parity, per the master plan's §2.3: change a value in
 // admin, assert the storefront shows it. One test per settings group listed
@@ -13,6 +15,34 @@ async function loginAsAdmin(page: import("@playwright/test").Page) {
   await page.getByRole("button", { name: "Login" }).click();
   await expect(page).toHaveURL(/\/admin/, { timeout: 20_000 });
 }
+
+/**
+ * Logs in once per worker and reuses that session for every test it runs.
+ * Logging in per test hit the real per-account login limit (8 per 15
+ * minutes, src/server/security/guard.ts) as soon as this file grew a 9th
+ * test — the limiter is right, the suite was just spending its budget.
+ */
+const test = base.extend<object, { adminStorageState: string }>({
+  storageState: ({ adminStorageState }, provide) => provide(adminStorageState),
+  adminStorageState: [
+    async ({ browser }, provide, workerInfo) => {
+      const file = path.join(
+        workerInfo.project.outputDir,
+        `.auth/admin-${workerInfo.parallelIndex}.json`,
+      );
+      // A worker-scoped page doesn't inherit the project's `use` options.
+      const page = await browser.newPage({
+        storageState: undefined,
+        baseURL: workerInfo.project.use.baseURL,
+      });
+      await loginAsAdmin(page);
+      await page.context().storageState({ path: file });
+      await page.close();
+      await provide(file);
+    },
+    { scope: "worker" },
+  ],
+});
 
 /**
  * Waits for a settings form's own success status.
@@ -49,7 +79,6 @@ test("settings parity: changing the site name updates the storefront header", as
 }) => {
   const uniqueName = `UniBaazar Parity ${Date.now()}`;
 
-  await loginAsAdmin(page);
   await page.goto("/admin/settings", { waitUntil: "networkidle" });
   const nameField = page.getByLabel("Site name");
   await nameField.fill(uniqueName);
@@ -65,7 +94,6 @@ test("menus parity: adding a header menu item shows up in the public menu API", 
 }) => {
   const uniqueLabel = `Parity Link ${Date.now()}`;
 
-  await loginAsAdmin(page);
   await page.goto("/admin/content/menus", { waitUntil: "networkidle" });
   await page.getByLabel("Menu").selectOption("header");
   await page.getByLabel("Label").fill(uniqueLabel);
@@ -85,7 +113,6 @@ test("products parity: a quick-edited price shows up on the product page", async
 }) => {
   const uniquePrice = String(700 + (Date.now() % 100));
 
-  await loginAsAdmin(page);
   await page.goto("/admin/products", { waitUntil: "networkidle" });
 
   const row = page.locator("tr", { hasText: "Cotton Crew T-Shirt" }).first();
@@ -108,7 +135,6 @@ test("theme parity: changing the top bar color recolors the storefront top bar",
 }) => {
   const uniqueColor = `#${Date.now().toString(16).slice(-6).padStart(6, "0")}`;
 
-  await loginAsAdmin(page);
   await page.goto("/admin/settings/theme", { waitUntil: "networkidle" });
   await page.getByLabel("Top bar color").fill(uniqueColor);
   await page.getByRole("button", { name: "Save" }).click();
@@ -139,7 +165,6 @@ test("theme parity: changing the top bar color recolors the storefront top bar",
 test("checkout parity: disabling cash on delivery hides it from the storefront checkout", async ({
   page,
 }) => {
-  await loginAsAdmin(page);
   await page.goto("/admin/settings/checkout", { waitUntil: "networkidle" });
   await page.getByLabel("Allow cash on delivery").uncheck();
   await page.getByRole("button", { name: "Save" }).click();
@@ -161,7 +186,6 @@ test("social parity: changing the Facebook URL updates the storefront footer lin
 }) => {
   const uniqueUrl = `https://facebook.com/parity-${Date.now()}`;
 
-  await loginAsAdmin(page);
   await page.goto("/admin/settings/social", { waitUntil: "networkidle" });
   await page.getByLabel("Facebook page URL").fill(uniqueUrl);
   await page.getByRole("button", { name: "Save" }).click();
@@ -176,7 +200,6 @@ test("system parity: changing the cookie banner text updates the storefront bann
 }) => {
   const uniqueText = `Parity cookie notice ${Date.now()}`;
 
-  await loginAsAdmin(page);
   await page.goto("/admin/settings/system", { waitUntil: "networkidle" });
   await page.getByLabel("Cookie banner text").fill(uniqueText);
   await page.getByRole("button", { name: "Save" }).click();
@@ -191,7 +214,6 @@ test("tracking parity: saving a GA4 ID loads its script on the storefront after 
 }) => {
   const uniqueId = `G-PARITY${Date.now()}`;
 
-  await loginAsAdmin(page);
   await page.goto("/admin/tracking", { waitUntil: "networkidle" });
   await page.getByLabel("Google Analytics 4 ID").fill(uniqueId);
   await page.getByRole("button", { name: "Save" }).click();
@@ -202,4 +224,45 @@ test("tracking parity: saving a GA4 ID loads its script on the storefront after 
   await expect(page.locator(`script[src*="${uniqueId}"]`)).toHaveCount(1, {
     timeout: 10_000,
   });
+});
+
+test("category image parity: a large uploaded category photo shows in the homepage ribbon", async ({
+  page,
+}) => {
+  const stamp = Date.now();
+  const name = `Parity Category ${stamp}`;
+  // A ~3000px noisy JPEG, several MB: bigger than the old 1 MB server-action
+  // body limit, so this also covers the in-browser shrink + raised limits.
+  const side = 3000;
+  const noise = Buffer.alloc(side * side * 3);
+  for (let i = 0; i < noise.length; i += 1) {
+    noise[i] = (i * 2654435761) & 0xff;
+  }
+  const photo = await sharp(noise, { raw: { width: side, height: side, channels: 3 } })
+    .jpeg({ quality: 92 })
+    .toBuffer();
+  expect(photo.length).toBeGreaterThan(2 * 1024 * 1024);
+
+  await page.goto("/admin/categories", { waitUntil: "networkidle" });
+  await page.getByLabel("Name").fill(name);
+  const form = page.locator("form").filter({ hasText: "Add category" });
+  await page.getByLabel("Image", { exact: true }).setInputFiles({
+    name: "big-photo.jpg",
+    mimeType: "image/jpeg",
+    buffer: photo,
+  });
+  await expect(form.locator('img[src^="/uploads/"]')).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Save category" }).click();
+  await expect(page.getByText("Category saved.")).toBeVisible({ timeout: 20_000 });
+
+  await page.goto("/", { waitUntil: "networkidle" });
+  const slug = name.toLowerCase().replace(/\s+/g, "-");
+  const tileImage = page.locator(`a[href$="/category/${slug}"] img`).first();
+  await expect(tileImage).toHaveAttribute("src", /\/uploads\/.+-\d+\.webp/, {
+    timeout: 10_000,
+  });
+  const src = await tileImage.getAttribute("src");
+  const response = await page.request.get(src!);
+  expect(response.ok()).toBe(true);
+  expect(response.headers()["content-type"]).toContain("image/webp");
 });

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   deleteCategoryAction,
   saveCategoryAction,
@@ -10,12 +10,14 @@ import {
 import { RichTextField } from "@/components/admin/catalog/RichTextField";
 import { slugify } from "@/components/admin/catalog/slugify";
 import { DeleteButton } from "@/components/admin/common/DeleteButton";
+import { uploadAdminImage } from "@/components/admin/common/uploadAdminImage";
 import { SeoHints } from "@/components/admin/seo/SeoHints";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
+import { MAX_UPLOAD_MB } from "@/lib/media/uploadLimits";
 import { useToastStore } from "@/store/toast";
 import type { CategoryFormValues } from "@/lib/validation/admin-catalog";
 import type { CategoryRow } from "@/server/admin/taxonomy";
@@ -32,6 +34,8 @@ export function CategoryManager({
   const [form, setForm] = useState(editing);
   const [slugTouched, setSlugTouched] = useState(editing.id !== "");
   const [pending, setPending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const imageInputId = useId();
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
@@ -134,10 +138,64 @@ export function CategoryManager({
           value={form.seoText}
           onChange={(html) => setForm({ ...form, seoText: html })}
         />
+        <div>
+          <label
+            htmlFor={imageInputId}
+            className="mb-1.5 block text-sm font-medium text-foreground"
+          >
+            Image
+          </label>
+          {form.imageUrl ? (
+            <div className="mb-2 flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={form.imageUrl}
+                alt=""
+                className="size-20 rounded-full object-cover shadow-soft"
+              />
+              <button
+                type="button"
+                className="text-xs font-semibold text-red-600 hover:underline"
+                onClick={() => setForm({ ...form, imageUrl: "" })}
+              >
+                Remove image
+              </button>
+            </div>
+          ) : null}
+          <input
+            id={imageInputId}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            disabled={uploading}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (!file) {
+                return;
+              }
+              setUploading(true);
+              void uploadAdminImage(file).then((result) => {
+                setUploading(false);
+                if (result.ok && result.url) {
+                  const url = result.url;
+                  setForm((current) => ({ ...current, imageUrl: url }));
+                } else {
+                  push({ message: result.message, type: "error" });
+                }
+              });
+            }}
+            className="block w-full text-sm text-foreground"
+          />
+          <p className="mt-1 text-xs text-muted">
+            {uploading
+              ? "Uploading…"
+              : `Square photo works best (shown as a circle). Up to ${MAX_UPLOAD_MB} MB.`}
+          </p>
+        </div>
         <Input
-          label="Image hue"
+          label="Fallback color (hue)"
           value={form.imageHue}
-          placeholder="0-360"
+          placeholder="0-360, used when there's no image"
           onChange={(event) => setForm({ ...form, imageHue: event.target.value })}
         />
         <Input
@@ -186,7 +244,7 @@ export function CategoryManager({
           checked={form.isActive}
           onChange={(event) => setForm({ ...form, isActive: event.target.checked })}
         />
-        <Button type="submit" isLoading={pending}>
+        <Button type="submit" isLoading={pending || uploading}>
           Save category
         </Button>
       </form>

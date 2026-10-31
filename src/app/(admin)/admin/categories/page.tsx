@@ -15,6 +15,7 @@ const emptyCategory: CategoryFormValues = {
   description: "",
   seoText: "",
   imageHue: "",
+  imageUrl: "",
   sortOrder: "0",
   isActive: true,
   metaTitle: "",

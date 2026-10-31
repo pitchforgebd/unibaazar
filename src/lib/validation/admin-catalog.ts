@@ -184,6 +184,7 @@ export const categoryFormSchema = z.object({
       (value) => value === "" || (/^\d+$/.test(value) && Number(value) <= 360),
       "Hue is 0 to 360",
     ),
+  imageUrl: z.string().trim().max(500),
   sortOrder: whole,
   isActive: z.boolean(),
   metaTitle: z.string().trim().max(191),

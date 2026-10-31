@@ -360,6 +360,7 @@ model Category {
   description String            @db.Text
   seoText     String            @db.Text
   imageHue    Int?
+  imageUrl    String?           @db.VarChar(500)
   sortOrder   Int               @default(0)
   isActive    Boolean           @default(true)
   createdAt   DateTime          @default(now())
