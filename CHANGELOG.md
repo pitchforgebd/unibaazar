@@ -4,6 +4,27 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Post-launch fixes (2026-10-31)
+
+### Fixed
+
+- **Newly uploaded images 404'd until the app restarted** — `next start`
+  only serves `public/` files that existed at startup. `server.js` now
+  serves `/uploads/*` directly (ADR 0037).
+- **Image uploads were slow and capped at 1–2 MB.** Photos are now shrunk
+  in the browser before upload, accepted up to 20 MB, and processed about
+  20× faster on the server (WebP only — the AVIF variants were never
+  served — decoded once instead of eight times).
+- Phone photos no longer come out sideways (EXIF orientation applied).
+- Dropping several photos onto a product's gallery at once kept only the
+  last one.
+
+### Added
+
+- Category images: upload a photo per category; the homepage category
+  ribbon shows it, falling back to the colour tile. New migration
+  `20261031010000_category_image` (applied automatically by the deploy).
+
 ## Phase 14 — Deploy readiness (2026-10-30)
 
 Was planned as the Phase 12 migration rehearsal. Waived: the production
