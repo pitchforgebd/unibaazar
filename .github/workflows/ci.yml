@@ -248,6 +248,7 @@ jobs:
           # hundreds of MB of webpack cache in every release.
           tar -czf artifact/release.tar.gz \
             --exclude='.next/cache' \
+            --exclude='public/uploads' \
             .next \
             public \
             node_modules \

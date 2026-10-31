@@ -49,6 +49,12 @@ cd "$RELEASE_DIR"
 # absolute paths, so they resolve the same no matter which directory
 # (releases/<sha>, then current after the mv below) contains them.
 mkdir -p "$APP_PATH/shared/uploads" "$APP_PATH/shared/backups"
+# The artifact can carry its own public/uploads directory (git tracks a
+# .gitkeep there). `ln -sfn` onto an existing *directory* doesn't replace
+# it — it creates public/uploads/uploads inside it — so every upload landed
+# in this release's own folder and vanished with the next deploy. Remove it
+# first so public/uploads really is the shared folder.
+rm -rf "$RELEASE_DIR/public/uploads"
 ln -sfn "$APP_PATH/shared/uploads" "$RELEASE_DIR/public/uploads"
 ln -sfn "$APP_PATH/shared/.env" "$RELEASE_DIR/.env"
 
