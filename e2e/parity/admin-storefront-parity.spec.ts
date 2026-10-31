@@ -301,3 +301,21 @@ test("description parity: rich text shows as formatting on the product page, nev
   await expect(page.getByText("<p>", { exact: false })).toHaveCount(0);
   expect(await page.evaluate(() => "__pwned" in window)).toBe(false);
 });
+
+test("category edit: clicking Edit on another row loads that category into the form", async ({
+  page,
+}) => {
+  await page.goto("/admin/categories", { waitUntil: "networkidle" });
+  const rows = page.locator("tbody tr");
+  const names: string[] = [];
+  for (const index of [0, 1]) {
+    names.push((await rows.nth(index).locator("p").first().innerText()).trim());
+  }
+  expect(names[0]).not.toBe(names[1]);
+
+  for (const [index, name] of names.entries()) {
+    await rows.nth(index).getByRole("link", { name: "Edit" }).click();
+    await expect(page.getByRole("heading", { name: "Edit category" })).toBeVisible();
+    await expect(page.getByLabel("Name")).toHaveValue(name);
+  }
+});

@@ -32,7 +32,13 @@ export default async function AttributesPage({ searchParams }: AttributesPagePro
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-ink">Attributes</h1>
-      <AttributeManager rows={rows} editing={editing ?? emptyAttribute} />
+      <AttributeManager
+        // Keyed per record: the form copies `editing` into state once, so without
+        // a remount, clicking Edit on another row left the old values showing.
+        key={editing?.id ?? "new"}
+        rows={rows}
+        editing={editing ?? emptyAttribute}
+      />
     </div>
   );
 }

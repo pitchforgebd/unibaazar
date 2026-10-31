@@ -44,7 +44,13 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-ink">Categories</h1>
-      <CategoryManager rows={rows} editing={editing ?? emptyCategory} />
+      <CategoryManager
+        // Keyed per record: the form copies `editing` into state once, so without
+        // a remount, clicking Edit on another row left the old values showing.
+        key={editing?.id ?? "new"}
+        rows={rows}
+        editing={editing ?? emptyCategory}
+      />
     </div>
   );
 }

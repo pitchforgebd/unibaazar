@@ -27,7 +27,13 @@ export default async function UnitsPage({ searchParams }: UnitsPageProps) {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-ink">Units</h1>
-      <UnitManager rows={rows} editing={editing ?? emptyUnit} />
+      <UnitManager
+        // Keyed per record: the form copies `editing` into state once, so without
+        // a remount, clicking Edit on another row left the old values showing.
+        key={editing?.id ?? "new"}
+        rows={rows}
+        editing={editing ?? emptyUnit}
+      />
     </div>
   );
 }
