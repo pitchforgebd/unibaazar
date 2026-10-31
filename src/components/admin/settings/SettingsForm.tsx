@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { uploadCatalogImageAction } from "@/app/(admin)/admin/catalog-actions";
+import { uploadAdminImage } from "@/components/admin/common/uploadAdminImage";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { controlBase } from "@/components/ui/Field";
@@ -47,9 +47,7 @@ export function SettingsForm({
 
   async function uploadField(name: string, file: File): Promise<void> {
     setUploading(name);
-    const body = new FormData();
-    body.set("file", file);
-    const result = await uploadCatalogImageAction(body);
+    const result = await uploadAdminImage(file);
     setUploading(null);
     if (result.ok && result.url) {
       update(name, result.url);

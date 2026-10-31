@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { GripVertical, ImageUp, Star, Trash2, UploadCloud } from "lucide-react";
-import { uploadCatalogImageAction } from "@/app/(admin)/admin/catalog-actions";
+import { uploadAdminImage } from "@/components/admin/common/uploadAdminImage";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Input } from "@/components/ui/Input";
+import { MAX_UPLOAD_MB } from "@/lib/media/uploadLimits";
 import { useToastStore } from "@/store/toast";
 import type { ProductFormValues } from "@/lib/validation/admin-catalog";
 
@@ -26,18 +27,17 @@ export function ProductGallerySection({
       return;
     }
     setPending(true);
-    for (const file of files) {
-      const body = new FormData();
-      body.set("file", file);
-      const result = await uploadCatalogImageAction(body);
+    // Accumulated locally: `form` is this render's snapshot, so patching
+    // from it once per file kept only the last photo of a multi-file drop.
+    let images = form.images;
+    for (const file of Array.from(files)) {
+      const result = await uploadAdminImage(file);
       if (!result.ok || !result.url) {
         push({ message: result.message, type: "error" });
-        setPending(false);
-        return;
+        break;
       }
-      patch({
-        images: [...form.images, { id: "", url: result.url, alt: "" }].slice(0, 12),
-      });
+      images = [...images, { id: "", url: result.url, alt: "" }].slice(0, 12);
+      patch({ images });
     }
     setPending(false);
   }
@@ -88,7 +88,7 @@ export function ProductGallerySection({
           {pending ? "Uploading…" : "Drag & drop photos, or click to browse"}
         </span>
         <span className="text-xs text-muted">
-          PNG, JPEG, WEBP or GIF — multiple files OK
+          PNG, JPEG, WEBP or GIF, up to {MAX_UPLOAD_MB} MB each — multiple files OK
         </span>
         <input
           className="sr-only"

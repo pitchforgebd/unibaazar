@@ -29,7 +29,7 @@ export function uploadsDirectory(): string {
  * to keep working on its own, so that contract never changes.
  *
  * On top of that unchanged contract, this also generates a fixed grid of
- * resized AVIF/WebP variants alongside the original (see
+ * resized WebP variants alongside the original (see
  * `src/server/media/variants.ts` for the naming scheme, sizing, and the
  * non-negotiable `sharp.concurrency(1)` constraint). Those variants are
  * what the custom `next/image` loader (`src/lib/media/imageLoader.ts`)

@@ -29,6 +29,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { uploadCatalogImageAction } from "@/app/(admin)/admin/catalog-actions";
+import { uploadAdminImage } from "@/components/admin/common/uploadAdminImage";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
@@ -155,9 +156,7 @@ export function RichTextField({
     }
     const file = files[0];
     setUploading(true);
-    const body = new FormData();
-    body.set("file", file);
-    const result = await uploadAction(body);
+    const result = await uploadAdminImage(file, uploadAction);
     setUploading(false);
     if (!result.ok || !result.url) {
       push({ message: result.message, type: "error" });

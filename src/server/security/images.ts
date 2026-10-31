@@ -1,4 +1,4 @@
-const maxBytes = 2 * 1024 * 1024;
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "@/lib/media/uploadLimits";
 
 type ImageKind = "png" | "jpeg" | "webp" | "gif";
 
@@ -57,8 +57,8 @@ function trimWebp(bytes: Uint8Array): Uint8Array {
 }
 
 export function reencodeImage(bytes: Uint8Array, declaredType: string): Uint8Array {
-  if (bytes.byteLength === 0 || bytes.byteLength > maxBytes) {
-    throw new Error("Image must be under 2 MB");
+  if (bytes.byteLength === 0 || bytes.byteLength > MAX_UPLOAD_BYTES) {
+    throw new Error(`Image must be under ${MAX_UPLOAD_MB} MB`);
   }
   const kind = sniff(bytes);
   if (!kind) {

@@ -71,7 +71,7 @@ export const maintenanceJobs: MaintenanceJob[] = [
     id: "media-backfill",
     label: "Media backfill",
     description:
-      "Generate missing AVIF/WebP variants for existing product images, in batches. " +
+      "Generate missing WebP variants for existing product images, in batches. " +
       "Resumable — run again to pick up where the last batch left off.",
     form: "mediaBackfill",
     run: async (input) => {

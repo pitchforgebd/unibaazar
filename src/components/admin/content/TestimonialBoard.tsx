@@ -6,8 +6,8 @@ import {
   deleteTestimonialAction,
   testimonialAction,
 } from "@/app/(admin)/admin/content-actions";
-import { uploadCatalogImageAction } from "@/app/(admin)/admin/catalog-actions";
 import { DeleteButton } from "@/components/admin/common/DeleteButton";
+import { uploadAdminImageUrl } from "@/components/admin/common/uploadAdminImage";
 import { Button } from "@/components/ui/Button";
 import { controlBase } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
@@ -26,13 +26,6 @@ type TestimonialRow = {
 };
 
 const blankForm = { id: "", name: "", quote: "", rating: "5", imageUrl: "" };
-
-async function uploadOne(file: File): Promise<string | null> {
-  const body = new FormData();
-  body.set("file", file);
-  const result = await uploadCatalogImageAction(body);
-  return result.ok && result.url ? result.url : null;
-}
 
 export function TestimonialBoard({ rows }: { rows: TestimonialRow[] }) {
   const router = useRouter();
@@ -162,7 +155,7 @@ export function TestimonialBoard({ rows }: { rows: TestimonialRow[] }) {
                 return;
               }
               setUploading(true);
-              void uploadOne(file).then((url) => {
+              void uploadAdminImageUrl(file).then((url) => {
                 setUploading(false);
                 if (url) {
                   setForm((current) => ({ ...current, imageUrl: url }));

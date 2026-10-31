@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
 import { useToastStore } from "@/store/toast";
-import { uploadMarketingImage } from "./imageUpload";
+import { uploadAdminImageUrl } from "@/components/admin/common/uploadAdminImage";
 
 type SliderRow = {
   id: string;
@@ -164,7 +164,7 @@ export function SliderBoard({ sliders }: { sliders: SliderRow[] }) {
                 return;
               }
               setUploading(true);
-              void uploadMarketingImage(file).then((url) => {
+              void uploadAdminImageUrl(file).then((url) => {
                 setUploading(false);
                 if (url) {
                   setSliderForm((current) => ({ ...current, imageUrl: url }));

@@ -17,21 +17,11 @@ import {
  * just maps a requested width onto the nearest pre-generated file — no
  * image processing happens here, ever.
  *
- * AVIF vs WebP tradeoff (read before changing this function):
- * `next/image`'s custom loader API is `({ src, width, quality }) => string`
- * — it returns exactly one URL, with no access to the request's `Accept`
- * header, so it cannot do real content negotiation between AVIF and WebP
- * the way an `<picture>` with multiple `<source>` elements could. Rather
- * than fake negotiation (e.g. sniffing a user-agent string, which is
- * unreliable and adds complexity for little gain), this loader always
- * returns the WebP variant: WebP has near-universal browser support as of
- * 2026 and is still a large win over serving the original PNG/JPEG. AVIF
- * variants are still generated and written to disk by
- * `src/server/media/variants.ts` — they're simply not reachable through
- * `next/image`/this loader. Anywhere in the codebase that wants the extra
- * AVIF saving can hand-author a `<picture>` element with an
- * `<source type="image/avif">` pointing at `variantUrl(url, width, "avif")`
- * and a `<img>`/`next/image` WebP fallback.
+ * Why WebP only: `next/image`'s custom loader API is
+ * `({ src, width, quality }) => string` — it returns exactly one URL, with
+ * no access to the request's `Accept` header, so it can't negotiate
+ * between formats. WebP has near-universal browser support and is a large
+ * win over the original PNG/JPEG, so it's the only format generated.
  *
  * `quality` is intentionally ignored: variant quality is baked in at
  * generation time (see VARIANT_QUALITY in variants.ts), not chosen per

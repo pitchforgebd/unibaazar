@@ -90,14 +90,9 @@ async function fileExists(filePath: string): Promise<boolean> {
 
 async function hasAllVariants(url: string, directory: string): Promise<boolean> {
   for (const width of MEDIA_VARIANT_WIDTHS) {
-    for (const format of ["avif", "webp"] as const) {
-      const filePath = path.join(
-        directory,
-        path.basename(variantUrl(url, width, format)),
-      );
-      if (!(await fileExists(filePath))) {
-        return false;
-      }
+    const filePath = path.join(directory, path.basename(variantUrl(url, width, "webp")));
+    if (!(await fileExists(filePath))) {
+      return false;
     }
   }
   return true;
@@ -122,7 +117,7 @@ export type BackfillMediaVariantsResult = {
 /**
  * Finds existing uploaded images (via `collectCanonicalUploadUrls`, not a
  * blind directory glob) that are missing one or more of the pre-generated
- * AVIF/WebP variants `src/server/media/variants.ts` produces at upload
+ * WebP variants `src/server/media/variants.ts` produces at upload
  * time, and generates the missing ones.
  *
  * For the planned Maintenance-module UI: call this repeatedly (e.g. one

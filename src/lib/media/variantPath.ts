@@ -11,7 +11,7 @@
  *
  * Naming scheme (the loader depends on this exactly):
  *   Given an original upload URL like `/uploads/<uuid>.<ext>`, a resized
- *   variant at width `w` in format `f` ("avif" | "webp") lives at:
+ *   variant at width `w` in format `f` ("webp") lives at:
  *
  *     /uploads/<uuid>-<w>.<f>
  *
@@ -36,7 +36,10 @@ export const MEDIA_VARIANT_WIDTHS = [400, 800, 1200, 1600] as const;
 
 export type MediaVariantWidth = (typeof MEDIA_VARIANT_WIDTHS)[number];
 
-export type MediaVariantFormat = "avif" | "webp";
+// WebP only: the loader can only ever return one URL per request and always
+// picked WebP, so the AVIF variants that used to be written were never served
+// — and single-threaded AVIF encoding was most of each upload's wait.
+export type MediaVariantFormat = "webp";
 
 /**
  * Splits "/uploads/abc123.png" into { base: "/uploads/abc123", ext: "png" }.

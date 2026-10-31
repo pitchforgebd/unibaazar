@@ -42,6 +42,15 @@ const nextConfig: NextConfig = {
   // only slows the build, it never affects the running app.
   experimental: {
     cpus: 1,
+    // Next's default Server Action body limit is 1 MB, which silently
+    // rejected most phone photos before reencodeImage's own size check
+    // (MAX_UPLOAD_MB in src/lib/media/uploadLimits.ts) ever ran. Kept just
+    // above that cap to leave room for multipart overhead. The admin UI
+    // shrinks photos in the browser first (src/lib/media/prepareUpload.ts),
+    // so in practice uploads are far smaller than this.
+    serverActions: {
+      bodySizeLimit: "21mb",
+    },
   },
   // The "Linting and checking validity of types" build step is the single
   // heaviest part of `next build` memory-wise, and this repo already runs

@@ -28,11 +28,9 @@ function trackVariants(originalUrl: string): void {
   const directory = uploadsDirectory();
   writtenFiles.push(path.join(directory, path.basename(originalUrl)));
   for (const width of MEDIA_VARIANT_WIDTHS) {
-    for (const format of ["avif", "webp"] as const) {
-      writtenFiles.push(
-        path.join(directory, path.basename(variantUrl(originalUrl, width, format))),
-      );
-    }
+    writtenFiles.push(
+      path.join(directory, path.basename(variantUrl(originalUrl, width, "webp"))),
+    );
   }
 }
 
@@ -53,7 +51,7 @@ describe("sharp.concurrency", () => {
 });
 
 describe("storeCatalogImage", () => {
-  it("writes the original plus every AVIF/WEBP variant, using the naming scheme the loader expects", async () => {
+  it("writes the original plus every WebP variant, using the naming scheme the loader expects", async () => {
     const url = await storeCatalogImage(new Uint8Array(onePixelPng), "image/png");
     trackVariants(url);
 
@@ -66,11 +64,12 @@ describe("storeCatalogImage", () => {
     expect(split).not.toBeNull();
 
     for (const width of MEDIA_VARIANT_WIDTHS) {
-      for (const format of ["avif", "webp"] as const) {
-        const expectedUrl = variantUrl(url, width, format);
-        expect(expectedUrl).toBe(`${split!.base}-${width}.${format}`);
-        expect(existsSync(path.join(directory, path.basename(expectedUrl)))).toBe(true);
-      }
+      const expectedUrl = variantUrl(url, width, "webp");
+      expect(expectedUrl).toBe(`${split!.base}-${width}.webp`);
+      expect(existsSync(path.join(directory, path.basename(expectedUrl)))).toBe(true);
+      expect(
+        existsSync(path.join(directory, `${path.basename(split!.base)}-${width}.avif`)),
+      ).toBe(false);
     }
   });
 
@@ -93,6 +92,26 @@ describe("storeCatalogImage", () => {
     expect(metadata.height).toBe(1);
   });
 
+  it("applies EXIF orientation, so a sideways-tagged phone photo comes out upright", async () => {
+    // 4x2 pixels on disk, tagged "rotate 90° clockwise to display" (orientation 6).
+    const sideways = await sharp({
+      create: { width: 4, height: 2, channels: 3, background: { r: 200, g: 80, b: 40 } },
+    })
+      .jpeg()
+      .withMetadata({ orientation: 6 })
+      .toBuffer();
+    const url = await storeCatalogImage(new Uint8Array(sideways), "image/jpeg");
+    trackVariants(url);
+
+    const smallest = path.join(
+      uploadsDirectory(),
+      path.basename(variantUrl(url, MEDIA_VARIANT_WIDTHS[0], "webp")),
+    );
+    const metadata = await sharp(await readFile(smallest)).metadata();
+    expect(metadata.width).toBe(2);
+    expect(metadata.height).toBe(4);
+  });
+
   it("skips variant generation for animated GIFs, keeping only the re-encoded original", async () => {
     const url = await storeCatalogImage(new Uint8Array(minimalGif), "image/gif");
     const directory = uploadsDirectory();
@@ -102,13 +121,11 @@ describe("storeCatalogImage", () => {
     expect(existsSync(path.join(directory, path.basename(url)))).toBe(true);
 
     for (const width of MEDIA_VARIANT_WIDTHS) {
-      for (const format of ["avif", "webp"] as const) {
-        const variantPath = path.join(
-          directory,
-          path.basename(variantUrl(url, width, format)),
-        );
-        expect(existsSync(variantPath)).toBe(false);
-      }
+      const variantPath = path.join(
+        directory,
+        path.basename(variantUrl(url, width, "webp")),
+      );
+      expect(existsSync(variantPath)).toBe(false);
     }
   });
 });
