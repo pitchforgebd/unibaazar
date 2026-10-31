@@ -16,6 +16,7 @@ import {
   type QuestionInput,
   type ReviewInput,
 } from "@/lib/validation/customer";
+import { RichText } from "@/components/store/product/RichText";
 import { translatedError } from "@/lib/validation/messages";
 import type { ProductQuestion, Review } from "@/types/catalog";
 
@@ -212,7 +213,9 @@ export function ProductTabs({
     {
       value: "description",
       label: t("tabs.description"),
-      content: <p className="text-sm leading-7 text-foreground">{description}</p>,
+      content: (
+        <RichText safeHtml={description} className="text-sm leading-7 text-foreground" />
+      ),
     },
     {
       value: "reviews",

@@ -1,6 +1,7 @@
 import { variantPrice } from "@/lib/catalog/pricing";
 import { absoluteUrl } from "@/lib/seo/urls";
 import { youtubeEmbedId } from "@/lib/seo/youtube";
+import { visibleText } from "@/lib/text/visibleText";
 import { siteConfig } from "@/config/site";
 import type { Product, ProductVariant } from "@/types/catalog";
 
@@ -102,7 +103,7 @@ export function productJsonLd(
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
-    description: product.shortDescription,
+    description: visibleText(product.shortDescription),
     sku: variant.sku,
     ...(product.images[0] ? { image: absoluteUrl(product.images[0].url) } : {}),
     brand: {
@@ -156,7 +157,7 @@ export function productGroupJsonLd(
     "@context": "https://schema.org",
     "@type": "ProductGroup",
     name: product.name,
-    description: product.shortDescription,
+    description: visibleText(product.shortDescription),
     productGroupID: product.id,
     variesBy: product.attributes.map((attribute) => attribute.name),
     ...(product.images[0] ? { image: absoluteUrl(product.images[0].url) } : {}),

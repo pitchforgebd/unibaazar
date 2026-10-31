@@ -12,6 +12,7 @@ import { TrackOnce } from "@/components/store/tracking/TrackOnce";
 import { ProductTabs } from "@/components/store/product/ProductTabs";
 import { RecentlyViewed } from "@/components/store/product/RecentlyViewed";
 import { buildMetadata } from "@/lib/seo/metadata";
+import { visibleText } from "@/lib/text/visibleText";
 import {
   breadcrumbJsonLd,
   productGroupJsonLd,
@@ -59,7 +60,9 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const seo = product ? await findSeo("PRODUCT", product.id) : null;
   return buildMetadata({
     title: seo?.metaTitle || product?.name || "Product",
-    description: seo?.metaDescription || product?.shortDescription,
+    description:
+      seo?.metaDescription ||
+      (product ? visibleText(product.shortDescription) : undefined),
     path: `/product/${slug}`,
     canonical: seo?.canonical,
     ogImage: seo?.ogImage || product?.images[0]?.url,
@@ -89,7 +92,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const videoSchema = product.videoUrl
     ? videoObjectJsonLd({
         name: product.name,
-        description: product.shortDescription,
+        description: visibleText(product.shortDescription),
         youtubeUrl: product.videoUrl,
       })
     : null;

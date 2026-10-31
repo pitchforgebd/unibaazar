@@ -266,3 +266,38 @@ test("category image parity: a large uploaded category photo shows in the homepa
   expect(response.ok()).toBe(true);
   expect(response.headers()["content-type"]).toContain("image/webp");
 });
+
+test("description parity: rich text shows as formatting on the product page, never as raw tags", async ({
+  page,
+}) => {
+  const marker = `Rich ${Date.now()}`;
+  await page.goto("/admin/products", { waitUntil: "networkidle" });
+  await page
+    .locator("tr", { hasText: "Kids School Bag" })
+    .first()
+    .getByRole("link", { name: "Edit" })
+    .click();
+  await expect(page.getByRole("heading", { name: "Edit product" })).toBeVisible();
+
+  const shortField = page
+    .locator("div.block")
+    .filter({ has: page.getByText("Short description", { exact: true }) });
+  await shortField.getByRole("button", { name: "HTML" }).click();
+  await shortField
+    .locator("textarea")
+    .fill(
+      `<p>${marker} <strong>bold</strong></p><ul><li>First point</li></ul><script>window.__pwned = true</script>`,
+    );
+  await shortField.getByRole("button", { name: "Visual" }).click();
+  await page.getByRole("button", { name: "Save product" }).click();
+  await expect(page.getByText("Product saved.", { exact: false })).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await page.goto("/product/kids-school-bag", { waitUntil: "networkidle" });
+  const bold = page.locator("strong", { hasText: "bold" }).first();
+  await expect(bold).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator("li", { hasText: "First point" }).first()).toBeVisible();
+  await expect(page.getByText("<p>", { exact: false })).toHaveCount(0);
+  expect(await page.evaluate(() => "__pwned" in window)).toBe(false);
+});

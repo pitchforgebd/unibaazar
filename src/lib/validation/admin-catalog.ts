@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { visibleText } from "@/lib/text/visibleText";
 
 const money = z
   .string()
@@ -21,14 +22,6 @@ const slug = z
   .min(1, "Enter a slug")
   .max(180)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens");
-
-export function visibleText(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 export const productFormSchema = z
   .object({

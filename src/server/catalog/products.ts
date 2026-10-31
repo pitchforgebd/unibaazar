@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { sanitizeRichText } from "@/lib/security/sanitizeHtml";
 import { activeFlashSalePrice } from "@/server/catalog/flash";
 import { ApiError } from "@/server/http";
 import { readSession } from "@/server/auth/session";
@@ -87,8 +88,8 @@ export function toProduct(row: ProductRow): Product {
     rating: money(row.rating),
     reviewCount: row.reviewCount,
     imageHue: row.imageHue ?? 0,
-    shortDescription: row.shortDescription,
-    description: row.description,
+    shortDescription: sanitizeRichText(row.shortDescription),
+    description: sanitizeRichText(row.description),
     warranty: row.warranty,
     returns: row.returns,
     videoUrl: row.videoUrl ?? "",

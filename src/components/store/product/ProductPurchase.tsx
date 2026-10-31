@@ -20,6 +20,7 @@ import { siteConfig } from "@/config/site";
 import { formatTaka } from "@/lib/utils/currency";
 import { useAddToCart } from "@/hooks/useAddToCart";
 import { track } from "@/lib/tracking/browser";
+import { RichText } from "@/components/store/product/RichText";
 import { useUiStore } from "@/store/ui";
 import { useCompareStore, useWishlistStore } from "@/store/lists";
 import type { Product } from "@/types/catalog";
@@ -130,7 +131,10 @@ export function ProductPurchase({
         <div className="mt-2">
           <StarRating rating={product.rating} />
         </div>
-        <p className="mt-3 text-sm leading-6 text-muted">{product.shortDescription}</p>
+        <RichText
+          safeHtml={product.shortDescription}
+          className="mt-3 text-sm leading-6 text-muted"
+        />
         <div className="mt-4">
           {variant && price !== null ? (
             <p className="flex flex-wrap items-center gap-2">

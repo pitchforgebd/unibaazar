@@ -1,5 +1,6 @@
 import { Prisma, type PublishStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { visibleText } from "@/lib/text/visibleText";
 import { parseCsv, productCsvColumns, toCsv } from "@/server/admin/csv";
 import {
   bulkSchema,
@@ -701,7 +702,7 @@ export async function saveAdminProduct(
     await postProductToFacebook({
       name: parsed.name,
       slug: parsed.slug,
-      description: parsed.shortDescription,
+      description: visibleText(parsed.shortDescription),
     }).catch(() => undefined);
   }
 
