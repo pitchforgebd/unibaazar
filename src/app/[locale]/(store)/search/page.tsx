@@ -49,7 +49,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         {query.q ? (
           <TrackOnce
             name="Search"
-            payload={{ query: query.q, resultCount: results.length }}
+            data={{ searchTerm: query.q, resultCount: results.length }}
           />
         ) : null}
         {results.length > 0 ? <ProductGrid products={results} reveal /> : null}

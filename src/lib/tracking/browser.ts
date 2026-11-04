@@ -1,19 +1,22 @@
 "use client";
 
-export const trackNames = [
-  "PageView",
-  "ViewContent",
-  "AddToCart",
-  "AddToWishlist",
-  "InitiateCheckout",
-  "AddPaymentInfo",
-  "Purchase",
-  "Search",
-  "CompleteRegistration",
-  "Lead",
-] as const;
+import {
+  firstPartyPayload,
+  toGa4,
+  toMeta,
+  toPinterest,
+  toSnap,
+  toTiktok,
+  TRACKING_CURRENCY,
+  type TrackData,
+} from "@/lib/tracking/ecommerce";
+import { readAdIdentifiers } from "@/lib/tracking/fbclid";
+import { consentKey } from "@/lib/tracking/consentKey";
+import { relayedTrackNames, type TrackName } from "@/lib/tracking/names";
+import { readUtm } from "@/lib/tracking/utm";
+import { ensureVisitorId } from "@/lib/tracking/visitor";
 
-export type TrackName = (typeof trackNames)[number];
+export type { TrackName } from "@/lib/tracking/names";
 
 export type ConsentCategory = "analytics" | "marketing";
 
@@ -22,32 +25,14 @@ export type ConsentCategories = {
   marketing: boolean;
 };
 
-type Fbq = {
-  (...args: unknown[]): void;
-  callMethod?: (...args: unknown[]) => void;
-  queue: unknown[][];
-  loaded: boolean;
-  version: string;
-};
-
 type Gtag = (...args: unknown[]) => void;
 
 declare global {
   interface Window {
-    fbq?: Fbq;
-    _fbq?: Fbq;
     dataLayer?: unknown[];
     gtag?: Gtag;
-    ttq?: {
-      track: (
-        name: string,
-        payload?: Record<string, unknown>,
-        options?: { event_id: string },
-      ) => void;
-      page: () => void;
-    };
-    pintrk?: (command: string, event: string, payload?: Record<string, unknown>) => void;
-    snaptr?: (command: string, event: string, payload?: Record<string, unknown>) => void;
+    /** Set by the head snippet (src/lib/tracking/googleSnippet.ts). */
+    __ubGoogle?: { ga4: string; ads: string; adsLabel: string };
   }
 }
 
@@ -57,33 +42,6 @@ declare global {
 // written before this phase looks) is read as opting into both
 // categories or neither; only a value this phase writes is the new
 // {analytics, marketing} JSON shape.
-const consentKey = "unibaazar:cookie";
-
-const ga4Names: Record<TrackName, string> = {
-  PageView: "page_view",
-  ViewContent: "view_item",
-  AddToCart: "add_to_cart",
-  AddToWishlist: "add_to_wishlist",
-  InitiateCheckout: "begin_checkout",
-  AddPaymentInfo: "add_payment_info",
-  Purchase: "purchase",
-  Search: "search",
-  CompleteRegistration: "sign_up",
-  Lead: "generate_lead",
-};
-
-const tiktokNames: Record<TrackName, string> = {
-  PageView: "Pageview",
-  ViewContent: "ViewContent",
-  AddToCart: "AddToCart",
-  AddToWishlist: "AddToWishlist",
-  InitiateCheckout: "InitiateCheckout",
-  AddPaymentInfo: "AddPaymentInfo",
-  Purchase: "CompletePayment",
-  Search: "Search",
-  CompleteRegistration: "CompleteRegistration",
-  Lead: "Contact",
-};
 
 // Split from readConsent() so the parsing itself is unit-testable
 // without a DOM (this repo's vitest default is plain node, no
@@ -131,80 +89,154 @@ export function hasConsentFor(category: ConsentCategory): boolean {
   return readConsent()?.[category] === true;
 }
 
-/** Any category granted — gates the one thing that isn't itself
- * category-specific (the first-party `/api/v1/tracking` log doubles as
- * both analytics and, via `TrackingEvent`, the audit trail an admin
- * checking "did my ad pixel fire" would look at either way). */
-export function hasTrackingConsent(): boolean {
-  const consent = readConsent();
-  return Boolean(consent?.analytics || consent?.marketing);
-}
+const MAX_DEFERRED = 25;
 
-export function ensureFbq(): void {
-  if (window.fbq) {
+// Events raised before StorePixels has started the pixels, or before the
+// shopper has answered the cookie banner. A product page's ViewContent fires
+// from a child effect, ahead of StorePixels' own, so without this every
+// full-page load lost its first event.
+let deferred: (() => void)[] = [];
+let vendorsReady = false;
+
+export function flushTracking(): void {
+  vendorsReady = true;
+  if (readConsent() === null) {
     return;
   }
-  const fbq = function (this: Fbq, ...args: unknown[]) {
-    if (fbq.callMethod) {
-      fbq.callMethod(...args);
-      return;
-    }
-    fbq.queue.push(args);
-  } as Fbq;
-  fbq.queue = [];
-  fbq.loaded = true;
-  fbq.version = "2.0";
-  window.fbq = fbq;
-  window._fbq = fbq;
+  const pending = deferred;
+  deferred = [];
+  for (const send of pending) {
+    send();
+  }
 }
 
-let adsConversion: { id: string; label: string } | null = null;
-
-/** Called once by StorePixels when Admin → Settings → Tracking's Google
- * Ads fields are both set — `track()` has no other way to reach that
- * config, since call sites (useAddToCart, CheckoutForm, etc.) don't
- * carry it. GA4's own `purchase` event (already sent below) is a
- * different signal; Google Ads conversion tracking specifically needs
- * this distinct `send_to` event to attribute a sale to an ad click. */
-export function setAdsConversionTarget(id: string, label: string): void {
-  adsConversion = id && label ? { id, label } : null;
+function sendToGoogle(name: TrackName, data: TrackData, id: string): void {
+  const { event, params, ecommerce } = toGa4(name, data);
+  window.dataLayer = window.dataLayer ?? [];
+  if (ecommerce) {
+    // Google's rule for GTM: clear the previous ecommerce object first, or
+    // its items leak into this event.
+    window.dataLayer.push({ ecommerce: null });
+    window.dataLayer.push({ event, event_id: id, ecommerce: params });
+  } else {
+    window.dataLayer.push({ event, event_id: id, ...params });
+  }
+  // Only for IDs set in admin directly. A gtag event would otherwise also
+  // reach a GA4 tag inside GTM, counting everything twice. page_view is left
+  // to the Google tag: it sends the first one and Enhanced Measurement sends
+  // the rest from history changes.
+  const google = window.__ubGoogle;
+  if (!google || name === "PageView") {
+    return;
+  }
+  if (google.ga4) {
+    window.gtag?.("event", event, { ...params, event_id: id, send_to: google.ga4 });
+  }
+  if (name === "Purchase" && google.ads && google.adsLabel) {
+    window.gtag?.("event", "conversion", {
+      send_to: `${google.ads}/${google.adsLabel}`,
+      value: params.value,
+      currency: params.currency,
+      transaction_id: data.transactionId ?? id,
+    });
+  }
 }
 
-export function track(
+function sendToMarketing(name: TrackName, data: TrackData, id: string): void {
+  if (name === "PageView") {
+    window.fbq?.("track", "PageView", {}, { eventID: id });
+    window.ttq?.page();
+    window.pintrk?.("page");
+    window.snaptr?.("track", "PAGE_VIEW");
+    return;
+  }
+  const meta = toMeta(name, data);
+  if (meta) {
+    window.fbq?.("track", meta.event, meta.params, { eventID: id });
+  }
+  const tiktok = toTiktok(name, data);
+  if (tiktok) {
+    window.ttq?.track(tiktok.event, tiktok.params, { event_id: id });
+  }
+  const pinterest = toPinterest(name, data, id);
+  if (pinterest) {
+    window.pintrk?.("track", pinterest.event, pinterest.params);
+  }
+  const snap = toSnap(name, data, id);
+  if (snap) {
+    window.snaptr?.("track", snap.event, snap.params);
+  }
+}
+
+function sendToServer(
   name: TrackName,
-  payload: Record<string, string | number> = {},
-  eventId?: string,
+  data: TrackData,
+  id: string,
+  marketing: boolean,
 ): void {
-  const consent = readConsent();
-  if (!consent?.analytics && !consent?.marketing) {
-    return;
-  }
-  const id = eventId ?? crypto.randomUUID();
-  if (consent.analytics) {
-    window.dataLayer = window.dataLayer ?? [];
-    window.dataLayer.push({ event: name, event_id: id, ...payload });
-    window.gtag?.("event", ga4Names[name], { ...payload, event_id: id });
-    if (name === "Purchase" && adsConversion) {
-      window.gtag?.("event", "conversion", {
-        send_to: `${adsConversion.id}/${adsConversion.label}`,
-        value: payload.value,
-        currency: payload.currency,
-        transaction_id: id,
-      });
-    }
-  }
-  if (consent.marketing) {
-    window.fbq?.("track", name, payload, { eventID: id });
-    window.ttq?.track(tiktokNames[name], payload, { event_id: id });
-    if (name === "Purchase") {
-      window.pintrk?.("track", "checkout", payload);
-      window.snaptr?.("track", "PURCHASE", payload);
-    }
-  }
+  const items = data.items?.slice(0, 50).map((item) => ({
+    id: item.id,
+    name: item.name.slice(0, 191),
+    price: item.price,
+    quantity: item.quantity,
+  }));
+  const relay =
+    marketing && relayedTrackNames.includes(name)
+      ? {
+          url: window.location.href.slice(0, 500),
+          items,
+          value: data.value,
+          currency: data.currency ?? TRACKING_CURRENCY,
+          searchTerm: data.searchTerm,
+          externalId: ensureVisitorId(),
+          ...readAdIdentifiers(),
+        }
+      : undefined;
+  const payload =
+    name === "PageView"
+      ? { ...firstPartyPayload(data), ...readUtm(), visitorId: ensureVisitorId() }
+      : firstPartyPayload(data);
   void fetch("/api/v1/tracking", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ name, eventId: id, payload }),
+    body: JSON.stringify({ name, eventId: id, payload, relay }),
     keepalive: true,
   }).catch(() => undefined);
+}
+
+function sendToVendors(name: TrackName, data: TrackData, id: string): void {
+  const consent = readConsent();
+  if (!consent) {
+    return;
+  }
+  if (consent.marketing) {
+    sendToMarketing(name, data, id);
+  }
+  if (consent.analytics || consent.marketing) {
+    sendToServer(name, data, id, consent.marketing);
+  }
+}
+
+/**
+ * The single place storefront code reports an event.
+ *
+ * Google tags load on every page and adapt to consent mode, so the data layer
+ * is fed until a shopper explicitly refuses analytics. Everything else waits
+ * for consent: nothing here reaches Meta, TikTok, Pinterest, Snap or our own
+ * event log before the shopper has accepted.
+ */
+export function track(name: TrackName, data: TrackData = {}, eventId?: string): void {
+  const id = eventId ?? crypto.randomUUID();
+  const consent = readConsent();
+  if (consent && !consent.analytics && !consent.marketing) {
+    return;
+  }
+  if (!consent || consent.analytics) {
+    sendToGoogle(name, data, id);
+  }
+  if (consent && vendorsReady) {
+    sendToVendors(name, data, id);
+    return;
+  }
+  deferred = [...deferred, () => sendToVendors(name, data, id)].slice(-MAX_DEFERRED);
 }

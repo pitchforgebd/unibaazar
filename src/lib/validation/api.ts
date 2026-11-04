@@ -23,8 +23,8 @@ const utmField = z
   .transform((value) => value.replace(/[<>]/g, ""))
   .optional();
 
-// Meta's own first-party identifiers (lib/tracking/fbclid.ts reads them
-// from the `_fbp`/`_fbc` cookies the Pixel script sets) — not user input,
+// Meta's and TikTok's own first-party identifiers (lib/tracking/fbclid.ts
+// reads them from the cookies their pixels set) — not user input,
 // but still untrusted request data, so sanitized the same way utmField is.
 const fbCookieField = z
   .string()
@@ -45,6 +45,8 @@ export const placeOrderSchema = checkoutSchema.and(
     utmContent: utmField,
     fbp: fbCookieField,
     fbc: fbCookieField,
+    ttp: fbCookieField,
+    ttclid: fbCookieField,
   }),
 );
 

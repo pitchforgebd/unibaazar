@@ -17,6 +17,8 @@ export type SettingsField = {
   kind: "text" | "textarea" | "number" | "password" | "checkbox" | "select" | "image";
   options?: { value: string; label: string }[];
   hint?: string;
+  /** Monospace, no spellcheck: for pasted HTML and scripts. */
+  code?: boolean;
   section?: string;
   sectionIntro?: string;
 };
@@ -63,6 +65,7 @@ export function SettingsForm({
         <p className="text-sm text-muted">{intro}</p>
       </div>
       <form
+        autoComplete="off"
         className="space-y-4 rounded-theme bg-card p-4 shadow-soft"
         onSubmit={(event) => {
           event.preventDefault();
@@ -132,6 +135,9 @@ export function SettingsForm({
                 label={field.label}
                 hint={field.hint}
                 value={text}
+                rows={field.code ? 8 : undefined}
+                spellCheck={field.code ? false : undefined}
+                className={field.code ? "font-mono text-xs" : undefined}
                 onChange={(event) => update(field.name, event.target.value)}
               />
             );
@@ -163,6 +169,12 @@ export function SettingsForm({
                       : "text"
                 }
                 value={text}
+                // Without these, browsers treat a settings field as a login
+                // form and fill saved credentials into it: an email in the
+                // field above a password box, a password in the token box.
+                autoComplete={field.kind === "password" ? "new-password" : "off"}
+                data-1p-ignore
+                data-lpignore="true"
                 onChange={(event) => update(field.name, event.target.value)}
               />
             );

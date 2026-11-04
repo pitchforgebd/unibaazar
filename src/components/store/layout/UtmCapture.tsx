@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "@/i18n/navigation";
+import { captureClickIds } from "@/lib/tracking/fbclid";
 import { captureUtm } from "@/lib/tracking/utm";
 
 export function UtmCapture() {
@@ -9,6 +10,7 @@ export function UtmCapture() {
 
   useEffect(() => {
     captureUtm();
+    captureClickIds();
   }, [pathname]);
 
   return null;

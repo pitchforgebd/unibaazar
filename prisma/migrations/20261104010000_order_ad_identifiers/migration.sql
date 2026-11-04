@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE `Order` ADD COLUMN `userAgent` VARCHAR(255) NULL,
+    ADD COLUMN `ttp` VARCHAR(100) NULL,
+    ADD COLUMN `ttclid` VARCHAR(255) NULL;

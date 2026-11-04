@@ -520,11 +520,11 @@ async function trafficReport(
   const buckets = new Map<string, number>();
   for (const event of events) {
     const payload = textPayload(event.payload);
-    const source = payload.utm_source;
+    const source = payload.utmSource;
     if (typeof source !== "string" || source.trim() === "") {
       continue;
     }
-    const medium = typeof payload.utm_medium === "string" ? payload.utm_medium : "";
+    const medium = typeof payload.utmMedium === "string" ? payload.utmMedium : "";
     const key = medium ? `${source} / ${medium}` : source;
     buckets.set(key, (buckets.get(key) ?? 0) + 1);
   }

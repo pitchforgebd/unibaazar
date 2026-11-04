@@ -38,6 +38,7 @@ export function LoginForm({
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
 
   async function finishLogin(body: unknown) {
+    track("Login", { method: "password" });
     const { lines, couponCode } = useCartStore.getState();
     syncCartOnLogin({ lines, couponCode });
     const data =
@@ -233,7 +234,7 @@ export function RegisterForm() {
           setFormError(message);
           return;
         }
-        track("CompleteRegistration");
+        track("CompleteRegistration", { method: "password" });
         router.push("/account");
         router.refresh();
       })}

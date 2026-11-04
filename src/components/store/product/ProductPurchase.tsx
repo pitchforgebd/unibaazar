@@ -20,6 +20,7 @@ import { siteConfig } from "@/config/site";
 import { formatTaka } from "@/lib/utils/currency";
 import { useAddToCart } from "@/hooks/useAddToCart";
 import { track } from "@/lib/tracking/browser";
+import { productTrackItem } from "@/lib/tracking/ecommerce";
 import { RichText } from "@/components/store/product/RichText";
 import { useUiStore } from "@/store/ui";
 import { useCompareStore, useWishlistStore } from "@/store/lists";
@@ -84,6 +85,7 @@ export function ProductPurchase({
       return;
     }
     const added = await addToCart(
+      product,
       { slug: product.slug, variantId: variant.id, qty },
       { openDrawer: false },
     );
@@ -104,6 +106,7 @@ export function ProductPurchase({
     const flight =
       from && target && img ? fly(from, target, img.currentSrc || img.src) : null;
     const added = await addToCart(
+      product,
       { slug: product.slug, variantId: variant.id, qty },
       { openDrawer: false },
     );
@@ -241,7 +244,10 @@ export function ProductPurchase({
             size="sm"
             onClick={() => {
               if (!saved) {
-                track("AddToWishlist", { slug: product.slug });
+                track("AddToWishlist", {
+                  slug: product.slug,
+                  items: variant ? [productTrackItem(product, variant)] : undefined,
+                });
               }
               toggleWishlist(product.slug);
             }}

@@ -1,6 +1,13 @@
-import { createHash } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { TRACKING_CURRENCY, type TrackItem } from "@/lib/tracking/ecommerce";
+import type { TrackName } from "@/lib/tracking/names";
+import {
+  metaEvent,
+  tiktokEvent,
+  type ServerEvent,
+  type ServerEventUser,
+} from "@/server/tracking/capi";
 import {
   loadTracking,
   metaAccessToken,
@@ -8,26 +15,10 @@ import {
   tiktokAccessToken,
 } from "@/server/tracking/config";
 
-export const trackNames = [
-  "PageView",
-  "ViewContent",
-  "AddToCart",
-  "AddToWishlist",
-  "InitiateCheckout",
-  "AddPaymentInfo",
-  "Purchase",
-  "Search",
-  "CompleteRegistration",
-  "Lead",
-] as const;
-
-export type TrackName = (typeof trackNames)[number];
-
 const MAX_CONVERSION_ATTEMPTS = 5;
-
-function sha256(value: string): string {
-  return createHash("sha256").update(value.trim().toLowerCase()).digest("hex");
-}
+const CONVERSION_LOG_DAYS = 30;
+// Checkout waits on the Purchase send, so a slow platform API mustn't hold it.
+const SEND_TIMEOUT_MS = 5000;
 
 export async function recordTrackEvent(input: {
   name: TrackName;
@@ -80,7 +71,7 @@ async function sendConversionEvent(input: {
     const response = await input.send();
     if (!response.ok) {
       status = "failed";
-      error = `HTTP ${response.status}`;
+      error = await failureReason(response);
     }
   } catch (caught) {
     status = "failed";
@@ -100,15 +91,93 @@ async function sendConversionEvent(input: {
   });
 }
 
+/** Keeps the platform's own explanation, which is what an admin needs to fix it. */
+async function failureReason(response: Response): Promise<string> {
+  const text = await response.text().catch(() => "");
+  return `HTTP ${response.status}${text ? ` ${text.slice(0, 300)}` : ""}`;
+}
+
+function postToMeta(
+  endpoint: string,
+  token: string,
+  body: Record<string, unknown>,
+): Promise<Response> {
+  return fetch(`${endpoint}?access_token=${encodeURIComponent(token)}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+  });
+}
+
+function postToTiktok(
+  endpoint: string,
+  token: string,
+  body: Record<string, unknown>,
+): Promise<Response> {
+  return fetch(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json", "Access-Token": token },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+  });
+}
+
+/** Sends one event to every platform that has both a pixel id and a token saved. */
+export async function sendServerEvent(
+  event: ServerEvent,
+  orderId?: string,
+): Promise<void> {
+  const [tracking, metaToken, tiktokToken] = await Promise.all([
+    loadTracking(),
+    metaAccessToken(),
+    tiktokAccessToken(),
+  ]);
+  const meta = tracking.metaPixelId && metaToken ? metaEvent(event) : null;
+  if (meta) {
+    const body = {
+      data: [meta],
+      ...(tracking.metaTestCode ? { test_event_code: tracking.metaTestCode } : {}),
+    };
+    const endpoint = `https://graph.facebook.com/v21.0/${tracking.metaPixelId}/events`;
+    await sendConversionEvent({
+      provider: "meta",
+      eventName: event.name,
+      eventKey: event.eventId,
+      orderId: orderId ?? null,
+      endpoint,
+      body,
+      send: () => postToMeta(endpoint, metaToken, body),
+    });
+  }
+  const tiktok = tracking.tiktokPixelId && tiktokToken ? tiktokEvent(event) : null;
+  if (tiktok) {
+    const endpoint = "https://business-api.tiktok.com/open_api/v1.3/event/track/";
+    const body = {
+      event_source: "web",
+      event_source_id: tracking.tiktokPixelId,
+      data: [tiktok],
+      ...(tracking.tiktokTestCode ? { test_event_code: tracking.tiktokTestCode } : {}),
+    };
+    await sendConversionEvent({
+      provider: "tiktok",
+      eventName: event.name,
+      eventKey: event.eventId,
+      orderId: orderId ?? null,
+      endpoint,
+      body,
+      send: () => postToTiktok(endpoint, tiktokToken, body),
+    });
+  }
+}
+
 export async function signalPurchase(input: {
   eventId: string;
   value: number;
   currency: string;
-  phone: string;
-  email: string;
   orderId?: string;
-  fbp?: string | null;
-  fbc?: string | null;
+  items: TrackItem[];
+  user: ServerEventUser;
 }): Promise<void> {
   await recordTrackEvent({
     name: "Purchase",
@@ -117,80 +186,21 @@ export async function signalPurchase(input: {
     orderNumber: input.eventId,
     payload: { value: input.value, currency: input.currency },
   });
-  const [tracking, metaToken, tiktokToken] = await Promise.all([
-    loadTracking(),
-    metaAccessToken(),
-    tiktokAccessToken(),
-  ]);
-  if (tracking.metaPixelId && metaToken) {
-    const body: Record<string, unknown> = {
-      data: [
-        {
-          event_name: "Purchase",
-          event_time: Math.floor(Date.now() / 1000),
-          event_id: input.eventId,
-          action_source: "website",
-          event_source_url: `${siteOrigin()}/order-success/${input.eventId}`,
-          user_data: {
-            ph: [sha256(input.phone)],
-            ...(input.email ? { em: [sha256(input.email)] } : {}),
-            ...(input.fbp ? { fbp: input.fbp } : {}),
-            ...(input.fbc ? { fbc: input.fbc } : {}),
-          },
-          custom_data: { currency: input.currency, value: input.value },
-        },
-      ],
-      ...(tracking.metaTestCode ? { test_event_code: tracking.metaTestCode } : {}),
-    };
-    const endpoint = `https://graph.facebook.com/v21.0/${tracking.metaPixelId}/events`;
-    await sendConversionEvent({
-      provider: "meta",
-      eventName: "Purchase",
-      eventKey: input.eventId,
-      orderId: input.orderId ?? null,
-      endpoint,
-      body,
-      send: () =>
-        fetch(`${endpoint}?access_token=${encodeURIComponent(metaToken)}`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(body),
-        }),
-    });
-  }
-  if (tracking.tiktokPixelId && tiktokToken) {
-    const endpoint = "https://business-api.tiktok.com/open_api/v1.3/event/track/";
-    const body = {
-      event_source: "web",
-      event_source_id: tracking.tiktokPixelId,
-      data: [
-        {
-          event: "CompletePayment",
-          event_time: Math.floor(Date.now() / 1000),
-          event_id: input.eventId,
-          user: {
-            phone: sha256(input.phone),
-            ...(input.email ? { email: sha256(input.email) } : {}),
-          },
-          properties: { currency: input.currency, value: input.value },
-        },
-      ],
-    };
-    await sendConversionEvent({
-      provider: "tiktok",
-      eventName: "Purchase",
-      eventKey: input.eventId,
-      orderId: input.orderId ?? null,
-      endpoint,
-      body,
-      send: () =>
-        fetch(endpoint, {
-          method: "POST",
-          headers: { "content-type": "application/json", "Access-Token": tiktokToken },
-          body: JSON.stringify(body),
-        }),
-    });
-  }
+  await sendServerEvent(
+    {
+      name: "Purchase",
+      eventId: input.eventId,
+      url: `${siteOrigin()}/order-success/${input.eventId}`,
+      data: {
+        value: input.value,
+        currency: input.currency,
+        transactionId: input.eventId,
+        items: input.items,
+      },
+      user: input.user,
+    },
+    input.orderId,
+  );
 }
 
 /**
@@ -202,7 +212,10 @@ export async function signalPurchase(input: {
  * docs/decisions/0020-phase-9-scope-facebook-meta-module.md.
  */
 export async function signalPurchaseOnConfirmedPayment(orderId: string): Promise<void> {
-  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true },
+  });
   if (!order || order.paymentMethod === "COD") {
     return;
   }
@@ -210,11 +223,23 @@ export async function signalPurchaseOnConfirmedPayment(orderId: string): Promise
     eventId: order.number,
     orderId: order.id,
     value: order.total.toNumber(),
-    currency: "BDT",
-    phone: order.phone,
-    email: order.email ?? "",
-    fbp: order.fbp,
-    fbc: order.fbc,
+    currency: TRACKING_CURRENCY,
+    items: order.items.map((item) => ({
+      id: item.sku,
+      name: item.name,
+      price: item.unitPrice.toNumber(),
+      quantity: item.qty,
+    })),
+    user: {
+      phone: order.phone,
+      email: order.email ?? "",
+      ip: order.ipAddress ?? undefined,
+      userAgent: order.userAgent ?? undefined,
+      fbp: order.fbp,
+      fbc: order.fbc,
+      ttp: order.ttp,
+      ttclid: order.ttclid,
+    },
   });
 }
 
@@ -239,33 +264,18 @@ export async function retryFailedConversions(): Promise<{
     let ok = false;
     let error: string | null = null;
     try {
+      const token =
+        row.provider === "meta" ? await metaAccessToken() : await tiktokAccessToken();
+      if (!token) {
+        throw new Error(`No ${row.provider} token configured`);
+      }
       const response =
         row.provider === "meta"
-          ? await (async () => {
-              const token = await metaAccessToken();
-              if (!token) {
-                throw new Error("No Meta CAPI token configured");
-              }
-              return fetch(`${row.endpoint}?access_token=${encodeURIComponent(token)}`, {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify(body),
-              });
-            })()
-          : await (async () => {
-              const token = await tiktokAccessToken();
-              if (!token) {
-                throw new Error("No TikTok events API token configured");
-              }
-              return fetch(row.endpoint, {
-                method: "POST",
-                headers: { "content-type": "application/json", "Access-Token": token },
-                body: JSON.stringify(body),
-              });
-            })();
+          ? await postToMeta(row.endpoint, token, body)
+          : await postToTiktok(row.endpoint, token, body);
       ok = response.ok;
       if (!ok) {
-        error = `HTTP ${response.status}`;
+        error = await failureReason(response);
       }
     } catch (caught) {
       error = caught instanceof Error ? caught.message : "Network error";
@@ -282,6 +292,13 @@ export async function retryFailedConversions(): Promise<{
       fixed += 1;
     }
   }
+  // Every relayed browser event logs a row, so the table needs a ceiling.
+  await prisma.conversionApiLog.deleteMany({
+    where: {
+      status: "sent",
+      createdAt: { lt: new Date(Date.now() - CONVERSION_LOG_DAYS * 24 * 60 * 60 * 1000) },
+    },
+  });
   return { retried: rows.length, fixed };
 }
 

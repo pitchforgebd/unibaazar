@@ -759,6 +759,7 @@ model Order {
   customerNote   String?              @db.Text
   internalNote   String?              @db.Text
   ipAddress      String?              @db.VarChar(64)
+  userAgent      String?              @db.VarChar(255)
   utmSource      String?              @db.VarChar(100)
   utmMedium      String?              @db.VarChar(100)
   utmCampaign    String?              @db.VarChar(100)
@@ -766,6 +767,8 @@ model Order {
   utmContent     String?              @db.VarChar(100)
   fbp            String?              @db.VarChar(100)
   fbc            String?              @db.VarChar(255)
+  ttp            String?              @db.VarChar(100)
+  ttclid         String?              @db.VarChar(255)
   placedAt       DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
   user           User?                @relation(fields: [userId], references: [id], onDelete: SetNull)

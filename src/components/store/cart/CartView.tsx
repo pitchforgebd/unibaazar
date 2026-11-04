@@ -12,7 +12,10 @@ import { QuantityStepper } from "@/components/store/cart/QuantityStepper";
 import { ProductMedia } from "@/components/store/product/ProductMedia";
 import { summarizeCart } from "@/lib/catalog/cart-lines";
 import { productImage } from "@/lib/catalog/pricing";
+import { TrackOnce } from "@/components/store/tracking/TrackOnce";
 import { useCartCatalog } from "@/lib/catalog/useCartCatalog";
+import { track } from "@/lib/tracking/browser";
+import { cartTrackItems } from "@/lib/tracking/cart";
 import { formatTaka } from "@/lib/utils/currency";
 import { useCartStore } from "@/store/cart";
 import { useToastStore } from "@/store/toast";
@@ -52,6 +55,7 @@ export function CartView() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <TrackOnce name="ViewCart" data={{ items: cartTrackItems(summary.resolved) }} />
       <ul className="space-y-3">
         {summary.resolved.map((item) => (
           <li
@@ -86,6 +90,7 @@ export function CartView() {
                   variant="ghost"
                   size="sm"
                   onClick={() => {
+                    track("RemoveFromCart", { items: cartTrackItems([item]) });
                     removeLine(item.line.slug, item.line.variantId);
                     push(toast("removed"));
                   }}

@@ -99,8 +99,6 @@ export const socialSchema = z.object({
 export const systemSchema = z.object({
   maintenance: z.boolean(),
   cookieText: z.string().trim().max(500),
-  headerScript: z.string().max(5000),
-  footerScript: z.string().max(5000),
 });
 
 export const alertsSchema = z.object({

@@ -11,7 +11,9 @@ import { StaggeredProductGrid } from "@/components/store/product/StaggeredProduc
 import { TrackOnce } from "@/components/store/tracking/TrackOnce";
 import { ProductTabs } from "@/components/store/product/ProductTabs";
 import { RecentlyViewed } from "@/components/store/product/RecentlyViewed";
+import { defaultVariant } from "@/lib/catalog/pricing";
 import { buildMetadata } from "@/lib/seo/metadata";
+import { productTrackItem } from "@/lib/tracking/ecommerce";
 import { visibleText } from "@/lib/text/visibleText";
 import {
   breadcrumbJsonLd,
@@ -133,7 +135,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
       <Container className="py-6">
         <TrackOnce
           name="ViewContent"
-          payload={{ slug: product.slug, name: product.name }}
+          data={{
+            slug: product.slug,
+            items: [productTrackItem(product, defaultVariant(product))],
+          }}
         />
         <ProductPurchase
           product={product}

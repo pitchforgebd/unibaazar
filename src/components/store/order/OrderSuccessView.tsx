@@ -36,7 +36,7 @@ export function OrderSuccessView({ id }: { id: string }) {
     setOrder(next);
     if (next && !tracked.current) {
       tracked.current = true;
-      trackPurchase({ id: next.id, total: next.total });
+      trackPurchase(next);
     }
   }, [id]);
 

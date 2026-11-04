@@ -77,8 +77,6 @@ export type SocialSettings = {
 export type SystemSettings = {
   maintenance: boolean;
   cookieText: string;
-  headerScript: string;
-  footerScript: string;
 };
 
 export const generalDefaults: GeneralSettings = {
@@ -157,8 +155,6 @@ export const socialDefaults: SocialSettings = {
 export const systemDefaults: SystemSettings = {
   maintenance: false,
   cookieText: "",
-  headerScript: "",
-  footerScript: "",
 };
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -332,7 +328,5 @@ export async function loadSystem(): Promise<SystemSettings> {
   return {
     maintenance: flag(row, "maintenance", systemDefaults.maintenance),
     cookieText: text(row, "cookieText", systemDefaults.cookieText),
-    headerScript: text(row, "headerScript", systemDefaults.headerScript),
-    footerScript: text(row, "footerScript", systemDefaults.footerScript),
   };
 }

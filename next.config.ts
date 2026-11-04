@@ -15,7 +15,8 @@ const scriptSrc = [
   .filter(Boolean)
   .join(" ");
 
-const contentSecurityPolicy = [
+// Admin: only what the admin itself uses. No third-party tags load there.
+const adminContentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -27,6 +28,25 @@ const contentSecurityPolicy = [
   `script-src ${scriptSrc}`,
   "connect-src 'self' https://challenges.cloudflare.com https://accounts.google.com https://oauth2.googleapis.com https://graph.facebook.com https://www.googleapis.com",
   "frame-src https://challenges.cloudflare.com https://www.youtube.com https://www.youtube-nocookie.com https://www.instagram.com https://www.facebook.com",
+].join("; ");
+
+// Storefront: open to any https origin. Tag Manager containers and the admin's
+// custom code boxes load tags from domains nobody can list at build time, and
+// Google's own CSP guide requires 'unsafe-eval' for GTM custom JavaScript
+// variables. See docs/decisions/0038-tracking-rebuild.md.
+const storefrontContentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  "object-src 'none'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data: https:",
+  "style-src 'self' 'unsafe-inline' https:",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
+  "connect-src 'self' https: wss:",
+  "frame-src https:",
+  "worker-src 'self' blob:",
 ].join("; ");
 
 const nextConfig: NextConfig = {
@@ -80,7 +100,7 @@ const nextConfig: NextConfig = {
       { key: "X-Content-Type-Options", value: "nosniff" },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-      { key: "Content-Security-Policy", value: contentSecurityPolicy },
+      { key: "Content-Security-Policy", value: storefrontContentSecurityPolicy },
     ];
     if (process.env.NODE_ENV === "production") {
       headers.push({
@@ -90,6 +110,11 @@ const nextConfig: NextConfig = {
     }
     return [
       { source: "/:path*", headers },
+      // Later rules win for the same key, so this narrows the admin back down.
+      {
+        source: "/admin/:path*",
+        headers: [{ key: "Content-Security-Policy", value: adminContentSecurityPolicy }],
+      },
       {
         source: "/api/:path*",
         headers: [

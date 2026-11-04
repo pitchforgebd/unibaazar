@@ -13,6 +13,8 @@ import { ProductMedia } from "@/components/store/product/ProductMedia";
 import { summarizeCart } from "@/lib/catalog/cart-lines";
 import { productImage } from "@/lib/catalog/pricing";
 import { useCartCatalog } from "@/lib/catalog/useCartCatalog";
+import { track } from "@/lib/tracking/browser";
+import { cartTrackItems } from "@/lib/tracking/cart";
 import { formatTaka } from "@/lib/utils/currency";
 import { useCartStore } from "@/store/cart";
 import { useToastStore } from "@/store/toast";
@@ -118,6 +120,7 @@ export function CartDrawer() {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
+                        track("RemoveFromCart", { items: cartTrackItems([item]) });
                         removeLine(item.line.slug, item.line.variantId);
                         push(toast("removed"));
                       }}

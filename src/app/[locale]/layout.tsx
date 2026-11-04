@@ -5,11 +5,12 @@ import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { fontVariables } from "@/app/fonts";
 import { buildRootMetadata } from "@/app/metadata";
-import { FooterScript, HeaderScript } from "@/components/layout/SiteScripts";
+import { TrackingBody, TrackingHead } from "@/components/layout/TrackingTags";
 import { routing } from "@/i18n/routing";
 import { THEME_PRESETS } from "@/lib/theme/presets";
 import { themeStyleTag } from "@/lib/theme/styleTag";
-import { loadSystem, loadTheme } from "@/server/settings/store";
+import { loadTheme } from "@/server/settings/store";
+import { loadTracking } from "@/server/tracking/config";
 import "@/styles/globals.css";
 
 export function generateStaticParams() {
@@ -32,9 +33,9 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   }
   setRequestLocale(locale);
 
-  const [messages, system, theme] = await Promise.all([
+  const [messages, tracking, theme] = await Promise.all([
     getMessages(),
-    loadSystem(),
+    loadTracking(),
     loadTheme(),
   ]);
   const tokens = THEME_PRESETS[theme.presetId];
@@ -47,11 +48,11 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
          * src/lib/theme/styleTag.ts). Admin doesn't render this and keeps
          * globals.css's static fallback instead. */}
         <style dangerouslySetInnerHTML={{ __html: themeStyleTag(tokens) }} />
+        <TrackingHead config={tracking} />
       </head>
       <body className="min-h-full bg-page font-sans text-foreground antialiased">
-        <HeaderScript script={system.headerScript} />
+        <TrackingBody config={tracking} />
         <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
-        <FooterScript script={system.footerScript} />
       </body>
     </html>
   );

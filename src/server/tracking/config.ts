@@ -6,6 +6,7 @@ import { saveSetting } from "@/server/settings/store";
 export type TrackingSettings = {
   metaPixelId: string;
   metaTestCode: string;
+  tiktokTestCode: string;
   gtmId: string;
   ga4Id: string;
   adsId: string;
@@ -16,11 +17,14 @@ export type TrackingSettings = {
   snapId: string;
   clarityId: string;
   hotjarId: string;
+  customHead: string;
+  customBody: string;
 };
 
 export const trackingDefaults: TrackingSettings = {
   metaPixelId: "",
   metaTestCode: "",
+  tiktokTestCode: "",
   gtmId: "",
   ga4Id: "",
   adsId: "",
@@ -31,6 +35,8 @@ export const trackingDefaults: TrackingSettings = {
   snapId: "",
   clarityId: "",
   hotjarId: "",
+  customHead: "",
+  customBody: "",
 };
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -55,6 +61,7 @@ export async function loadTracking(): Promise<TrackingSettings> {
   return {
     metaPixelId: text(body, "metaPixelId"),
     metaTestCode: text(body, "metaTestCode"),
+    tiktokTestCode: text(body, "tiktokTestCode"),
     gtmId: text(body, "gtmId"),
     ga4Id: text(body, "ga4Id"),
     adsId: text(body, "adsId"),
@@ -65,6 +72,8 @@ export async function loadTracking(): Promise<TrackingSettings> {
     snapId: text(body, "snapId"),
     clarityId: text(body, "clarityId"),
     hotjarId: text(body, "hotjarId"),
+    customHead: text(body, "customHead"),
+    customBody: text(body, "customBody"),
   };
 }
 

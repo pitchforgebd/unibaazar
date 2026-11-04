@@ -16,8 +16,10 @@ import { Textarea } from "@/components/ui/Textarea";
 import { summarizeCart } from "@/lib/catalog/cart-lines";
 import { useCartCatalog } from "@/lib/catalog/useCartCatalog";
 import { useCheckoutQuote, type CheckoutQuote } from "@/lib/catalog/useCheckoutQuote";
+import { TrackOnce } from "@/components/store/tracking/TrackOnce";
 import { track } from "@/lib/tracking/browser";
-import { readFbclidCookies } from "@/lib/tracking/fbclid";
+import { cartTrackItems } from "@/lib/tracking/cart";
+import { readAdIdentifiers } from "@/lib/tracking/fbclid";
 import { readUtm } from "@/lib/tracking/utm";
 import { isStoredOrder, savePlacedOrder } from "@/lib/orders/session";
 import { formatTaka } from "@/lib/utils/currency";
@@ -100,7 +102,9 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
       setFormError("Enter a valid Bangladeshi mobile number");
       return;
     }
-    track("AddPaymentInfo", { method: values.paymentMethod });
+    const items = cartTrackItems(summary.resolved);
+    track("AddShippingInfo", { items, shippingTier: values.area });
+    track("AddPaymentInfo", { items, paymentType: values.paymentMethod });
     const state = useCartStore.getState();
     const response = await fetch("/api/v1/orders", {
       method: "POST",
@@ -112,7 +116,7 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
         couponCode: state.couponCode || undefined,
         reservationToken: state.reservationToken,
         ...readUtm(),
-        ...readFbclidCookies(),
+        ...readAdIdentifiers(),
       }),
     });
     const body: unknown = await response.json().catch(() => null);
@@ -270,6 +274,10 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
           </div>
         ) : null}
       </div>
+      <TrackOnce
+        name="InitiateCheckout"
+        data={{ items: cartTrackItems(summary.resolved) }}
+      />
       <CheckoutSummary
         items={summary.resolved}
         subtotal={formatTaka(liveQuote?.subtotal ?? summary.subtotal)}

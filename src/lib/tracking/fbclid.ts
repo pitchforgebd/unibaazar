@@ -20,11 +20,63 @@ export function parseCookie(cookieString: string, name: string): string | undefi
   return match ? decodeURIComponent(match[1]) : undefined;
 }
 
-export function readFbclidCookies(): { fbp?: string; fbc?: string } {
+const clickKey = "unibaazar:click-ids";
+
+type ClickIds = { fbclid?: string; fbclidAt?: number; ttclid?: string };
+
+function readClickIds(): ClickIds {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(clickKey) ?? "{}");
+    return parsed && typeof parsed === "object" ? (parsed as ClickIds) : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Keeps ad-click ids from the landing URL. The pixels that would normally pick
+ * them up only start after cookie consent, by which point the shopper may have
+ * moved on from the URL that carried them.
+ */
+export function captureClickIds(): void {
+  try {
+    const search = new URLSearchParams(window.location.search);
+    const fbclid = search.get("fbclid")?.slice(0, 200);
+    const ttclid = search.get("ttclid")?.slice(0, 200);
+    if (!fbclid && !ttclid) {
+      return;
+    }
+    window.localStorage.setItem(
+      clickKey,
+      JSON.stringify({
+        ...readClickIds(),
+        ...(fbclid ? { fbclid, fbclidAt: Date.now() } : {}),
+        ...(ttclid ? { ttclid } : {}),
+      }),
+    );
+  } catch {
+    // storage unavailable — attribution is best-effort
+  }
+}
+
+export function readAdIdentifiers(): {
+  fbp?: string;
+  fbc?: string;
+  ttp?: string;
+  ttclid?: string;
+} {
+  const clicks = readClickIds();
   const fbp = parseCookie(document.cookie, "_fbp");
-  const fbc = parseCookie(document.cookie, "_fbc");
+  const ttp = parseCookie(document.cookie, "_ttp");
+  const fbc =
+    parseCookie(document.cookie, "_fbc") ??
+    (clicks.fbclid
+      ? `fb.1.${clicks.fbclidAt ?? Date.now()}.${clicks.fbclid}`
+      : undefined);
   return {
     ...(fbp ? { fbp } : {}),
     ...(fbc ? { fbc } : {}),
+    ...(ttp ? { ttp } : {}),
+    ...(clicks.ttclid ? { ttclid: clicks.ttclid } : {}),
   };
 }

@@ -38,8 +38,6 @@ export function SystemBoard({
       fields={[
         { name: "maintenance", label: "Maintenance mode", kind: "checkbox" },
         { name: "cookieText", label: "Cookie banner text", kind: "textarea" },
-        { name: "headerScript", label: "Header script", kind: "textarea" },
-        { name: "footerScript", label: "Footer script", kind: "textarea" },
       ]}
       extra={
         <div className="space-y-3 rounded-theme bg-card p-4 shadow-soft">

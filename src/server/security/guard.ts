@@ -42,6 +42,7 @@ export type WriteBucket = keyof typeof identityWindows;
 export type RequestContext = {
   ip: string;
   device: string;
+  userAgent: string;
 };
 
 /**
@@ -121,5 +122,9 @@ export async function guardWrite(
       maxAge: 60 * 60 * 24 * 365,
     });
   }
-  return { ip, device };
+  return {
+    ip,
+    device,
+    userAgent: request.headers.get("user-agent")?.slice(0, 255) ?? "",
+  };
 }

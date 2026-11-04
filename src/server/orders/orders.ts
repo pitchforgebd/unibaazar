@@ -8,6 +8,7 @@ import { ApiError } from "@/server/http";
 import { readSession } from "@/server/auth/session";
 import { areaToDb, paymentToDb, quoteCart } from "@/server/checkout/quote";
 import { loadCheckout } from "@/server/settings/store";
+import { TRACKING_CURRENCY } from "@/lib/tracking/ecommerce";
 import { signalPurchase } from "@/server/tracking/signals";
 import { commitStock } from "@/modules/inventory";
 import { incrementFlashSold } from "@/modules/inventory/server/flash";
@@ -106,20 +107,34 @@ function orderNumber(prefix: string): { number: string; trackingId: string } {
   return { number: `${prefix}${digits}`, trackingId: `SF${digits}BD` };
 }
 
-async function customerFor(phone: string, name: string, email: string) {
-  const session = await readSession();
+/**
+ * Finds or creates the customer behind this phone number. `Customer.userId` is
+ * unique, so an account that already owns a customer row for another phone
+ * can't own this one too: linking it anyway failed the whole order. The order
+ * itself still carries the user id, so it shows in their history regardless.
+ */
+export async function customerFor(
+  phone: string,
+  name: string,
+  email: string,
+  userId?: string,
+) {
+  const owned = userId
+    ? await prisma.customer.findUnique({ where: { userId }, select: { phone: true } })
+    : null;
+  const linkTo = userId && (!owned || owned.phone === phone) ? userId : undefined;
   return prisma.customer.upsert({
     where: { phone },
     update: {
       name,
       ...(email ? { email } : {}),
-      ...(session ? { userId: session.userId } : {}),
+      ...(linkTo ? { userId: linkTo } : {}),
     },
     create: {
       name,
       phone,
       email: email || null,
-      userId: session?.userId,
+      userId: linkTo,
     },
   });
 }
@@ -141,12 +156,17 @@ export async function placeOrder(
     utmContent?: string;
     fbp?: string;
     fbc?: string;
+    ttp?: string;
+    ttclid?: string;
     /** Same opaque id the client used for its cart quote(s) — lets
      * placeOrder consume the stock already held under that reservation
      * instead of decrementing again. Optional for backward compatibility. */
     reservationToken?: string;
   },
-  context: { ip: string; device: string } = { ip: "unknown", device: "unknown" },
+  context: { ip: string; device: string; userAgent?: string } = {
+    ip: "unknown",
+    device: "unknown",
+  },
 ): Promise<Order> {
   const phone = normalizeBdPhone(input.phone);
   if (!phone) {
@@ -170,7 +190,7 @@ export async function placeOrder(
   if (checkout.minOrder > 0 && quote.subtotal < checkout.minOrder) {
     throw new ApiError(400, `The minimum order is ${checkout.minOrder}`);
   }
-  const customer = await customerFor(phone, input.name, input.email);
+  const customer = await customerFor(phone, input.name, input.email, session?.userId);
   await assertCheckoutAllowed({
     phone,
     ip: context.ip,
@@ -211,12 +231,15 @@ export async function placeOrder(
             total: quote.total,
             status: "PENDING",
             ipAddress: context.ip,
+            userAgent: context.userAgent || null,
             utmSource: input.utmSource || null,
             utmMedium: input.utmMedium || null,
             utmCampaign: input.utmCampaign || null,
             utmTerm: input.utmTerm || null,
             utmContent: input.utmContent || null,
             fbp: input.fbp || null,
+            ttp: input.ttp || null,
+            ttclid: input.ttclid || null,
             fbc: input.fbc || null,
             items: {
               create: quote.lines.map((line) => ({
@@ -261,11 +284,23 @@ export async function placeOrder(
           eventId: created.number,
           orderId: created.id,
           value: quote.total,
-          currency: "BDT",
-          phone,
-          email: input.email,
-          fbp: input.fbp,
-          fbc: input.fbc,
+          currency: TRACKING_CURRENCY,
+          items: created.items.map((item) => ({
+            id: item.sku,
+            name: item.name,
+            price: item.unitPrice.toNumber(),
+            quantity: item.qty,
+          })),
+          user: {
+            phone,
+            email: input.email,
+            ip: context.ip,
+            userAgent: context.userAgent,
+            fbp: input.fbp,
+            fbc: input.fbc,
+            ttp: input.ttp,
+            ttclid: input.ttclid,
+          },
         }).catch(() => undefined);
       }
       await recordAudit({

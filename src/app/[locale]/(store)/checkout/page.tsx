@@ -3,7 +3,6 @@ import { getTranslations } from "next-intl/server";
 import { Container } from "@/components/ui/Container";
 import { PageTitle } from "@/components/store/common/PageTitle";
 import { CheckoutForm } from "@/components/store/checkout/CheckoutForm";
-import { TrackOnce } from "@/components/store/tracking/TrackOnce";
 import { loadCheckout } from "@/server/settings/store";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -28,7 +27,6 @@ export default async function CheckoutPage() {
         ]}
       />
       <Container className="py-6">
-        <TrackOnce name="InitiateCheckout" />
         <CheckoutForm codEnabled={checkout.cod} />
       </Container>
     </>
