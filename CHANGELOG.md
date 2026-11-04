@@ -4,6 +4,36 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Tracking rebuild (2026-11-04)
+
+Every field in Admin → Tracking now saves, shows again, and reaches the storefront
+the way its platform documents (ADR 0038, setup guide in `docs/tracking.md`).
+
+### Fixed
+
+- Tracking settings couldn't save: browser autofill put login details into them.
+- The CSP blocked every tag; `gtag` was a no-op; TikTok, Pinterest and Snap never
+  initialised; consent defaults ran too late.
+- Events carried no product data, and the first event of a full page load was lost.
+- Server Purchase lacked the user agent Meta requires, and phones lacked the
+  country code, so they could never match.
+- Search Console's tag now always renders in `<head>`, and accepts the whole tag.
+- The traffic report read `utm_source` where events store `utmSource`, so it was
+  always empty.
+
+### Added
+
+- The GA4 ecommerce event set in the data layer, in GA4's format.
+- GTM noscript fallback, Consent Mode v2 defaults, TikTok test event code.
+- Server-side Meta and TikTok events for the main funnel, deduplicated with the
+  browser's, and failed sends now show the platform's own error.
+- Custom code boxes for `<head>` and `<body>`, checked on save so a broken tag can't
+  take the site down. They replace System → Header/Footer script.
+
+### Migration
+
+`20261104010000_order_ad_identifiers`, applied automatically by the deploy.
+
 ## Post-launch fixes (2026-10-31)
 
 ### Fixed
