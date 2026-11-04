@@ -228,6 +228,25 @@ jobs:
       - name: Prune to production node_modules
         run: npm prune --omit=dev
 
+      # Unpacking on the host hits its I/O cap (10 MB/s), so 1.1 GB took the
+      # full 1m50s that repeatedly ended in SIGKILL, and each file counts
+      # against the inode limit. None of this is read at runtime: the Prisma
+      # CLI and its engines (the client ships its own, and migrations use the
+      # mysql CLI), effect and playwright-core (optional peers npm keeps), the
+      # musl SWC binary (the host is glibc), and lucide-react (compiled into
+      # .next). typescript and the glibc SWC binary must stay: next.config.ts
+      # is transpiled with them at every start. The smoke test below proves it.
+      - name: Remove packages the running site never loads
+        run: |
+          rm -rf node_modules/prisma \
+            node_modules/@prisma/engines \
+            node_modules/effect \
+            node_modules/playwright-core \
+            node_modules/playwright \
+            node_modules/@next/swc-linux-x64-musl \
+            node_modules/lucide-react
+          du -sh node_modules
+
       # `scripts` is not optional: deploy.yml invokes
       # scripts/deploy/deploy-release.sh *from inside the unpacked
       # release*, and that script in turn runs scripts/deploy/backup-db.sh
@@ -259,6 +278,43 @@ jobs:
             package.json \
             package-lock.json \
             release-info.json
+
+      # Runs the real artifact, unpacked somewhere with no other node_modules
+      # to fall back on, so a package removed above that turns out to be
+      # needed fails here rather than on the live site.
+      - name: Smoke-test the packaged release
+        env:
+          NODE_ENV: production
+          PORT: "3200"
+          DATABASE_URL: mysql://root@127.0.0.1:3306/unibaazar_build
+          NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3200
+          AUTH_SECRET: smoke-test-only-secret-at-least-32-characters
+        run: |
+          mkdir -p /tmp/release
+          tar -xzf artifact/release.tar.gz -C /tmp/release
+          du -sh /tmp/release
+          find /tmp/release | wc -l
+          cd /tmp/release
+          node server.js > /tmp/smoke.log 2>&1 &
+          server=$!
+          healthy=""
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3200/api/health | grep -q '"db":"ok"'; then
+              healthy="yes"
+              break
+            fi
+            sleep 1
+          done
+          status=0
+          if [ -z "$healthy" ]; then
+            status=1
+          fi
+          for path in / /shop /cart /login; do
+            curl -fsS -o /dev/null "http://127.0.0.1:3200$path" || status=1
+          done
+          kill "$server"
+          cat /tmp/smoke.log
+          exit "$status"
 
       - uses: actions/upload-artifact@v4
         with:

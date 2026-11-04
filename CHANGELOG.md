@@ -34,6 +34,14 @@ the way its platform documents (ADR 0038, setup guide in `docs/tracking.md`).
 
 `20261104010000_order_ad_identifiers`, applied automatically by the deploy.
 
+### Deploy
+
+- The release drops packages the running site never loads (Prisma CLI and engines,
+  `effect`, `playwright-core`, the musl SWC binary, `lucide-react`), because
+  unpacking 1.1 GB was being killed at 1m50s on the host. The exact cause of the
+  kill is still unproven.
+- CI now unpacks and starts the real artifact before it can be deployed.
+
 ## Post-launch fixes (2026-10-31)
 
 ### Fixed
