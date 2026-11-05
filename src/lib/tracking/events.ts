@@ -29,7 +29,7 @@ export function trackPurchase(order: Order): void {
       transactionId: order.id,
       value: order.total,
       shipping: order.deliveryCharge,
-      discount: order.discount || undefined,
+      coupon: order.couponCode,
       paymentType: order.paymentMethod,
       items: order.items.map((item) => ({
         id: item.sku,

@@ -17,7 +17,17 @@ const CATALOG_REVALIDATE_SECONDS = 300;
 
 const productInclude = {
   brand: true,
-  categories: { include: { category: true } },
+  categories: {
+    include: {
+      category: {
+        include: {
+          parent: {
+            include: { parent: { include: { parent: { include: { parent: true } } } } },
+          },
+        },
+      },
+    },
+  },
   attributes: { include: { attribute: true }, orderBy: { sortOrder: "asc" } },
   images: { orderBy: { sortOrder: "asc" } },
   variants: {
@@ -73,6 +83,27 @@ function attributeOptions(row: ProductRow): ProductAttribute[] {
   });
 }
 
+type CategoryNode = { name: string; parent?: CategoryNode | null };
+
+function categoryChain(node: CategoryNode): string[] {
+  const names: string[] = [];
+  for (
+    let current: CategoryNode | null | undefined = node;
+    current;
+    current = current.parent
+  ) {
+    names.unshift(current.name);
+  }
+  return names;
+}
+
+/** The deepest assigned category's path from the top level, at most 5 names (GA4's limit). */
+function categoryPath(row: ProductRow): string[] {
+  const chains = row.categories.map((link) => categoryChain(link.category));
+  const deepest = chains.sort((a, b) => b.length - a.length)[0] ?? [];
+  return deepest.slice(0, 5);
+}
+
 export function toProduct(row: ProductRow): Product {
   const category = row.categories[0]?.category;
   const productImages = row.images
@@ -85,6 +116,7 @@ export function toProduct(row: ProductRow): Product {
     brandSlug: row.brand.slug,
     brandName: row.brand.name,
     categorySlug: category?.slug ?? "",
+    categoryPath: categoryPath(row),
     rating: money(row.rating),
     reviewCount: row.reviewCount,
     imageHue: row.imageHue ?? 0,

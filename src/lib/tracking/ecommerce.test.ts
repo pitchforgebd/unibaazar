@@ -15,7 +15,7 @@ const book: TrackItem = {
   price: 500,
   quantity: 2,
   brand: "Ayan",
-  category: "book",
+  categories: ["Book", "Story books"],
 };
 const toy: TrackItem = { id: "SKU-2", name: "Toy Car", price: 300, quantity: 1 };
 
@@ -31,11 +31,13 @@ describe("toGa4", () => {
           {
             item_id: "SKU-1",
             item_name: "Story Book",
-            price: 500,
-            quantity: 2,
+            affiliation: "UniBaazar",
             index: 0,
             item_brand: "Ayan",
-            item_category: "book",
+            item_category: "Book",
+            item_category2: "Story books",
+            price: 500,
+            quantity: 2,
           },
         ],
       },
@@ -58,6 +60,20 @@ describe("toGa4", () => {
       coupon: "EID10",
       currency: "BDT",
     });
+  });
+
+  it("sends tax on purchase, and puts the coupon and list on every item", () => {
+    const { params } = toGa4("Purchase", { items: [toy], coupon: "EID10" });
+    expect(params.tax).toBe(0);
+    expect((params.items as Record<string, unknown>[])[0]).toMatchObject({
+      coupon: "EID10",
+      affiliation: "UniBaazar",
+    });
+    const list = toGa4("ViewItemList", { items: [toy], listName: "Shop" });
+    expect((list.params.items as Record<string, unknown>[])[0].item_list_name).toBe(
+      "Shop",
+    );
+    expect(toGa4("AddToCart", { items: [toy] }).params.tax).toBeUndefined();
   });
 
   it("keeps non-ecommerce events flat", () => {

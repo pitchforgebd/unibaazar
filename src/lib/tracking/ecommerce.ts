@@ -3,6 +3,7 @@ import type { TrackName } from "@/lib/tracking/names";
 import type { Product, ProductVariant } from "@/types/catalog";
 
 export const TRACKING_CURRENCY = "BDT";
+export const TRACKING_AFFILIATION = "UniBaazar";
 
 /** `id` is the variant SKU: the same id the Meta/Google catalog feeds publish. */
 export type TrackItem = {
@@ -11,7 +12,8 @@ export type TrackItem = {
   price: number;
   quantity: number;
   brand?: string;
-  category?: string;
+  /** Top level first; GA4 takes up to five. */
+  categories?: string[];
   variant?: string;
 };
 
@@ -22,7 +24,7 @@ export type TrackData = {
   transactionId?: string;
   coupon?: string;
   shipping?: number;
-  discount?: number;
+  tax?: number;
   paymentType?: string;
   shippingTier?: string;
   listName?: string;
@@ -37,7 +39,7 @@ export type TrackData = {
 };
 
 export function productTrackItem(
-  product: Pick<Product, "name" | "brandName" | "categorySlug">,
+  product: Pick<Product, "name" | "brandName" | "categoryPath">,
   variant: ProductVariant,
   quantity = 1,
 ): TrackItem {
@@ -48,7 +50,7 @@ export function productTrackItem(
     price: variantPrice(variant),
     quantity,
     ...(product.brandName ? { brand: product.brandName } : {}),
-    ...(product.categorySlug ? { category: product.categorySlug } : {}),
+    ...(product.categoryPath?.length ? { categories: product.categoryPath } : {}),
     ...(label ? { variant: label } : {}),
   };
 }
@@ -100,16 +102,33 @@ const ga4Ecommerce: readonly TrackName[] = [
   "Purchase",
 ];
 
-function ga4Item(item: TrackItem, index: number): Record<string, unknown> {
+const categoryKeys = [
+  "item_category",
+  "item_category2",
+  "item_category3",
+  "item_category4",
+  "item_category5",
+];
+
+function ga4Item(
+  item: TrackItem,
+  index: number,
+  data: TrackData,
+): Record<string, unknown> {
   return compact({
     item_id: item.id,
     item_name: item.name,
-    price: item.price,
-    quantity: item.quantity,
+    affiliation: TRACKING_AFFILIATION,
+    coupon: data.coupon,
     index,
     item_brand: item.brand,
-    item_category: item.category,
+    ...Object.fromEntries(
+      (item.categories ?? []).slice(0, 5).map((name, at) => [categoryKeys[at], name]),
+    ),
+    item_list_name: data.listName,
     item_variant: item.variant,
+    price: item.price,
+    quantity: item.quantity,
   });
 }
 
@@ -124,13 +143,13 @@ export function toGa4(
         currency: data.currency ?? TRACKING_CURRENCY,
         value: eventValue(data),
         transaction_id: data.transactionId,
-        coupon: data.coupon,
+        tax: name === "Purchase" ? (data.tax ?? 0) : undefined,
         shipping: data.shipping,
-        discount: data.discount,
+        coupon: data.coupon,
         payment_type: data.paymentType,
         shipping_tier: data.shippingTier,
         item_list_name: data.listName,
-        items: data.items?.map(ga4Item),
+        items: data.items?.map((item, index) => ga4Item(item, index, data)),
       })
     : compact({
         search_term: data.searchTerm,

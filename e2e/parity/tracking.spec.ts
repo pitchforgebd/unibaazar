@@ -256,6 +256,8 @@ test("Google loads under denied consent; other pixels wait for Accept", async ({
       expect.objectContaining({
         item_id: expect.any(String),
         item_name: "Kids School Bag",
+        affiliation: "UniBaazar",
+        item_category: expect.any(String),
         price: expect.any(Number),
         quantity: 1,
       }),
@@ -378,6 +380,7 @@ test("a full purchase: cart events, begin_checkout, purchase, and no repeat on r
   expect(purchase.ecommerce.transaction_id).toBe(orderId);
   expect(purchase.ecommerce.value).toBeGreaterThan(0);
   expect(purchase.ecommerce.items[0].item_id).toBe(sku);
+  expect(purchase.ecommerce).toMatchObject({ currency: "BDT", tax: 0 });
   const [metaPurchase] = await fbqCalls(page, "Purchase");
   expect(metaPurchase[3]).toEqual({ eventID: orderId });
 

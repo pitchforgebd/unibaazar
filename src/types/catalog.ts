@@ -36,6 +36,8 @@ export type Product = {
   brandSlug: string;
   brandName: string;
   categorySlug: string;
+  /** Category names from the top level down, e.g. ["Book", "Story books"]. */
+  categoryPath?: string[];
   rating: number;
   reviewCount: number;
   imageHue: number;
@@ -147,6 +149,7 @@ export type Order = {
   items: OrderLine[];
   subtotal: number;
   discount: number;
+  couponCode?: string;
   deliveryCharge: number;
   total: number;
   status: OrderStatus;

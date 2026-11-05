@@ -53,7 +53,7 @@ function stamp(date: Date): string {
 }
 
 type OrderRow = Prisma.OrderGetPayload<{
-  include: { items: true; statusHistory: true };
+  include: { items: true; statusHistory: true; coupon: { select: { code: true } } };
 }>;
 
 export function presentOrder(order: OrderRow): Order {
@@ -94,6 +94,7 @@ export function presentOrder(order: OrderRow): Order {
     })),
     subtotal: order.subtotal.toNumber(),
     discount: order.discount.toNumber(),
+    couponCode: order.coupon?.code ?? undefined,
     deliveryCharge: order.deliveryCharge.toNumber(),
     total: order.total.toNumber(),
     status: statusLabel[order.status],
@@ -260,7 +261,11 @@ export async function placeOrder(
               },
             },
           },
-          include: { items: true, statusHistory: true },
+          include: {
+            items: true,
+            statusHistory: true,
+            coupon: { select: { code: true } },
+          },
         });
         if (quote.couponId) {
           await tx.coupon.update({
@@ -358,7 +363,11 @@ export async function trackOrder(orderId: string, phoneInput: string): Promise<O
   }
   const order = await prisma.order.findFirst({
     where: { number: orderId.trim(), phone },
-    include: { items: true, statusHistory: { orderBy: { createdAt: "asc" } } },
+    include: {
+      items: true,
+      statusHistory: { orderBy: { createdAt: "asc" } },
+      coupon: { select: { code: true } },
+    },
   });
   if (!order) {
     throw new ApiError(404, "No order matches that ID and phone");
@@ -391,7 +400,11 @@ export async function cancelOrder(number: string, phoneInput: string): Promise<O
   );
   const updated = await prisma.order.findUniqueOrThrow({
     where: { id: order.id },
-    include: { items: true, statusHistory: { orderBy: { createdAt: "asc" } } },
+    include: {
+      items: true,
+      statusHistory: { orderBy: { createdAt: "asc" } },
+      coupon: { select: { code: true } },
+    },
   });
   return presentOrder(updated);
 }
@@ -428,7 +441,11 @@ export async function requestReturn(
   });
   const updated = await prisma.order.findUniqueOrThrow({
     where: { id: order.id },
-    include: { items: true, statusHistory: { orderBy: { createdAt: "asc" } } },
+    include: {
+      items: true,
+      statusHistory: { orderBy: { createdAt: "asc" } },
+      coupon: { select: { code: true } },
+    },
   });
   return presentOrder(updated);
 }
@@ -444,7 +461,11 @@ export async function ordersForSession(): Promise<Order[]> {
   }
   const rows = await prisma.order.findMany({
     where: { OR: [{ userId: user.id }, { phone: user.phone }] },
-    include: { items: true, statusHistory: { orderBy: { createdAt: "asc" } } },
+    include: {
+      items: true,
+      statusHistory: { orderBy: { createdAt: "asc" } },
+      coupon: { select: { code: true } },
+    },
     orderBy: { placedAt: "desc" },
   });
   return rows.map(presentOrder);
@@ -461,7 +482,11 @@ export async function orderForSession(number: string): Promise<Order> {
   }
   const row = await prisma.order.findFirst({
     where: { number, OR: [{ userId: user.id }, { phone: user.phone }] },
-    include: { items: true, statusHistory: { orderBy: { createdAt: "asc" } } },
+    include: {
+      items: true,
+      statusHistory: { orderBy: { createdAt: "asc" } },
+      coupon: { select: { code: true } },
+    },
   });
   if (!row) {
     throw new ApiError(404, "That order is not on this account");

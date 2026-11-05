@@ -103,8 +103,9 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
       return;
     }
     const items = cartTrackItems(summary.resolved);
-    track("AddShippingInfo", { items, shippingTier: values.area });
-    track("AddPaymentInfo", { items, paymentType: values.paymentMethod });
+    const coupon = useCartStore.getState().couponCode ?? undefined;
+    track("AddShippingInfo", { items, coupon, shippingTier: values.area });
+    track("AddPaymentInfo", { items, coupon, paymentType: values.paymentMethod });
     const state = useCartStore.getState();
     const response = await fetch("/api/v1/orders", {
       method: "POST",
@@ -276,7 +277,10 @@ export function CheckoutForm({ codEnabled = true }: { codEnabled?: boolean }) {
       </div>
       <TrackOnce
         name="InitiateCheckout"
-        data={{ items: cartTrackItems(summary.resolved) }}
+        data={{
+          items: cartTrackItems(summary.resolved),
+          coupon: couponCode ?? undefined,
+        }}
       />
       <CheckoutSummary
         items={summary.resolved}
