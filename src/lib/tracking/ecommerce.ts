@@ -36,6 +36,8 @@ export type TrackData = {
   path?: string;
   title?: string;
   url?: string;
+  /** Purchase only: data layer, never GA4. See src/lib/tracking/customer.ts. */
+  customer?: Record<string, string>;
 };
 
 export function productTrackItem(

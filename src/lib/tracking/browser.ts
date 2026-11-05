@@ -30,7 +30,10 @@ type Gtag = (...args: unknown[]) => void;
 declare global {
   interface Window {
     dataLayer?: unknown[];
+    /** Consent commands, sent to both data layers. */
     gtag?: Gtag;
+    /** Events for GA4/Ads set directly in admin, on their own data layer. */
+    ubGtag?: Gtag;
     /** Set by the head snippet (src/lib/tracking/googleSnippet.ts). */
     __ubGoogle?: { ga4: string; ads: string; adsLabel: string };
   }
@@ -117,7 +120,11 @@ function sendToGoogle(name: TrackName, data: TrackData, id: string): void {
     // Google's rule for GTM: clear the previous ecommerce object first, or
     // its items leak into this event.
     window.dataLayer.push({ ecommerce: null });
-    window.dataLayer.push({ event, event_id: id, ecommerce: params });
+    window.dataLayer.push({
+      event,
+      event_id: id,
+      ecommerce: data.customer ? { ...params, customer: data.customer } : params,
+    });
   } else {
     window.dataLayer.push({ event, event_id: id, ...params });
   }
@@ -130,10 +137,10 @@ function sendToGoogle(name: TrackName, data: TrackData, id: string): void {
     return;
   }
   if (google.ga4) {
-    window.gtag?.("event", event, { ...params, event_id: id, send_to: google.ga4 });
+    window.ubGtag?.("event", event, { ...params, event_id: id, send_to: google.ga4 });
   }
   if (name === "Purchase" && google.ads && google.adsLabel) {
-    window.gtag?.("event", "conversion", {
+    window.ubGtag?.("event", "conversion", {
       send_to: `${google.ads}/${google.adsLabel}`,
       value: params.value,
       currency: params.currency,

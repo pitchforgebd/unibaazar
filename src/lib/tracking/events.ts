@@ -1,4 +1,5 @@
-import { track } from "@/lib/tracking/browser";
+import { readConsent, track } from "@/lib/tracking/browser";
+import { purchaseCustomer } from "@/lib/tracking/customer";
 import type { Order } from "@/types/catalog";
 
 const trackedKey = "unibaazar:tracked-orders";
@@ -19,10 +20,13 @@ function alreadyTracked(id: string): boolean {
 }
 
 /** Reloading the order page must not report the sale a second time. */
-export function trackPurchase(order: Order): void {
+export async function trackPurchase(order: Order): Promise<void> {
   if (typeof window === "undefined" || alreadyTracked(order.id)) {
     return;
   }
+  // Personal details only reach the data layer if marketing wasn't turned down.
+  const customer =
+    readConsent()?.marketing === false ? undefined : await purchaseCustomer(order);
   track(
     "Purchase",
     {
@@ -31,6 +35,7 @@ export function trackPurchase(order: Order): void {
       shipping: order.deliveryCharge,
       coupon: order.couponCode,
       paymentType: order.paymentMethod,
+      customer,
       items: order.items.map((item) => ({
         id: item.sku,
         name: item.name,

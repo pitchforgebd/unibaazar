@@ -182,9 +182,9 @@ test("the raw HTML carries each tag where its platform requires it", async ({ pa
     const gtm = head.indexOf("googletagmanager.com/gtm.js");
     expect(consent).toBeGreaterThan(-1);
     expect(gtm).toBeGreaterThan(consent);
-    expect(head).toContain("function gtag(){dataLayer.push(arguments);}");
+    expect(head).toContain("function gtmGtag(){dataLayer.push(arguments);}");
     expect(head).toContain('"GTM-TEST123"');
-    expect(head).toContain("gtag/js?id=G-TEST12345");
+    expect(head).toContain("gtag/js?id=G-TEST12345&amp;l=ubGtagLayer");
   });
 
   // Next.js puts its own empty hidden div first; everything of ours follows it.
@@ -355,6 +355,12 @@ test("a full purchase: cart events, begin_checkout, purchase, and no repeat on r
   await page.getByRole("button", { name: "Add to cart" }).click();
   const added = await expectEvent(page, "add_to_cart");
   const sku = added.ecommerce.items[0].item_id;
+  // GTM must see each event once: gtag's own commands live on another layer.
+  const layer = await dataLayer(page);
+  expect(layer.filter((row) => row.event === "add_to_cart")).toHaveLength(1);
+  expect(
+    layer.filter((row) => Array.isArray(row.gtag) && row.gtag[0] === "event"),
+  ).toEqual([]);
   expect(added.ecommerce.value).toBeGreaterThan(0);
   expect((await fbqCalls(page, "AddToCart"))[0][2]).toEqual(
     expect.objectContaining({ content_ids: [sku], currency: "BDT" }),
@@ -381,6 +387,14 @@ test("a full purchase: cart events, begin_checkout, purchase, and no repeat on r
   expect(purchase.ecommerce.value).toBeGreaterThan(0);
   expect(purchase.ecommerce.items[0].item_id).toBe(sku);
   expect(purchase.ecommerce).toMatchObject({ currency: "BDT", tax: 0 });
+  const customer = (purchase.ecommerce as unknown as { customer: Record<string, string> })
+    .customer;
+  expect(customer).toMatchObject({
+    name: expect.stringContaining("Tracking Test"),
+    phone: expect.stringMatching(/^017/),
+    phone_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
+    address_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
+  });
   const [metaPurchase] = await fbqCalls(page, "Purchase");
   expect(metaPurchase[3]).toEqual({ eventID: orderId });
 
