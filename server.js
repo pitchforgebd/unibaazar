@@ -1,3 +1,9 @@
+// Prisma's engine starts one worker thread per CPU the machine reports, not per
+// CPU this account may use. On the shared host that's ~35 threads per app copy
+// against an account limit of 100, so a second or third copy panics with "timer
+// has gone away" and takes the site down. Must be set before Prisma loads.
+process.env.TOKIO_WORKER_THREADS ??= "2";
+
 const { createReadStream } = require("node:fs");
 const { stat } = require("node:fs/promises");
 const { createServer } = require("node:http");

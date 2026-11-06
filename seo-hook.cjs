@@ -12,7 +12,10 @@ async function refreshRedirects() {
   });
   const next = new Map();
   for (const row of rows) {
-    if (row.toPath !== row.fromPath && (row.statusCode === 301 || row.statusCode === 302)) {
+    if (
+      row.toPath !== row.fromPath &&
+      (row.statusCode === 301 || row.statusCode === 302)
+    ) {
       next.set(row.fromPath, row);
     }
   }
@@ -42,7 +45,12 @@ async function installSeoHook() {
     return;
   }
   installed = true;
-  await refreshRedirects();
+  // A throw here fails Next's instrumentation hook, and Next then answers every
+  // request with a 500 for the life of the process. Redirects aren't worth
+  // that: the interval below retries, and the middleware has its own lookup.
+  await refreshRedirects().catch((error) => {
+    console.error("seo-hook: could not load redirects at startup", error);
+  });
   setInterval(() => {
     void refreshRedirects().catch(() => undefined);
   }, 2000);

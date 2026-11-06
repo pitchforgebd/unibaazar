@@ -312,6 +312,7 @@ jobs:
           for path in / /shop /cart /login; do
             curl -fsS -o /dev/null "http://127.0.0.1:3200$path" || status=1
           done
+          grep Threads "/proc/$server/status"
           kill "$server"
           cat /tmp/smoke.log
           exit "$status"
