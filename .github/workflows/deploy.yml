@@ -83,18 +83,13 @@ jobs:
           target: ${{ secrets.APP_PATH }}/incoming
           strip_components: 1
 
-      # command_timeout defaults to 10m in appleboy/ssh-action, which the
-      # first real deploy hit: the release artifact includes a full
-      # production node_modules (hundreds of MB, tens of thousands of
-      # small files — output: "standalone" is deliberately not used, see
-      # ARCHITECTURE.md), and extracting that many small files is slow on
-      # this host's I/O even though it isn't short on RAM (confirmed via
-      # `free -h`: 124GB total, 42GB available at the time of the
-      # failure) — drone-ssh killed the remote tar at the 10-minute mark
-      # mid-extraction (1.1GB already unpacked from a 316MB archive, so
-      # it was making real progress, just not fast enough). See
-      # docs/decisions/0034-deploy-ssh-command-timeout.md.
-      - name: Unpack the release
+      # tar runs detached, not inside this SSH session. Run in the session, it
+      # was SIGKILLed partway through (at 1m14s to 1m50s, even with the app
+      # stopped and the account idle), while the same command finished in
+      # cPanel's Terminal both times it was tried. The next step polls for the
+      # result over short separate connections, so no session has to stay open
+      # for the 90 seconds or so the unpack takes on this host's I/O limit.
+      - name: Start unpacking the release
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -102,7 +97,6 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }} # see the first step's comment
           port: ${{ secrets.SSH_PORT }}
-          command_timeout: 30m
           script_stop: true
           script: |
             set -euo pipefail
@@ -110,10 +104,44 @@ jobs:
             RELEASE_DIR="releases/${{ inputs.sha }}"
             # A re-run starts clean: a previous attempt killed mid-unpack
             # would otherwise leave stale or truncated files behind.
-            rm -rf "$RELEASE_DIR"
+            rm -rf "$RELEASE_DIR" incoming/unpack.status
             mkdir -p "$RELEASE_DIR"
-            tar -xzf "incoming/release.tar.gz" -C "$RELEASE_DIR"
-            rm -f "incoming/release.tar.gz"
+            DETACH=""
+            if command -v setsid >/dev/null 2>&1; then DETACH="setsid"; fi
+            nohup $DETACH sh -c 'tar -xzf incoming/release.tar.gz -C "$1"; code=$?; if [ "$code" = 0 ]; then rm -f incoming/release.tar.gz; fi; echo "$code" > incoming/unpack.status' sh "$RELEASE_DIR" > incoming/unpack.log 2>&1 < /dev/null &
+            echo "Unpack started"
+
+      - name: Wait for the unpack to finish
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          APP_PATH: ${{ secrets.APP_PATH }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          remote() {
+            ssh -i ~/.ssh/deploy_key -p "${SSH_PORT:-22}" \
+              -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 \
+              "$SSH_USER@$SSH_HOST" "$1"
+          }
+          for _ in $(seq 1 60); do
+            sleep 10
+            status="$(remote "cat '$APP_PATH/incoming/unpack.status' 2>/dev/null" || true)"
+            if [ "$status" = "0" ]; then
+              echo "Unpacked"
+              exit 0
+            fi
+            if [ -n "$status" ]; then
+              echo "tar exited with status $status" >&2
+              remote "cat '$APP_PATH/incoming/unpack.log'" >&2 || true
+              exit 1
+            fi
+          done
+          echo "The unpack didn't finish within 10 minutes" >&2
+          exit 1
 
       # Everything past this point — shared-dir symlinks, DB backup,
       # migrations, syncing into the live directory, the restart, the

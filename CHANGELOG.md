@@ -4,6 +4,24 @@ All notable changes to UniBaazar are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); phases are tracked instead of
 version numbers while the v2 rebuild (`UNIBAAZAR_V2_MASTER_PLAN.md`) is in progress.
 
+## Live site stability (2026-11-06)
+
+### Fixed
+
+- **Every page returned a plain 500.** Prisma panicked at startup when the account
+  ran short of threads, and the failure in the instrumentation hook made Next.js
+  fail every request until restart. The hook now logs and retries.
+- **Each app copy held 45 threads of the account's 100.** Prisma's worker threads
+  are capped at 2 (`TOKIO_WORKER_THREADS` in `server.js`), measured at 16 on the host.
+- **GitHub deploys were killed while unpacking.** `tar` now runs detached on the
+  host and the workflow polls for the result. Not yet proven by a real run.
+- GTM no longer fires every event twice when GA4 is also set in admin.
+
+### Added
+
+- `ecommerce.customer` on `purchase` for GTM, with SHA-256 hashes; never sent to GA4.
+- Category names, `affiliation`, `coupon` and `tax` in the data layer.
+
 ## Tracking rebuild (2026-11-04)
 
 Every field in Admin → Tracking now saves, shows again, and reaches the storefront
